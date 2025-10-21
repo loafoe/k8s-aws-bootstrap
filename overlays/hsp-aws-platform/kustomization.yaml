@@ -5,4 +5,4 @@ resources:
   - ../nginx
   - eso
   - vpa
-  - hsp-addons.yaml
+  - hsp-addons
