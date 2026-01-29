@@ -12,9 +12,9 @@ spec:
   project: default
   source:
     path: kustomize
-    repoURL: https://github.com/dip-software/crossplane-compositions
-    # renovate: datasource=github-tags depName=dip-software/crossplane-compositions
-    targetRevision: v0.0.12
+    repoURL: https://github.com/loafoe/crossplane-compositions
+    # renovate: datasource=github-tags depName=loafoe/crossplane-compositions
+    targetRevision: v0.0.15
   syncPolicy:
     automated:
       prune: false
