@@ -40,7 +40,7 @@ spec:
     set -e
     
     # ECR Credential Provider version (renovate-friendly)
-    ECR_CREDENTIAL_PROVIDER_VERSION="v1.34.1-dip.1"
+    ECR_CREDENTIAL_PROVIDER_VERSION="v1.35.0"
     
     # Update system
     apt-get update
@@ -59,7 +59,7 @@ spec:
     
     # Install ECR Credential Provider
     mkdir -p /var/lib/rancher/credentialprovider/bin
-    curl -L "https://github.com/dip-software/cloud-provider-aws/releases/download/${ECR_CREDENTIAL_PROVIDER_VERSION}/ecr-credential-provider-linux-${ARCH}" \
+    curl -L "https://github.com/loafoe/cloud-provider-aws/releases/download/${ECR_CREDENTIAL_PROVIDER_VERSION}/ecr-credential-provider-linux-${ARCH}" \
       -o /var/lib/rancher/credentialprovider/bin/ecr-credential-provider
     chmod +x /var/lib/rancher/credentialprovider/bin/ecr-credential-provider
     
