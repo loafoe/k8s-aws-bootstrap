@@ -11,7 +11,6 @@ module.exports = {
   platform: "github",
   forkProcessing: "disabled",
   dryRun: null,
-  repositories: ["loafoe/k8s-aws-bootstrap"],
   enabledManagers: ["custom.regex"],
   customManagers: [
     {
