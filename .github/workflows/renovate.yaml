@@ -27,7 +27,7 @@ jobs:
         uses: renovatebot/github-action@v43.0.16
         with:
           renovate-version: ${{ env.RENOVATE_VERSION }}
-          token: '${{ secrets.RENOVATE_TOKEN }}'
+          token: '${{ secrets.GITHUB_TOKEN }}'
           configurationFile: '.github/renovate-config.js'
         env:
           RENOVATE_ALLOW_SCRIPTS: true
