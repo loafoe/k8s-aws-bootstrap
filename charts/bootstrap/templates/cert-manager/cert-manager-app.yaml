@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://charts.jetstack.io
     # renovate: datasource=github-releases depName=cert-manager/cert-manager
-    targetRevision: v1.19.2
+    targetRevision: v1.19.3
     chart: cert-manager
     helm:
       valuesObject:
