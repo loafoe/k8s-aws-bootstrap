@@ -1,5 +1,5 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+apiVersion: dip.io/v1alpha1
+kind: HelmApplication
 metadata:
   name: crossplane-providers-aws
   namespace: argocd
@@ -13,14 +13,7 @@ spec:
     targetRevision: 0.0.24
     path: .
     helm:
-      values: |
-        config:
-          awsRegion: {{ .Values.environmentConfig.bootstrap.awsRegion }}
-          resourcePrefix: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}
-          awsAccountId: "{{ .Values.environmentConfig.bootstrap.awsAccountId }}"
-          oidcProvider: {{ .Values.environmentConfig.bootstrap.oidcProvider }}
-          oidcProviderArn: {{ .Values.environmentConfig.bootstrap.oidcProviderArn }}
-          clusterName: {{ .Values.environmentConfig.bootstrap.clusterName }}
+      valuesObject:
         extraProviders:
           - name: provider-aws-iam
             enabled: true
@@ -31,7 +24,6 @@ spec:
               limits:
                 memory: 640Mi 
   destination:
-    server: https://kubernetes.default.svc
     namespace: crossplane-system
   syncPolicy:
     automated:
