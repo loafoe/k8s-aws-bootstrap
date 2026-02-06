@@ -14,6 +14,8 @@ spec:
     path: .
     helm:
       valuesObject:
+        environmentConfig:
+          foo: "bar"
         extraProviders:
           - name: provider-aws-iam
             enabled: true
