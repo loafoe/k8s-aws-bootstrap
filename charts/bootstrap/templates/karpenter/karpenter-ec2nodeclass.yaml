@@ -7,18 +7,18 @@ metadata:
     argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
-  # Ubuntu AMI family (note: Ubuntu support was dropped in Karpenter v1.0+)
-  # Using Custom AMI family with Ubuntu AMI selection
+  # Amazon Linux 2023 AMI family
+  # Using Custom AMI family with AL2023 AMI selection
   amiFamily: Custom
   
-  # Select Ubuntu AMIs for K3s (both AMD64 and ARM64)
+  # Select Amazon Linux 2023 AMIs for K3s (both x86_64 and ARM64)
   amiSelectorTerms:
-    # Ubuntu 22.04 LTS AMD64
-    - name: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-*"
-      owner: "099720109477" # Canonical
-    # Ubuntu 22.04 LTS ARM64  
-    - name: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-arm64-*"
-      owner: "099720109477" # Canonical
+    # Amazon Linux 2023 x86_64
+    - name: "al2023-ami-2023.*-kernel-*-x86_64"
+      owner: "137112412989" # Amazon
+    # Amazon Linux 2023 ARM64
+    - name: "al2023-ami-2023.*-kernel-*-arm64"
+      owner: "137112412989" # Amazon
         
   # Instance profile (pre-created for K3s)
   instanceProfile: {{ .Values.environmentConfig.bootstrap.karpenterInstanceProfile }}
@@ -42,9 +42,13 @@ spec:
     # ECR Credential Provider version (renovate-friendly)
     ECR_CREDENTIAL_PROVIDER_VERSION="v1.35.0"
     
-    # Update system
-    apt-get update
-    apt-get install -y curl awscli jq
+    # Disable firewalld (AL2023 has it enabled by default)
+    # Required for K3s networking (kubelet, VXLAN, etc.)
+    systemctl stop firewalld || true
+    systemctl disable firewalld || true
+    
+    # Install required packages (curl and awscli are pre-installed on AL2023)
+    dnf install -y jq git
     
     # Get IMDSv2 token for architecture detection
     TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
@@ -181,9 +185,9 @@ spec:
     # Log successful completion
     echo "Node $(hostname) has completed K3s agent setup"
     
-  # Block device mapping for Ubuntu
+  # Block device mapping for Amazon Linux 2023
   blockDeviceMappings:
-    - deviceName: /dev/sda1
+    - deviceName: /dev/xvda
       rootVolume: true
       ebs:
         volumeSize: 20Gi
