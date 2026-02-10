@@ -10,8 +10,8 @@ metadata:
     link.argocd.argoproj.io/external-link: https://argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
 spec:
   parentRefs:
-    - name: shared-gateway
-      namespace: gateway
+    - name: platform
+      namespace: kube-system
       sectionName: https
   hostnames:
     - argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
