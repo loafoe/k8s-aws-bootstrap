@@ -33,5 +33,5 @@ spec:
         certificateRefs:
           - kind: Secret
             name: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
-            namespace: gateway
+            namespace: kube-system
 {{- end }}
