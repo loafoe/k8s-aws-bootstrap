@@ -10,8 +10,8 @@ metadata:
     link.argocd.argoproj.io/external-link: https://grafana.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
 spec:
   parentRefs:
-    - name: shared-gateway
-      namespace: gateway
+    - name: platform
+      namespace: kube-system
       sectionName: https
   hostnames:
     - grafana.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
