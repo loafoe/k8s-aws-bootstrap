@@ -21,6 +21,6 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: kube-prometheus-stack-grafana
+        - name: kps-grafana
           port: 80
 {{- end }}
