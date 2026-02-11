@@ -14,7 +14,7 @@ spec:
     path: kustomize
     repoURL: https://github.com/loafoe/crossplane-compositions
     # renovate: datasource=github-tags depName=loafoe/crossplane-compositions
-    targetRevision: v0.0.18
+    targetRevision: v0.0.19
   syncPolicy:
     automated:
       prune: false
