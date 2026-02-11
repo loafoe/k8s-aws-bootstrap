@@ -8,11 +8,6 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  ignoreDifferences:
-    - group: "*"
-      kind: "*"
-      jsonPointers:
-        - /metadata/finalizers
   destination:
     namespace: kyverno
     server: https://kubernetes.default.svc
