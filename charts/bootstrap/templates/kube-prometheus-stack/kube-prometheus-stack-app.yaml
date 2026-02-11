@@ -17,6 +17,7 @@ spec:
     helm:
       releaseName: kps
       valuesObject:
+        fullnameOverride: kps
         alertmanager:
           alertmanagerSpec:
             resources:
