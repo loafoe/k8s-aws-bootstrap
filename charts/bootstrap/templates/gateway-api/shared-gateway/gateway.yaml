@@ -14,6 +14,8 @@ spec:
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
       service.beta.kubernetes.io/aws-load-balancer-type: nlb
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+      service.beta.kubernetes.io/aws-load-balancer-alpn-policy: HTTP2Preferred
+      service.beta.kubernetes.io/aws-load-balancer-name: {{ printf "%s-gateway" .Values.environmentConfig.bootstrap.resourcePrefix }}
   listeners:
     - name: http
       protocol: HTTP
