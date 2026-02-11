@@ -15,6 +15,7 @@ spec:
     # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=kube-prometheus-stack
     targetRevision: 81.5.2
     helm:
+      releaseName: kps
       valuesObject:
         alertmanager:
           alertmanagerSpec:
