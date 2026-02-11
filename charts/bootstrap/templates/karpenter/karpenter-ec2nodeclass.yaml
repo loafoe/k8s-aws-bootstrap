@@ -190,7 +190,7 @@ spec:
     - deviceName: /dev/xvda
       rootVolume: true
       ebs:
-        volumeSize: 20Gi
+        volumeSize: 30Gi
         volumeType: gp3
         encrypted: true
         deleteOnTermination: true
