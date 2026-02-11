@@ -26,8 +26,7 @@ spec:
                 memory: 128Mi
         prometheus:
           prometheusSpec:
-            enableFeatures:
-              - otlp-write-receiver
+            enableOTLPReceiver: true
             resources:
               requests:
                 cpu: 100m
