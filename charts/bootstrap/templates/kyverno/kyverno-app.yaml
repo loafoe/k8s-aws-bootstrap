@@ -17,6 +17,8 @@ spec:
     targetRevision: 3.7.0
     helm:
       valuesObject:
+        config:
+          preserve: false
         admissionController:
           replicas: 2
           # Run admission controller on system nodes (critical component)
