@@ -26,9 +26,9 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "delete"]
-# Deployment management for restarting Karpenter
+# Deployment management for restarting Karpenter and scaling down Kyverno
 - apiGroups: ["apps"]
-  resources: ["deployments"]
+  resources: ["deployments", "deployments/scale"]
   verbs: ["get", "list", "patch", "update", "watch"]
 # Webhook management for removing Kyverno webhooks
 - apiGroups: ["admissionregistration.k8s.io"]
