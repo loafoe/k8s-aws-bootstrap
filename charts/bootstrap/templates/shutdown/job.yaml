@@ -79,8 +79,17 @@ spec:
           echo "=========================================="
           echo ""
           
-          # Step 0: Remove Kyverno (Scale down first to prevent recreation, then remove webhooks)
+          # Step 0: Remove Kyverno (Disable ArgoCD sync, scale down, then remove webhooks)
           echo "Step 0: Removing Kyverno..."
+
+          echo "Disabling auto-sync for kyverno application..."
+          if kubectl get application kyverno -n argocd >/dev/null 2>&1; then
+            kubectl patch application kyverno -n argocd --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
+            echo "✅ Auto-sync disabled for kyverno application"
+          else
+            echo "⚠️ Kyverno application not found, skipping..."
+          fi
+          echo ""
 
           echo "Scaling down Kyverno deployments..."
           if kubectl -n kyverno get deploy >/dev/null 2>&1; then
