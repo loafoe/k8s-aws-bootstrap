@@ -5,7 +5,7 @@ metadata:
   name: platform
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/sync-wave: "18"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   gatewayClassName: cilium
