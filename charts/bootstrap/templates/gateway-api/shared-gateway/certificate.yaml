@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   secretName: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
