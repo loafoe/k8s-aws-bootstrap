@@ -37,7 +37,7 @@ metadata:
   name: create-environmentconfig
   namespace: hsp-addons
   annotations:
-    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/sync-wave: "18"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
