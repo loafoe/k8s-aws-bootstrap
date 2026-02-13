@@ -13,7 +13,7 @@ metadata:
   labels:
     cache.kyverno.io/enabled: "true"
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "17"
 data:
   accountId: |
     {{ .Values.environmentConfig.bootstrap.awsAccountId }}
