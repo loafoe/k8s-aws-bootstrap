@@ -16,29 +16,50 @@ spec:
       valuesObject:
         # IPAM Configuration
         ipam:
+          {{- if eq .Values.environmentConfig.bootstrap.enableDualStack "true" }}
+          mode: cluster-pool
+          operator:
+            clusterPoolIPv4PodCIDRList:
+              - "{{ .Values.environmentConfig.bootstrap.ipv4ClusterCIDR }}"
+            clusterPoolIPv4MaskSize: 24
+            clusterPoolIPv6PodCIDRList:
+              - "{{ .Values.environmentConfig.bootstrap.ipv6ClusterCIDR }}"
+            clusterPoolIPv6MaskSize: 64
+          {{- else }}
           mode: kubernetes
           operator:
             clusterPoolIPv4PodCIDRList:
-              - "10.42.0.0/16"
-        
+              - "{{ .Values.environmentConfig.bootstrap.ipv4ClusterCIDR }}"
+          {{- end }}
+
         # Networking Configuration
         tunnelProtocol: vxlan
         autoDirectNodeRoutes: false
         routingMode: tunnel
         kubeProxyReplacement: true
-        
+
         # API Server Configuration
         k8sServiceHost: "{{ .Values.environmentConfig.bootstrap.clusterHost }}"
         k8sServicePort: "6443"
-        
+
         # Socket-level Load Balancing
         socketLB:
           enabled: true
           hostNamespaceOnly: false
-        
+
         # IPv4/IPv6 Configuration
+        ipv4:
+          enabled: true
+        {{- if eq .Values.environmentConfig.bootstrap.enableDualStack "true" }}
+        ipv6:
+          enabled: true
         enableIPv4Masquerade: true
-        enableIPv6: false
+        enableIPv6Masquerade: true
+        {{- else }}
+        ipv6:
+          enabled: false
+        enableIPv4Masquerade: true
+        {{- end }}
         
         # BPF Configuration
         bpf:
