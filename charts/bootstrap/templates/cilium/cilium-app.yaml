@@ -16,7 +16,7 @@ spec:
       valuesObject:
         # IPAM Configuration
         ipam:
-          {{- if eq .Values.environmentConfig.bootstrap.enableDualStack "true" }}
+          {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
           mode: cluster-pool
           operator:
             clusterPoolIPv4PodCIDRList:
@@ -50,7 +50,7 @@ spec:
         # IPv4/IPv6 Configuration
         ipv4:
           enabled: true
-        {{- if eq .Values.environmentConfig.bootstrap.enableDualStack "true" }}
+        {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
         ipv6:
           enabled: true
         enableIPv4Masquerade: true
