@@ -21,6 +21,8 @@ data:
     {{ .Values.environmentConfig.sharedServicesAccountId }}
   region: {{ .Values.environmentConfig.bootstrap.awsRegion }}
   partition: {{ .Values.environmentConfig.bootstrap.awsPartition }}
+  oidcProvider: {{ .Values.environmentConfig.bootstrap.oidcProvider }}
+  oidcProviderArn: {{ .Values.environmentConfig.bootstrap.oidcProviderArn }}
   enabledPullThroughRegistries: |
     ["docker-hub","quay","github","k8s","ecr-public"]
   eks: |
