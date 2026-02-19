@@ -158,6 +158,8 @@ spec:
             serviceMonitor:
               enabled: false
           replicas: 1
+          nodeSelector:
+            node-type: system
           tolerations:
             - key: node.kubernetes.io/not-ready
               operator: Exists
