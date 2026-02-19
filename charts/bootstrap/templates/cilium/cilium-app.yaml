@@ -14,10 +14,6 @@ spec:
     targetRevision: 1.19.1
     helm:
       valuesObject:
-        # CRDs are installed separately via cilium-crds-app.yaml at sync wave -1
-        crds:
-          enabled: false
-
         # IPAM Configuration
         ipam:
           {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
