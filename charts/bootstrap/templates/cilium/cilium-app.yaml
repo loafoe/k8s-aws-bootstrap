@@ -158,8 +158,16 @@ spec:
             serviceMonitor:
               enabled: false
           replicas: 1
-          nodeSelector:
-            node-type: system
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                    - system
+                    - control-plane
           tolerations:
             - key: node.kubernetes.io/not-ready
               operator: Exists
