@@ -69,6 +69,7 @@ spec:
   limits:
     cpu: {{ if .Values.features.shutdown.enabled -}} "0" {{- else -}} "200" {{- end }}
     memory: "200Gi"
+    maxNodes: 20
     
   # Disruption settings for node lifecycle management
   disruption:
