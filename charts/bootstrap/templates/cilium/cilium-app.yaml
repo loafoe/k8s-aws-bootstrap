@@ -222,6 +222,10 @@ spec:
         # Policy Configuration
         policyEnforcementMode: default
         identityAllocationMode: crd
+
+        # Disable CiliumEndpointSlice (obsolete)
+        ciliumEndpointSlice:
+          enabled: false
         
         # API Rate Limiting
         k8sClientRateLimit:
