@@ -241,6 +241,9 @@ spec:
         server:
           # Enable high availability for the server
           replicas: 2
+
+          service:
+            servicePortHttpsAppProtocol: kubernetes.io/h2c
           
           # Resource configuration
           resources:
