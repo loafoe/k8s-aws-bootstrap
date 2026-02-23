@@ -84,10 +84,10 @@ spec:
             - operator: Exists
           resources:
             limits:
-              memory: 55Mi
+              memory: 74Mi
             requests:
               cpu: 20m
-              memory: 32Mi
+              memory: 43Mi
           
         # Prometheus Metrics
         prometheus:
