@@ -1,0 +1,26 @@
+{{- if and .Values.features.gatewayApi.enabled .Values.features.gatewayApi.httproutes.argocd (not .Values.features.shutdown.enabled) }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
+spec:
+  parentRefs:
+    - name: platform
+      namespace: kube-system
+      sectionName: https
+  hostnames:
+    - argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+  rules:
+    - matches:
+        - headers:
+          - name: Content-Type
+            type: RegularExpression
+            value: "application/grpc.*"
+      backendRefs:
+        - name: argocd-server
+          port: 443
+{{- end }}

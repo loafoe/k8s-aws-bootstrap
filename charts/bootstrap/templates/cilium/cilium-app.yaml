@@ -76,6 +76,8 @@ spec:
         gatewayAPI:
           enabled: true
           externalTrafficPolicy: Cluster
+          enableAlpn: true
+          enableAppProtocol: true
         
         # Envoy Configuration
         envoy:
