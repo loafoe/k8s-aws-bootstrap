@@ -19,6 +19,16 @@ spec:
       valuesObject:
         config:
           preserve: false
+          # Exclude karpenter namespace from Kyverno admission control to prevent
+          # deadlock: if Kyverno is down and needs a new node, Karpenter must be
+          # able to start without being blocked by Kyverno's admission webhook
+          webhooks:
+          - namespaceSelector:
+              matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: NotIn
+                values:
+                - karpenter
         admissionController:
           replicas: 2
           # Run admission controller on system nodes (critical component)
