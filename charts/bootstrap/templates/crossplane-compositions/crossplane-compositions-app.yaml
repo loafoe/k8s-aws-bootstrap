@@ -1,20 +1,38 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: crossplane-compositions
+  name: common-bootstrap
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   destination:
     name: in-cluster
-    namespace: crossplane-system
+    namespace: common-bootstrap
   project: default
   source:
-    path: kustomize
-    repoURL: https://github.com/loafoe/crossplane-compositions
-    # renovate: datasource=github-tags depName=loafoe/crossplane-compositions
-    targetRevision: v0.0.21
+    repoURL: oci://ghcr.io/philips-software/helm-charts/common-bootstrap
+    # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/common-bootstrap
+    targetRevision: 1.1.1
+    path: .
+    helm:
+      valuesObject:
+        crossplaneCompositions:
+          repoURL: https://github.com/loafoe/crossplane-compositions
+          # renovate: datasource=github-tags depName=loafoe/crossplane-compositions
+          targetRevision: v0.0.21
+          path: kustomize
+        argocd:
+          project:
+            sourceRepos:
+              - https://github.com/philips-software/helm-charts
+              - https://github.com/dip-software/crossplane-compositions
+              - https://github.com/loafoe/crossplane-compositions
+              - https://cloudnative-pg.io/charts/
+              - oci://ghcr.io/philips-software/helm-charts/cloudnative-pg-operator
+              - oci://ghcr.io/philips-software/helm-charts/otlp-gateway
+              - oci://ghcr.io/philips-software/helm-charts/grafana
+              - oci://ghcr.io/philips-software/helm-charts/*
   syncPolicy:
     automated:
       prune: false
