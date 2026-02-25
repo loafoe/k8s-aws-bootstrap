@@ -237,10 +237,10 @@ spec:
         ciliumEndpointSlice:
           enabled: false
         
-        # API Rate Limiting
+        # API Rate Limiting - increased for faster endpoint reconciliation
         k8sClientRateLimit:
-          qps: 10
-          burst: 20
+          qps: 20
+          burst: 40
 
   destination:
     server: https://kubernetes.default.svc
