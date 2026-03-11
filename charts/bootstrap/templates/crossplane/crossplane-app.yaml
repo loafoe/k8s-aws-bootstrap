@@ -38,6 +38,7 @@ spec:
         
         # rbacManager is also critical - schedule on system nodes
         rbacManager:
+          leaderElection: false
           nodeSelector:
             node-type: system
           tolerations:
