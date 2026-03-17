@@ -23,11 +23,12 @@ spec:
           # deadlock: if Kyverno is down and needs a new node, Karpenter must be
           # able to start without being blocked by Kyverno's admission webhook
           webhooks:
-          - namespaceSelector:
+            namespaceSelector:
               matchExpressions:
               - key: kubernetes.io/metadata.name
                 operator: NotIn
                 values:
+                - kube-system
                 - karpenter
         admissionController:
           replicas: 2
