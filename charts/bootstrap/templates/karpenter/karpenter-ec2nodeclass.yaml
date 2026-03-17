@@ -6,6 +6,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    # Injected from EnvironmentConfig for drift detection
+    k8s-aws-bootstrap.io/k3s-version: "{{ .Values.environmentConfig.bootstrap.k3sVersion }}"
 spec:
   # Amazon Linux 2023 AMI family
   # Using Custom AMI family with AL2023 AMI selection
@@ -134,7 +136,10 @@ spec:
       exit 1
     fi
     
-    # Retrieve K3s version from AWS Systems Manager Parameter Store
+    # K3s version injected from EnvironmentConfig (used for drift detection)
+    INJECTED_K3S_VERSION="{{ .Values.environmentConfig.bootstrap.k3sVersion }}"
+
+    # Retrieve K3s version from AWS Systems Manager Parameter Store (authoritative)
     DETECTED_K3S_VERSION=$(aws ssm get-parameter \
       --name "{{ .Values.environmentConfig.bootstrap.k3sVersionParameterName }}" \
       --region "$REGION" \
@@ -142,7 +147,17 @@ spec:
       --output text || echo "")
 
     if [ -n "$DETECTED_K3S_VERSION" ] && [ "$DETECTED_K3S_VERSION" != "null" ]; then
-      echo "Using K3s version from SSM: $DETECTED_K3S_VERSION"
+      echo "Using K3s version from SSM Parameter Store: $DETECTED_K3S_VERSION"
+
+      # Check for drift between EnvironmentConfig and Parameter Store
+      if [ -n "$INJECTED_K3S_VERSION" ] && [ "$INJECTED_K3S_VERSION" != "$DETECTED_K3S_VERSION" ]; then
+        echo "WARNING: K3s version drift detected!"
+        echo "  - EnvironmentConfig (bootstrap.k3sVersion): $INJECTED_K3S_VERSION"
+        echo "  - Parameter Store (authoritative): $DETECTED_K3S_VERSION"
+        echo "  Using Parameter Store value as the authoritative source."
+        echo "  Consider updating EnvironmentConfig to match Parameter Store."
+      fi
+
       export INSTALL_K3S_VERSION="$DETECTED_K3S_VERSION"
     else
       echo "Failed to retrieve K3s version from SSM, falling back to channel: {{ .Values.environmentConfig.bootstrap.k3sChannel }}"
