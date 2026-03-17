@@ -67,6 +67,7 @@ environmentConfig:
     # K3S (for EC2NodeClass)
     k3sTokenParameterName: ""
     k3sVersionParameterName: ""
+    k3sVersion: ""
     k3sChannel: ""
     
     # Subnet Groups (JSON strings)
