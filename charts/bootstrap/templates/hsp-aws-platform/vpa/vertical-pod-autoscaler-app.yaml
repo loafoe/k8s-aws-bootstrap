@@ -21,8 +21,6 @@ spec:
         admissionController:
           enabled: true
           replicas: 1
-          extraArgs:
-            - --feature-gates=InPlacePodVerticalScaling=true
           resources:
             requests:
               cpu: 5m
@@ -36,8 +34,6 @@ spec:
         recommender:
           enabled: true
           replicas: 1
-          extraArgs:
-            - --feature-gates=InPlacePodVerticalScaling=true
           resources:
             requests:
               cpu: 5m
@@ -51,8 +47,6 @@ spec:
         updater:
           enabled: true
           replicas: 1
-          extraArgs:
-            - --feature-gates=InPlacePodVerticalScaling=true
           resources:
             requests:
               cpu: 5m
