@@ -73,6 +73,9 @@ spec:
               relabelings:
                 - sourceLabels: [__meta_kubernetes_pod_node_name]
                   targetLabel: instance
+              metricRelabelings:
+                - sourceLabels: [instance]
+                  targetLabel: nodename
   destination:
     server: https://kubernetes.default.svc
     namespace: prometheus
