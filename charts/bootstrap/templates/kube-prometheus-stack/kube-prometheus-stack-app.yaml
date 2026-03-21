@@ -68,6 +68,11 @@ spec:
               memory: 24Mi
             limits:
               memory: 32Mi
+          prometheus:
+            monitor:
+              relabelings:
+                - sourceLabels: [__meta_kubernetes_pod_node_name]
+                  targetLabel: instance
   destination:
     server: https://kubernetes.default.svc
     namespace: prometheus
