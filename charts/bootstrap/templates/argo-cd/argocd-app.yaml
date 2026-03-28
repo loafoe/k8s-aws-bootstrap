@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: oci://ghcr.io/argoproj/argo-helm/argo-cd
-    targetRevision: 9.4.16
+    targetRevision: 9.4.17
     path: .
     withConfigKeys:
       - resourcePrefix
