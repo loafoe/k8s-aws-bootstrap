@@ -1,0 +1,33 @@
+{{- if .Values.features.spiffe.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spire-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+spec:
+  project: default
+  source:
+    repoURL: https://spiffe.github.io/helm-charts-hardened/
+    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire-crds
+    targetRevision: 0.6.0
+    chart: spire-crds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spire-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - Replace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

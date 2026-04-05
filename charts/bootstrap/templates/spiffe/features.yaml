@@ -1,0 +1,11 @@
+{{- if .Values.features.spiffe.enabled }}
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: k8s-aws-bootstrap-overlay-spiffe-features
+  labels:
+    config: dip-software
+data:
+  features:
+    spiffe: true
+{{- end }}
