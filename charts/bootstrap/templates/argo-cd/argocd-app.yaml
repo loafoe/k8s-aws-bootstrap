@@ -349,7 +349,7 @@ spec:
               memory: 2Gi
             requests:
               cpu: 200m
-              memory: 768Mi
+              memory: 1Gi
           
           metrics:
             enabled: true
