@@ -39,4 +39,17 @@ spec:
           - kind: Secret
             name: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
             namespace: kube-system
+    {{- if and .Values.features.spiffe.enabled .Values.features.spiffe.federation.enabled }}
+    - name: tls-spiffe
+      protocol: TLS
+      port: 443
+      hostname: "spiffe.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
+      allowedRoutes:
+        namespaces:
+          from: All
+        kinds:
+          - kind: TLSRoute
+      tls:
+        mode: Passthrough
+    {{- end }}
 {{- end }}

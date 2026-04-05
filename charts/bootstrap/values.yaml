@@ -23,6 +23,16 @@ features:
     vpa:
       enabled: true
 
+  # SPIFFE/SPIRE for workload identity
+  spiffe:
+    enabled: true
+    # Trust domain for SPIFFE identities (auto-derived from clusterFqdn if empty)
+    trustDomain: ""
+    federation:
+      enabled: true
+    oidcDiscovery:
+      enabled: true
+
   # Shutdown mode
   shutdown:
     enabled: false

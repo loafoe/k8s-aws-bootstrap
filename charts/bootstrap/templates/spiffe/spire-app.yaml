@@ -1,0 +1,152 @@
+{{- if .Values.features.spiffe.enabled }}
+{{- $trustDomain := .Values.features.spiffe.trustDomain | default .Values.environmentConfig.bootstrap.clusterFqdn }}
+{{- $jwtIssuer := printf "https://oidc-discovery.%s" .Values.environmentConfig.bootstrap.clusterFqdn }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: spire
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "13"
+spec:
+  project: default
+  source:
+    repoURL: https://spiffe.github.io/helm-charts-hardened/
+    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire
+    targetRevision: 0.24.0
+    chart: spire
+    helm:
+      valuesObject:
+        global:
+          spire:
+            trustDomain: {{ $trustDomain }}
+            jwtIssuer: {{ $jwtIssuer }}
+          installAndUpgradeHooks:
+            enabled: true
+
+        # SPIRE Server configuration
+        spire-server:
+          enabled: true
+          replicaCount: 1
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+
+          dataStore:
+            sql:
+              databaseType: sqlite3
+              databaseName: /run/spire/data/datastore.sqlite3
+
+          nodeAttestor:
+            k8sPSAT:
+              enabled: true
+
+          controllerManager:
+            enabled: true
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+
+          {{- if .Values.features.spiffe.federation.enabled }}
+          federation:
+            enabled: true
+            bundleEndpoint:
+              port: 8443
+              address: "0.0.0.0"
+            tls:
+              spire:
+                enabled: false
+              certManager:
+                enabled: false
+              externalSecret:
+                enabled: true
+                secretName: spire-federation-tls
+          {{- end }}
+
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                    - system
+                    - control-plane
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+
+        # SPIRE Agent configuration
+        spire-agent:
+          enabled: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          socketPath: /run/spire/agent-sockets/spire-agent.sock
+
+        # CSI Driver for mounting SVIDs into pods
+        spiffe-csi-driver:
+          enabled: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+
+        # OIDC Discovery Provider for JWT federation
+        {{- if .Values.features.spiffe.oidcDiscovery.enabled }}
+        spiffe-oidc-discovery-provider:
+          enabled: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          config:
+            domains:
+              - oidc-discovery.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+          tls:
+            spire:
+              enabled: false
+            certManager:
+              enabled: false
+        {{- end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: spire-system
+  ignoreDifferences:
+    - group: apps
+      jsonPointers:
+        - /spec/replicas
+      kind: Deployment
+    - group: apps
+      jsonPointers:
+        - /spec/replicas
+      kind: StatefulSet
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

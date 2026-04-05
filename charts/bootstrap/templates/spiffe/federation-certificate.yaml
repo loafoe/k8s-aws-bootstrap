@@ -1,0 +1,19 @@
+{{- if and .Values.features.spiffe.enabled .Values.features.spiffe.federation.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: spire-federation-tls
+  namespace: spire-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "14"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  secretName: spire-federation-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - spiffe.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+  privateKey:
+    rotationPolicy: Always
+{{- end }}
