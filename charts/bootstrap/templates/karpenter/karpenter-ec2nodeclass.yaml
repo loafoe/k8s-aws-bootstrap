@@ -220,6 +220,10 @@ spec:
   # Instance metadata options
   metadataOptions:
     httpEndpoint: enabled
+    {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
+    httpProtocolIPv6: enabled
+    {{- else }}
     httpProtocolIPv6: disabled
+    {{- end }}
     httpPutResponseHopLimit: 2
     httpTokens: required
