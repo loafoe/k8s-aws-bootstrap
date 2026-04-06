@@ -76,7 +76,9 @@ spec:
         gatewayAPI:
           enabled: true
           externalTrafficPolicy: Cluster
-          enableAlpn: true
+          # Note: enableAlpn disabled due to Cilium bug generating invalid envoy config
+          # alpnProtocols becomes "h2,http/1.1" (single string) instead of ["h2", "http/1.1"]
+          enableAlpn: false
           enableAppProtocol: true
         
         # Envoy Configuration
