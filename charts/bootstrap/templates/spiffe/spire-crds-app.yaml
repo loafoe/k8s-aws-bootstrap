@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://spiffe.github.io/helm-charts-hardened/
     # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire-crds
-    targetRevision: 0.6.0
+    targetRevision: 0.5.0
     chart: spire-crds
   destination:
     server: https://kubernetes.default.svc
