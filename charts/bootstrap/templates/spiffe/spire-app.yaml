@@ -22,7 +22,7 @@ spec:
             trustDomain: {{ $trustDomain }}
             jwtIssuer: {{ $jwtIssuer }}
           installAndUpgradeHooks:
-            enabled: true
+            enabled: false
 
         # SPIRE Server configuration
         spire-server:
