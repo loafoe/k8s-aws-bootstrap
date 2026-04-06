@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://spiffe.github.io/helm-charts-hardened/
     # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire
-    targetRevision: 0.24.0
+    targetRevision: 0.28.3
     chart: spire
     helm:
       valuesObject:
