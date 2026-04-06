@@ -76,7 +76,9 @@ spec:
         gatewayAPI:
           enabled: true
           externalTrafficPolicy: Cluster
-          enableAlpn: true
+          # ALPN disabled due to Cilium bug: generates "h2,http/1.1" as single string
+          # instead of ["h2", "http/1.1"], causing TLS handshake failures
+          enableAlpn: false
           enableAppProtocol: true
         
         # Envoy Configuration
