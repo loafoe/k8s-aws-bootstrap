@@ -11,6 +11,7 @@ spec:
   parentRefs:
     - name: platform
       namespace: kube-system
+      sectionName: https
   hostnames:
     - oidc-discovery.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
   rules:
