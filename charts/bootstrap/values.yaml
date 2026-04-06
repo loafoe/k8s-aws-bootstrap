@@ -33,6 +33,13 @@ features:
       enabled: false
     oidcDiscovery:
       enabled: true
+    # Federation relationships with other SPIFFE trust domains
+    federations: []
+    # Example:
+    # - name: homelab-rpi
+    #   trustDomain: rpi.loafoe.com
+    #   bundleEndpointURL: https://rpi.loafoe.com
+    #   bundleEndpointProfile: https_web
 
   # Shutdown mode
   shutdown:
