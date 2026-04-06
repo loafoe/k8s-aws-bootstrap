@@ -29,7 +29,8 @@ features:
     # Trust domain for SPIFFE identities (auto-derived from clusterFqdn if empty)
     trustDomain: ""
     federation:
-      enabled: true
+      # Web PKI federation disabled - requires separate LB or TLSRoute support
+      enabled: false
     oidcDiscovery:
       enabled: true
 
