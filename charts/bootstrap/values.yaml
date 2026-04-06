@@ -23,24 +23,6 @@ features:
     vpa:
       enabled: true
 
-  # SPIFFE/SPIRE for workload identity
-  spiffe:
-    enabled: true
-    # Trust domain for SPIFFE identities (auto-derived from clusterFqdn if empty)
-    trustDomain: ""
-    federation:
-      # Web PKI federation disabled - requires separate LB or TLSRoute support
-      enabled: false
-    oidcDiscovery:
-      enabled: true
-    # Federation relationships with other SPIFFE trust domains
-    federations: []
-    # Example:
-    # - name: homelab-rpi
-    #   trustDomain: rpi.loafoe.com
-    #   bundleEndpointURL: https://rpi.loafoe.com
-    #   bundleEndpointProfile: https_web
-
   # Shutdown mode
   shutdown:
     enabled: false
