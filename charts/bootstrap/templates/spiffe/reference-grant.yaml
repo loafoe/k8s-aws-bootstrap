@@ -13,9 +13,6 @@ spec:
       kind: HTTPRoute
       namespace: kube-system
     - group: gateway.networking.k8s.io
-      kind: TLSRoute
-      namespace: kube-system
-    - group: gateway.networking.k8s.io
       kind: Gateway
       namespace: kube-system
   to:

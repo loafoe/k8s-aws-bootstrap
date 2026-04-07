@@ -5,7 +5,7 @@ metadata:
   name: spiffe-oidc-discovery
   namespace: spire-system
   annotations:
-    argocd.argoproj.io/sync-wave: "15"
+    argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   parentRefs:
