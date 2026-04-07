@@ -221,8 +221,15 @@ spec:
             memory: 256Mi
         
         # Device Configuration
-        devices: ""
+        # Explicitly set devices to ensure all IPv6 addresses are detected for NodePort
+        devices: "ens+"
         directRoutingDevice: ""
+
+        # NodePort Configuration
+        # Bind NodePort to all addresses (including global IPv6) for dualstack NLB support
+        nodePort:
+          enableHealthCheckNodePort: true
+          # bindProtection: false  # Allow binding to any address
         
         # Encryption Configuration
         encryption:
