@@ -122,7 +122,19 @@ spec:
     AZ=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
     REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/region)
     INSTANCE_TYPE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-type)
-    
+
+    # Get the primary ENI ID and enable primary IPv6 for dualstack NLB support
+    MAC=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/mac)
+    ENI_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/interface-id)
+
+    if [ -n "$ENI_ID" ]; then
+      echo "Enabling primary IPv6 on ENI $ENI_ID for dualstack NLB support..."
+      aws ec2 modify-network-interface-attribute \
+        --network-interface-id "$ENI_ID" \
+        --enable-primary-ipv6 \
+        --region "$REGION" || echo "Warning: Failed to enable primary IPv6 (may not be supported or already enabled)"
+    fi
+
     # Retrieve K3s token securely from AWS Systems Manager Parameter Store
     K3S_TOKEN=$(aws ssm get-parameter \
       --name "{{ .Values.environmentConfig.bootstrap.k3sTokenParameterName }}" \
