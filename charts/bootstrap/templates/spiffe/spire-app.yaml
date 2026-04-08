@@ -94,6 +94,11 @@ spec:
             limits:
               memory: 128Mi
           socketPath: /run/spire/agent-sockets/spire-agent.sock
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
 
         # CSI Driver for mounting SVIDs into pods
         spiffe-csi-driver:
@@ -104,6 +109,11 @@ spec:
               memory: 32Mi
             limits:
               memory: 64Mi
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
 
         # OIDC Discovery Provider for JWT federation
         {{- if .Values.features.spiffe.oidcDiscovery.enabled }}
