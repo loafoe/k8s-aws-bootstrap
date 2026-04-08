@@ -86,3 +86,4 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - HealthCheckTimeout=10m
