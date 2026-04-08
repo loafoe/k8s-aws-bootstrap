@@ -23,6 +23,8 @@ spec:
             jwtIssuer: {{ $jwtIssuer }}
           installAndUpgradeHooks:
             enabled: false
+          deleteHooks:
+            enabled: false
 
         # SPIRE Server configuration
         spire-server:
