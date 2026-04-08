@@ -24,6 +24,7 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - Replace=true
+      - HealthCheckTimeout=10m
     retry:
       limit: 5
       backoff:

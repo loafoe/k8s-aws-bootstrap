@@ -27,6 +27,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - HealthCheckTimeout=10m
     retry:
       limit: 5
       backoff:
