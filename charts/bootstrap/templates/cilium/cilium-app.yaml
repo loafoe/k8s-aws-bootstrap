@@ -222,7 +222,8 @@ spec:
         
         # Device Configuration
         # Explicitly set devices to ensure all IPv6 addresses are detected for NodePort
-        devices: "ens+"
+        # ens+ for most EC2 instances, enp+ for m7a and other PCI-based naming
+        devices: "ens+ enp+"
         directRoutingDevice: ""
 
         # NodePort Configuration
