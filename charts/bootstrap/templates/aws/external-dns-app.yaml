@@ -21,6 +21,7 @@ spec:
           - service
           - ingress
           - gateway-httproute
+          - gateway-tlsroute
         # Require critical addon nodes for external-dns (critical)
         tolerations:
         - key: CriticalAddonsOnly
