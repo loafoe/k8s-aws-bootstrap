@@ -42,4 +42,13 @@ spec:
           - kind: Secret
             name: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
             namespace: kube-system
+    - name: tls-passthrough
+      protocol: TLS
+      port: 8443
+      hostname: "*.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Passthrough
 {{- end }}
