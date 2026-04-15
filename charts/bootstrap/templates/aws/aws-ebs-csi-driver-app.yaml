@@ -22,6 +22,7 @@ spec:
               storageclass.kubernetes.io/is-default-class: "true"
             volumeBindingMode: WaitForFirstConsumer
             reclaimPolicy: Delete
+            allowVolumeExpansion: true
             parameters:
               type: gp3
               encrypted: "true"
@@ -29,6 +30,7 @@ spec:
           - name: io2-encrypted
             volumeBindingMode: WaitForFirstConsumer
             reclaimPolicy: Delete
+            allowVolumeExpansion: true
             parameters:
               type: io2
               encrypted: "true"
