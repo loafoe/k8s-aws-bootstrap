@@ -22,20 +22,20 @@ spec:
           - --enable-operations
         metrics:
           enabled: true
-        resources:
+        resourcesCrossplane:
           requests:
             cpu: 5m
             memory: 512Mi
           limits:
             memory: 1Gi
-        
+
         # Schedule on system nodes like ArgoCD (critical addon)
         nodeSelector:
           node-type: system
         tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-        
+
         # rbacManager is also critical - schedule on system nodes
         rbacManager:
           leaderElection: false
@@ -44,12 +44,12 @@ spec:
           tolerations:
             - key: CriticalAddonsOnly
               operator: Exists
-          resources:
-            requests:
-              cpu: 5m
-              memory: 64Mi
-            limits:
-              memory: 128Mi
+        resourcesRBACManager:
+          requests:
+            cpu: 5m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: crossplane-system
