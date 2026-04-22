@@ -59,4 +59,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
       - HealthCheckTimeout=10m
