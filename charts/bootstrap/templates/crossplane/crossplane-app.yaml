@@ -13,7 +13,7 @@ spec:
     # renovate: datasource=github-releases depName=crossplane/crossplane
     targetRevision: v2.2.1
     helm:
-      valuesObject:
+      values: |
         provider:
           defaultActivations: ["*"]
         image:
