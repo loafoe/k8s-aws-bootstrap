@@ -96,6 +96,8 @@ spec:
           enabled: true
           serviceMonitor:
             enabled: true
+            labels:
+              release: kps
 
         # Hubble Observability Platform
         hubble:
@@ -159,6 +161,8 @@ spec:
             enabled: true
             serviceMonitor:
               enabled: true
+              labels:
+                release: kps
           replicas: 1
           affinity:
             nodeAffinity:
