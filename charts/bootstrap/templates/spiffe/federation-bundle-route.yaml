@@ -1,0 +1,21 @@
+{{- if and .Values.features.spiffe.enabled .Values.features.spiffe.federation.enabled .Values.features.gatewayApi.enabled .Values.features.gatewayApi.sharedGateway.enabled (not .Values.features.shutdown.enabled) }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: TLSRoute
+metadata:
+  name: spiffe-federation-bundle
+  namespace: spire-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parentRefs:
+    - name: platform
+      namespace: kube-system
+      sectionName: tls-passthrough
+  hostnames:
+    - spiffe.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+  rules:
+    - backendRefs:
+        - name: spire-server
+          port: 8443
+{{- end }}
