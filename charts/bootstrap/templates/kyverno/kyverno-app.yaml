@@ -17,6 +17,13 @@ spec:
     targetRevision: 3.8.0
     helm:
       valuesObject:
+        # Global feature flags
+        features:
+          # CRITICAL: When Kyverno is unreachable, allow pod creation to proceed
+          # without mutations rather than blocking all pod creation cluster-wide.
+          # Trades brief policy enforcement gaps for cluster availability.
+          forceFailurePolicyIgnore:
+            enabled: true
         config:
           preserve: false
           # Exclude karpenter namespace from Kyverno admission control to prevent
@@ -31,21 +38,31 @@ spec:
                 - kube-system
                 - karpenter
         admissionController:
-          replicas: 2
+          replicas: 3
           # Run admission controller on system nodes (critical component)
           nodeSelector:
             node-type: system
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-          # Ensure admission controller pods are distributed across availability zones for high availability
+          # Distribute admission controller pods across zones AND nodes for high availability
+          # Using ScheduleAnyway (soft) ensures pods still get placed if ideal spread isn't possible
           topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: DoNotSchedule
+            whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: admission-controller
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: admission-controller
+          # Allow node drains while maintaining availability
+          podDisruptionBudget:
+            maxUnavailable: 1
           container:
             resources:
               limits:
@@ -61,14 +78,23 @@ spec:
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-          # Ensure background controller pods are distributed across availability zones for high availability
+          # Distribute across zones and nodes with soft constraints
           topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: DoNotSchedule
+            whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: background-controller
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: background-controller
+          # Allow node drains
+          podDisruptionBudget:
+            maxUnavailable: 1
           resources:
             limits:
               memory: 256Mi
@@ -83,14 +109,23 @@ spec:
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-          # Ensure cleanup controller pods are distributed across availability zones for high availability
+          # Distribute across zones and nodes with soft constraints
           topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: DoNotSchedule
+            whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: cleanup-controller
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: cleanup-controller
+          # Allow node drains
+          podDisruptionBudget:
+            maxUnavailable: 1
           resources:
             limits:
               memory: 128Mi
@@ -105,14 +140,23 @@ spec:
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-          # Ensure reports controller pods are distributed across availability zones for high availability
+          # Distribute across zones and nodes with soft constraints
           topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: DoNotSchedule
+            whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: reports-controller
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: reports-controller
+          # Allow node drains
+          podDisruptionBudget:
+            maxUnavailable: 1
           resources:
             limits:
               memory: 256Mi
