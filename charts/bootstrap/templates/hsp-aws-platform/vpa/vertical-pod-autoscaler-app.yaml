@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://kubernetes.github.io/autoscaler
     # renovate: datasource=helm registryUrl=https://kubernetes.github.io/autoscaler depName=vertical-pod-autoscaler
-    targetRevision: 0.8.1
+    targetRevision: 0.9.0
     chart: vertical-pod-autoscaler
     helm:
       valuesObject:
