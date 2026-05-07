@@ -62,6 +62,7 @@ spec:
                 app.kubernetes.io/component: admission-controller
           # Allow node drains while maintaining availability
           podDisruptionBudget:
+            minAvailable: ~
             maxUnavailable: 1
           container:
             resources:
@@ -94,6 +95,7 @@ spec:
                 app.kubernetes.io/component: background-controller
           # Allow node drains
           podDisruptionBudget:
+            minAvailable: ~
             maxUnavailable: 1
           resources:
             limits:
@@ -125,6 +127,7 @@ spec:
                 app.kubernetes.io/component: cleanup-controller
           # Allow node drains
           podDisruptionBudget:
+            minAvailable: ~
             maxUnavailable: 1
           resources:
             limits:
@@ -156,6 +159,7 @@ spec:
                 app.kubernetes.io/component: reports-controller
           # Allow node drains
           podDisruptionBudget:
+            minAvailable: ~
             maxUnavailable: 1
           resources:
             limits:
