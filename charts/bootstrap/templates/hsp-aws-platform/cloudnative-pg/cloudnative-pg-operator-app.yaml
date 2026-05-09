@@ -29,11 +29,6 @@ spec:
           requests:
             cpu: 5m
             memory: 64Mi
-        nodeSelector:
-          node-type: system
-        tolerations:
-          - key: CriticalAddonsOnly
-            operator: Exists
         topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
