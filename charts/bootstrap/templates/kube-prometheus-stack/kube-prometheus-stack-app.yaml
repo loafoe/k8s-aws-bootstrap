@@ -87,3 +87,4 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+  revisionHistoryLimit: 3
