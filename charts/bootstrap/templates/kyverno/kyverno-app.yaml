@@ -38,6 +38,17 @@ spec:
                 - kube-system
                 - karpenter
         admissionController:
+          rbac:
+            clusterRole:
+              extraResources:
+                - apiGroups:
+                    - gateway.networking.k8s.io
+                  resources:
+                    - httproutes
+                    - grpcroutes
+                  verbs:
+                    - list
+                    - get
           replicas: 3
           # Run admission controller on system nodes (critical component)
           nodeSelector:
