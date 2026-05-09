@@ -27,6 +27,15 @@ spec:
             eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsLbcRoleArn }}
         # Additional recommended settings for production
         replicaCount: 1
+        podSecurityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         resources:
           limits:
             memory: 128Mi
