@@ -46,6 +46,7 @@ spec:
                   resources:
                     - httproutes
                     - grpcroutes
+                    - tlsroutes
                   verbs:
                     - list
                     - get
