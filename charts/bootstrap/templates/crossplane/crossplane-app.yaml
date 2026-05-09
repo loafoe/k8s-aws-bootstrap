@@ -30,6 +30,30 @@ spec:
             cpu: 500m
             memory: 1Gi
 
+        podSecurityContextCrossplane:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        securityContextCrossplane:
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+
+        podSecurityContextRBACManager:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        securityContextRBACManager:
+          runAsUser: 65532
+          runAsGroup: 65532
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
+
         # Schedule on system nodes like ArgoCD (critical addon)
         nodeSelector:
           node-type: system
