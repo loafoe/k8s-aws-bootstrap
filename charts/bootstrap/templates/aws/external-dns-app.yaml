@@ -49,6 +49,9 @@ spec:
             eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsExternalDnsRoleArn }}
         domainFilters:
           - {{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+          {{- range .Values.environmentConfig.bootstrap.additionalClusterFqdns }}
+          - {{ . }}
+          {{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns

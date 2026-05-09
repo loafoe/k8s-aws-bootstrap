@@ -52,6 +52,7 @@ environmentConfig:
     # Cluster info
     clusterName: ""
     clusterFqdn: ""
+    additionalClusterFqdns: []
     clusterHost: ""
     clusterEndpoint: ""
     
