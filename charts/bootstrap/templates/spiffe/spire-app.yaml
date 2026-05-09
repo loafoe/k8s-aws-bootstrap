@@ -149,6 +149,7 @@ spec:
     - group: apps
       jsonPointers:
         - /spec/replicas
+        - /spec/volumeClaimTemplates/0/status
       kind: StatefulSet
   syncPolicy:
     automated:
