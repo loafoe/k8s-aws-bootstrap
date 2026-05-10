@@ -79,6 +79,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: prometheus
+  ignoreDifferences:
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+      jqPathExpressions:
+        - .spec.endpoints[]?.relabelings[]?.action
+        - .spec.endpoints[]?.metricRelabelings[]?.action
   syncPolicy:
     automated:
       prune: true
