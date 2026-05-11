@@ -91,17 +91,17 @@ spec:
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
-          # Distribute across zones and nodes with soft constraints
+          # Distribute across zones and nodes with hard constraints
           topologySpreadConstraints:
           - maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: ScheduleAnyway
+            whenUnsatisfiable: DoNotSchedule
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: background-controller
           - maxSkew: 1
             topologyKey: kubernetes.io/hostname
-            whenUnsatisfiable: ScheduleAnyway
+            whenUnsatisfiable: DoNotSchedule
             labelSelector:
               matchLabels:
                 app.kubernetes.io/component: background-controller
