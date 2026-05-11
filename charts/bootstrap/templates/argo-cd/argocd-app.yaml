@@ -253,7 +253,7 @@ spec:
               cpu: 5m
               memory: 128Mi
           
-          # Anti-affinity to spread replicas across nodes and require critical addon nodes
+          # Require critical addon nodes for ArgoCD server
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -263,14 +263,20 @@ spec:
                     operator: In
                     values:
                     - system
-            podAntiAffinity:
-              preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  labelSelector:
-                    matchLabels:
-                      app.kubernetes.io/name: argocd-server
-                  topologyKey: kubernetes.io/hostname
+          # Distribute server pods across zones and nodes for high availability
+          topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-server
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-server
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
@@ -291,15 +297,16 @@ spec:
 
         # Configure the repository server
         repoServer:
-          replicas: 1
-          
+          replicas: 2
+
           resources:
             limits:
               memory: 512Mi
             requests:
               cpu: 5m
               memory: 128Mi
-          
+
+          # Require critical addon nodes for repo-server
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -309,14 +316,20 @@ spec:
                     operator: In
                     values:
                     - system
-            podAntiAffinity:
-              preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  labelSelector:
-                    matchLabels:
-                      app.kubernetes.io/name: argocd-repo-server
-                  topologyKey: kubernetes.io/hostname
+          # Distribute repo-server pods across zones and nodes for high availability
+          topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-repo-server
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-repo-server
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists

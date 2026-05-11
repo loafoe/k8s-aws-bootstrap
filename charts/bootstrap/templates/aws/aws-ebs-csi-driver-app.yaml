@@ -43,9 +43,25 @@ spec:
             deletionPolicy: Delete
         controller:
           # Require critical addon nodes for EBS CSI controller (critical)
+          nodeSelector:
+            node-type: system
           tolerations:
           - key: CriticalAddonsOnly
             operator: Exists
+          # Distribute controller pods across nodes for high availability
+          topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app: ebs-csi-controller
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app: ebs-csi-controller
           resources:
             requests:
               cpu: 10m
