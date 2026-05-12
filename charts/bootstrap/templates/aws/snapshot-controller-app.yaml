@@ -5,30 +5,15 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/manifest-generate-paths: /charts/snapshot-controller
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://piraeus.io/helm-charts/
-    chart: snapshot-controller
-    # renovate: datasource=helm registryUrl=https://piraeus.io/helm-charts/ depName=snapshot-controller
-    targetRevision: 5.0.4
-    helm:
-      valuesObject:
-        replicaCount: 1
-        #podDisruptionBudget:
-        #  enabled: true
-        #  minAvailable: 1
-        resources:
-          requests:
-             cpu: 10m
-             memory: 30Mi
-          limits:
-             memory: 50Mi
-        tolerations:
-        - key: CriticalAddonsOnly
-          operator: Exists
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/snapshot-controller
+    targetRevision: HEAD
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system

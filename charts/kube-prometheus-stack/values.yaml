@@ -1,0 +1,58 @@
+kube-prometheus-stack:
+  fullnameOverride: kps
+
+  alertmanager:
+    alertmanagerSpec:
+      resources:
+        requests:
+          cpu: 5m
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+
+  prometheus:
+    prometheusSpec:
+      enableOTLPReceiver: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          memory: 2100Mi
+
+  prometheusOperator:
+    resources:
+      requests:
+        cpu: 5m
+        memory: 25Mi
+      limits:
+        memory: 50Mi
+    admissionWebhooks:
+      patch:
+
+  kube-state-metrics:
+    resources:
+      requests:
+        cpu: 5m
+        memory: 19Mi
+      limits:
+        memory: 38Mi
+
+  nodeExporter:
+    enabled: true
+
+  prometheus-node-exporter:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 24Mi
+      limits:
+        memory: 32Mi
+    prometheus:
+      monitor:
+        relabelings:
+          - sourceLabels: [__meta_kubernetes_pod_node_name]
+            targetLabel: instance
+        metricRelabelings:
+          - sourceLabels: [instance]
+            targetLabel: nodename

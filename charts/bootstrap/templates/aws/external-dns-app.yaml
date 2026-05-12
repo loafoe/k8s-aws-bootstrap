@@ -5,53 +5,26 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/manifest-generate-paths: /charts/external-dns
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://kubernetes-sigs.github.io/external-dns/
-    chart: external-dns
-    # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/external-dns depName=external-dns
-    targetRevision: 1.21.1
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/external-dns
+    targetRevision: HEAD
     helm:
       valuesObject:
-        policy: sync
-        sources:
-          - service
-          - ingress
-          - gateway-httproute
-          - gateway-tlsroute
-        # Require critical addon nodes for external-dns (critical)
-        tolerations:
-        - key: CriticalAddonsOnly
-          operator: Exists
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: node-type
-                  operator: In
-                  values:
-                  - system
-                  - control-plane
-        resources:
-          limits:
-            memory: 84Mi
-          requests:
-            cpu: 20m
-            memory: 64Mi
-        serviceAccount:
-          create: true
-          name: external-dns
-          annotations:
-            eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsExternalDnsRoleArn }}
-        domainFilters:
-          - {{ .Values.environmentConfig.bootstrap.clusterFqdn }}
-          {{- range .Values.environmentConfig.bootstrap.additionalClusterFqdns }}
-          - {{ . }}
-          {{- end }}
+        external-dns:
+          serviceAccount:
+            annotations:
+              eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsExternalDnsRoleArn }}
+          domainFilters:
+            - {{ .Values.environmentConfig.bootstrap.clusterFqdn }}
+            {{- range .Values.environmentConfig.bootstrap.additionalClusterFqdns }}
+            - {{ . }}
+            {{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns

@@ -5,72 +5,21 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "16"
+    argocd.argoproj.io/manifest-generate-paths: /charts/kube-prometheus-stack
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://prometheus-community.github.io/helm-charts
-    chart: kube-prometheus-stack
-    # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=kube-prometheus-stack
-    targetRevision: 84.5.0
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/kube-prometheus-stack
+    targetRevision: HEAD
     helm:
       releaseName: kps
       valuesObject:
-        fullnameOverride: kps
-        alertmanager:
-          alertmanagerSpec:
-            resources:
-              requests:
-                cpu: 5m
-                memory: 64Mi
-              limits:
-                memory: 128Mi
-        prometheus:
-          prometheusSpec:
-            enableOTLPReceiver: true
-            resources:
-              requests:
-                cpu: 100m
-                memory: 1Gi
-              limits:
-                memory: 2100Mi
-        grafana:
-          enabled: {{ .Values.features.kubePrometheusStack.grafana.enabled }}
-        prometheusOperator:
-          resources:
-            requests:
-              cpu: 5m
-              memory: 25Mi
-            limits:
-              memory: 50Mi
-          admissionWebhooks:
-            patch:
-        kube-state-metrics:
-          resources:
-            requests:
-              cpu: 5m
-              memory: 19Mi
-            limits:
-              memory: 38Mi
-        nodeExporter:
-          # NodeExporter should run on all nodes (DaemonSet), no node preference needed
-          enabled: true
-        prometheus-node-exporter:
-          resources:
-            requests:
-              cpu: 10m
-              memory: 24Mi
-            limits:
-              memory: 32Mi
-          prometheus:
-            monitor:
-              relabelings:
-                - sourceLabels: [__meta_kubernetes_pod_node_name]
-                  targetLabel: instance
-              metricRelabelings:
-                - sourceLabels: [instance]
-                  targetLabel: nodename
+        kube-prometheus-stack:
+          grafana:
+            enabled: {{ .Values.features.kubePrometheusStack.grafana.enabled }}
   destination:
     server: https://kubernetes.default.svc
     namespace: prometheus

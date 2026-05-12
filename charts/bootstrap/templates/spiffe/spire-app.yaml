@@ -8,136 +8,56 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "13"
+    argocd.argoproj.io/manifest-generate-paths: /charts/spire
 spec:
   project: default
   source:
-    repoURL: https://spiffe.github.io/helm-charts-hardened/
-    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire
-    targetRevision: 0.28.4
-    chart: spire
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/spire
+    targetRevision: HEAD
     helm:
       valuesObject:
-        global:
-          spire:
-            trustDomain: {{ $trustDomain }}
-            jwtIssuer: {{ $jwtIssuer }}
-          installAndUpgradeHooks:
-            enabled: false
-          deleteHooks:
-            enabled: false
-
-        # SPIRE Server configuration
-        spire-server:
-          enabled: true
-          replicaCount: 1
-
-          resources:
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              memory: 512Mi
-
-          dataStore:
-            sql:
-              databaseType: sqlite3
-              databaseName: /run/spire/data/datastore.sqlite3
-
-          nodeAttestor:
-            k8sPSAT:
+        spire:
+          global:
+            spire:
+              trustDomain: {{ $trustDomain }}
+              jwtIssuer: {{ $jwtIssuer }}
+          {{- if .Values.features.spiffe.federation.enabled }}
+          spire-server:
+            federation:
               enabled: true
-
-          controllerManager:
+              bundleEndpoint:
+                port: 8443
+                address: "0.0.0.0"
+              tls:
+                spire:
+                  enabled: false
+                certManager:
+                  enabled: false
+                externalSecret:
+                  enabled: true
+                  secretName: spire-federation-tls
+          {{- end }}
+          spiffe-oidc-discovery-provider:
+            {{- if .Values.features.spiffe.oidcDiscovery.enabled }}
             enabled: true
             resources:
               requests:
-                cpu: 50m
-                memory: 64Mi
+                cpu: 25m
+                memory: 32Mi
               limits:
-                memory: 128Mi
-
-          {{- if .Values.features.spiffe.federation.enabled }}
-          federation:
-            enabled: true
-            bundleEndpoint:
-              port: 8443
-              address: "0.0.0.0"
+                memory: 64Mi
+            config:
+              domains:
+                - oidc-discovery.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
             tls:
               spire:
                 enabled: false
               certManager:
                 enabled: false
-              externalSecret:
-                enabled: true
-                secretName: spire-federation-tls
-          {{- end }}
-
-          affinity:
-            nodeAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                nodeSelectorTerms:
-                - matchExpressions:
-                  - key: node-type
-                    operator: In
-                    values:
-                    - system
-                    - control-plane
-          tolerations:
-          - key: CriticalAddonsOnly
-            operator: Exists
-
-        # SPIRE Agent configuration
-        spire-agent:
-          enabled: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              memory: 128Mi
-          socketPath: /run/spire/agent-sockets/spire-agent.sock
-          tolerations:
-          - key: CriticalAddonsOnly
-            operator: Exists
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-
-        # CSI Driver for mounting SVIDs into pods
-        spiffe-csi-driver:
-          enabled: true
-          resources:
-            requests:
-              cpu: 25m
-              memory: 32Mi
-            limits:
-              memory: 64Mi
-          tolerations:
-          - key: CriticalAddonsOnly
-            operator: Exists
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-
-        # OIDC Discovery Provider for JWT federation
-        spiffe-oidc-discovery-provider:
-          {{- if .Values.features.spiffe.oidcDiscovery.enabled }}
-          enabled: true
-          resources:
-            requests:
-              cpu: 25m
-              memory: 32Mi
-            limits:
-              memory: 64Mi
-          config:
-            domains:
-              - oidc-discovery.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
-          tls:
-            spire:
-              enabled: false
-            certManager:
-              enabled: false
-          {{- else }}
-          enabled: false
-          {{- end }}
+            {{- else }}
+            enabled: false
+            {{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: spire-system

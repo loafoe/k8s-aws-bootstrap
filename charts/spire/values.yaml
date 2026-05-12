@@ -1,0 +1,81 @@
+spire:
+  global:
+    installAndUpgradeHooks:
+      enabled: false
+    deleteHooks:
+      enabled: false
+
+  spire-server:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+    dataStore:
+      sql:
+        databaseType: sqlite3
+        databaseName: /run/spire/data/datastore.sqlite3
+
+    nodeAttestor:
+      k8sPSAT:
+        enabled: true
+
+    controllerManager:
+      enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 128Mi
+
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-type
+              operator: In
+              values:
+              - system
+              - control-plane
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+
+  spire-agent:
+    enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    socketPath: /run/spire/agent-sockets/spire-agent.sock
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+
+  spiffe-csi-driver:
+    enabled: true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+
+  spiffe-oidc-discovery-provider:
+    enabled: false

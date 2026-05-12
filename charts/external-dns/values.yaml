@@ -1,0 +1,34 @@
+external-dns:
+  policy: sync
+
+  sources:
+    - service
+    - ingress
+    - gateway-httproute
+    - gateway-tlsroute
+
+  tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - system
+            - control-plane
+
+  resources:
+    limits:
+      memory: 84Mi
+    requests:
+      cpu: 20m
+      memory: 64Mi
+
+  serviceAccount:
+    create: true
+    name: external-dns

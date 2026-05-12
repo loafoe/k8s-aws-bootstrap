@@ -1,0 +1,9 @@
+apiVersion: v2
+name: amazon-eks-pod-identity-webhook
+version: 0.1.0
+description: Thin wrapper for Amazon EKS Pod Identity Webhook
+dependencies:
+  - name: amazon-eks-pod-identity-webhook
+    # renovate: datasource=helm registryUrl=https://jkroepke.github.io/helm-charts depName=amazon-eks-pod-identity-webhook
+    version: "2.6.4"
+    repository: "https://jkroepke.github.io/helm-charts/"

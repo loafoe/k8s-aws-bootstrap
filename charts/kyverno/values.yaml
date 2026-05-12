@@ -1,0 +1,175 @@
+kyverno:
+  features:
+    forceFailurePolicyIgnore:
+      enabled: true
+
+  config:
+    preserve: false
+    webhooks:
+      namespaceSelector:
+        matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+          - kube-system
+          - karpenter
+
+  admissionController:
+    rbac:
+      clusterRole:
+        extraResources:
+          - apiGroups:
+              - gateway.networking.k8s.io
+            resources:
+              - httproutes
+              - grpcroutes
+              - tlsroutes
+            verbs:
+              - list
+              - get
+    replicas: 3
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: admission-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: admission-controller
+    podDisruptionBudget:
+      minAvailable: ""
+      maxUnavailable: 1
+    container:
+      resources:
+        limits:
+          memory: 256Mi
+        requests:
+          cpu: 5m
+          memory: 128Mi
+
+  backgroundController:
+    replicas: 2
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: background-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: background-controller
+    podDisruptionBudget:
+      minAvailable: ""
+      maxUnavailable: 1
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        cpu: 5m
+        memory: 64Mi
+
+  cleanupController:
+    replicas: 2
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: cleanup-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: cleanup-controller
+    podDisruptionBudget:
+      minAvailable: ""
+      maxUnavailable: 1
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 5m
+        memory: 32Mi
+
+  reportsController:
+    replicas: 2
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: reports-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: reports-controller
+    podDisruptionBudget:
+      minAvailable: ""
+      maxUnavailable: 1
+    resources:
+      limits:
+        memory: 256Mi
+      requests:
+        cpu: 5m
+        memory: 64Mi
+
+  crds:
+    migration:
+      nodeSelector:
+        node-type: system
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      podResources:
+        limits:
+          memory: 256Mi
+        requests:
+          cpu: 5m
+          memory: 64Mi
+
+  webhooksCleanup:
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 5m
+        memory: 32Mi

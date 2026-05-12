@@ -1,48 +1,21 @@
 {{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.cloudnativePg }}
-apiVersion: dip.io/v1alpha1
-kind: HelmApplication
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
   name: cloudnative-pg-operator
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "21"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/manifest-generate-paths: /charts/cloudnative-pg
 spec:
   project: default
   source:
-    repoURL: https://cloudnative-pg.io/charts/
-    # renovate: datasource=helm registryUrl=https://cloudnative-pg.io/charts depName=cloudnative-pg
-    targetRevision: 0.28.0
-    chart: cloudnative-pg
-    withConfigKeys:
-      - resourcePrefix
-    helm:
-      valuesObject:
-        fullnameOverride: cloudnative-pg
-        # Default namespace for the operator
-        namespace: cnpg-system
-        replicaCount: 2
-        # Resource limits for the operator
-        resources:
-          limits:
-            memory: 256Mi
-          requests:
-            cpu: 5m
-            memory: 64Mi
-        topologySpreadConstraints:
-          - maxSkew: 1
-            topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: ScheduleAnyway
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: cloudnative-pg
-          - maxSkew: 1
-            topologyKey: kubernetes.io/hostname
-            whenUnsatisfiable: DoNotSchedule
-            labelSelector:
-              matchLabels:
-                app.kubernetes.io/name: cloudnative-pg
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/cloudnative-pg
+    targetRevision: HEAD
   destination:
+    server: https://kubernetes.default.svc
     namespace: cnpg-system
   syncPolicy:
     automated:

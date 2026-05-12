@@ -1,0 +1,9 @@
+apiVersion: v2
+name: cloudnative-pg
+version: 0.1.0
+description: Thin wrapper for CloudNative-PG operator
+dependencies:
+  - name: cloudnative-pg
+    # renovate: datasource=helm registryUrl=https://cloudnative-pg.io/charts depName=cloudnative-pg
+    version: "0.28.0"
+    repository: "https://cloudnative-pg.io/charts/"
