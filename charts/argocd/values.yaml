@@ -218,65 +218,6 @@ argo-cd:
     cmp:
       create: false
 
-    # Helm repositories for dependency resolution
-    repositories:
-      helm-jkroepke:
-        url: https://jkroepke.github.io/helm-charts/
-        name: jkroepke
-        type: helm
-      helm-aws-ebs:
-        url: https://kubernetes-sigs.github.io/aws-ebs-csi-driver/
-        name: aws-ebs-csi-driver
-        type: helm
-      helm-aws-eks:
-        url: https://aws.github.io/eks-charts
-        name: eks
-        type: helm
-      helm-jetstack:
-        url: https://charts.jetstack.io
-        name: jetstack
-        type: helm
-      helm-cilium:
-        url: https://helm.cilium.io/
-        name: cilium
-        type: helm
-      helm-cloudnative-pg:
-        url: https://cloudnative-pg.io/charts/
-        name: cloudnative-pg
-        type: helm
-      helm-crossplane:
-        url: https://charts.crossplane.io/stable
-        name: crossplane-stable
-        type: helm
-      helm-external-dns:
-        url: https://kubernetes-sigs.github.io/external-dns/
-        name: external-dns
-        type: helm
-      helm-external-secrets:
-        url: https://charts.external-secrets.io
-        name: external-secrets
-        type: helm
-      helm-prometheus:
-        url: https://prometheus-community.github.io/helm-charts
-        name: prometheus-community
-        type: helm
-      helm-kyverno:
-        url: https://kyverno.github.io/kyverno
-        name: kyverno
-        type: helm
-      helm-piraeus:
-        url: https://piraeus.io/helm-charts/
-        name: piraeus
-        type: helm
-      helm-spiffe:
-        url: https://spiffe.github.io/helm-charts-hardened/
-        name: spiffe
-        type: helm
-      helm-autoscaler:
-        url: https://kubernetes.github.io/autoscaler
-        name: autoscaler
-        type: helm
-
   # Configure the Argo CD server
   server:
     # Enable high availability for the server
