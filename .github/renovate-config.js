@@ -19,7 +19,7 @@ module.exports = {
       managerFilePatterns: [
         "/.github/workflows/.*.(yaml|yml)/",
         "/.github/actions/.*.(yaml|yml)/",
-        "/charts/bootstrap/.*.(yaml|yml)/"
+        "/charts/.*.(yaml|yml)/"
       ],
       matchStrings: [
         '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s+?(default|(?i:.*version))\\s?(:|=|:=|\\?=)\\s+"?(?<currentValue>\\S+?)"\\s',
