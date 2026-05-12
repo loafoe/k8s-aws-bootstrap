@@ -27,6 +27,8 @@ module.exports = {
         '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?registryUrl=(?<registryUrl>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s*\\n\\s*targetRevision:\\s*(?<currentValue>\\S+)',
         '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?hostName=(?<registryUrl>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s*\\n\\s*targetRevision:\\s*(?<currentValue>\\S+)',
         '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s*\\n\\s*image:\\s*\\S+?:(?<currentValue>\\S+)',
+        '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?registryUrl=(?<registryUrl>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s*\\n\\s*version:\\s*"?(?<currentValue>[^"\\s]+)"?',
+        '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s*\\n\\s*version:\\s*"?(?<currentValue>[^"\\s]+)"?',
       ],
     },
   ],
