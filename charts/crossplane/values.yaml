@@ -1,0 +1,61 @@
+crossplane:
+  provider:
+    defaultActivations: ["*"]
+  image:
+    repository: ghcr.io/crossplane/crossplane
+  args:
+    - --enable-operations
+  metrics:
+    enabled: true
+  resourcesCrossplane:
+    requests:
+      cpu: 5m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+  podSecurityContextCrossplane:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContextCrossplane:
+    runAsUser: 65532
+    runAsGroup: 65532
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+
+  podSecurityContextRBACManager:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContextRBACManager:
+    runAsUser: 65532
+    runAsGroup: 65532
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+
+  # Schedule on system nodes like ArgoCD (critical addon)
+  nodeSelector:
+    node-type: system
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+
+  # rbacManager is also critical - schedule on system nodes
+  rbacManager:
+    leaderElection: false
+    nodeSelector:
+      node-type: system
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+  resourcesRBACManager:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      memory: 48Mi

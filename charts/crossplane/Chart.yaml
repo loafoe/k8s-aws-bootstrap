@@ -1,0 +1,9 @@
+apiVersion: v2
+name: crossplane
+version: 0.1.0
+description: Thin wrapper for Crossplane
+dependencies:
+  - name: crossplane
+    # renovate: datasource=github-releases depName=crossplane/crossplane
+    version: "v2.2.1"
+    repository: "https://charts.crossplane.io/stable"
