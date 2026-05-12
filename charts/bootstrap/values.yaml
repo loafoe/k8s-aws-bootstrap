@@ -9,7 +9,7 @@ features:
       enabled: true
     httproutes:
       argocd: true
-      grafana: true
+      grafana: false
   
   # HSP AWS Platform overlay components
   hspAwsPlatform:
@@ -32,6 +32,11 @@ features:
       enabled: true
     oidcDiscovery:
       enabled: true
+
+  # Kube Prometheus Stack
+  kubePrometheusStack:
+    grafana:
+      enabled: false
 
   # Shutdown mode
   shutdown:

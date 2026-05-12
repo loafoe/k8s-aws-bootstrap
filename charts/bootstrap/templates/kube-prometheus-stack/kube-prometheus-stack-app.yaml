@@ -36,12 +36,7 @@ spec:
               limits:
                 memory: 2100Mi
         grafana:
-          resources:
-            requests:
-              cpu: 5m
-              memory: 512Mi
-            limits:
-              memory: 768Mi
+          enabled: {{ .Values.features.kubePrometheusStack.grafana.enabled }}
         prometheusOperator:
           resources:
             requests:
