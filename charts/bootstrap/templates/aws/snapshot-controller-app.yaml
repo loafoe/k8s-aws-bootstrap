@@ -22,6 +22,11 @@ spec:
       kind: CustomResourceDefinition
       jqPathExpressions:
         - .spec.conversion.webhook.clientConfig.caBundle
+    - group: ""
+      kind: Secret
+      name: snapshot-controller-conversion-webhook
+      jsonPointers:
+        - /data
   syncPolicy:
     automated:
       prune: true
