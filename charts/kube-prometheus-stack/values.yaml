@@ -27,8 +27,6 @@ kube-prometheus-stack:
         memory: 25Mi
       limits:
         memory: 50Mi
-    admissionWebhooks:
-      patch:
 
   kube-state-metrics:
     resources:
