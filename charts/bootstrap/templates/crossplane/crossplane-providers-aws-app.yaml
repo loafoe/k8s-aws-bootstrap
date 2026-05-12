@@ -1,5 +1,5 @@
-apiVersion: dip.io/v1alpha1
-kind: HelmApplication
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
   name: crossplane-providers-aws
   namespace: argocd
@@ -14,8 +14,6 @@ spec:
     path: .
     helm:
       valuesObject:
-        environmentConfig:
-          foo: "bar"
         providers:
           - name: provider-family-aws
             enabled: true
@@ -88,8 +86,9 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 768Mi 
+                memory: 768Mi
   destination:
+    server: https://kubernetes.default.svc
     namespace: crossplane-system
   syncPolicy:
     automated:
