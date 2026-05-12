@@ -24,7 +24,7 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 512Mi
+                memory: 768Mi
           - name: provider-aws-s3
             enabled: true
             managedPolicyArns:
@@ -34,7 +34,7 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 512Mi
+                memory: 768Mi
           - name: provider-aws-rds
             enabled: true
             managedPolicyArns:
@@ -44,7 +44,7 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 512Mi
+                memory: 768Mi
           - name: provider-aws-kms
             enabled: true
             policy: |
@@ -78,7 +78,7 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 512Mi
+                memory: 768Mi
         extraProviders:
           - name: provider-aws-iam
             enabled: true
@@ -88,7 +88,7 @@ spec:
                 cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 512Mi 
+                memory: 768Mi 
   destination:
     namespace: crossplane-system
   syncPolicy:
