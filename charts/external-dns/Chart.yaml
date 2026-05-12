@@ -1,0 +1,9 @@
+apiVersion: v2
+name: external-dns
+version: 0.1.0
+description: Thin wrapper for External DNS
+dependencies:
+  - name: external-dns
+    # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/external-dns depName=external-dns
+    version: "1.21.1"
+    repository: "https://kubernetes-sigs.github.io/external-dns/"

@@ -1,0 +1,25 @@
+cloudnative-pg:
+  fullnameOverride: cloudnative-pg
+  namespace: cnpg-system
+  replicaCount: 2
+
+  resources:
+    limits:
+      memory: 256Mi
+    requests:
+      cpu: 5m
+      memory: 64Mi
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: cloudnative-pg
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: cloudnative-pg

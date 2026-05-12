@@ -1,0 +1,9 @@
+apiVersion: v2
+name: cert-manager
+version: 0.1.0
+description: Thin wrapper for cert-manager
+dependencies:
+  - name: cert-manager
+    # renovate: datasource=github-releases depName=cert-manager/cert-manager
+    version: "v1.20.2"
+    repository: "https://charts.jetstack.io"

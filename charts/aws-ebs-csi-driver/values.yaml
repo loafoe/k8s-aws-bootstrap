@@ -1,0 +1,67 @@
+aws-ebs-csi-driver:
+  storageClasses:
+    - name: gp3-encrypted
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+      volumeBindingMode: WaitForFirstConsumer
+      reclaimPolicy: Delete
+      allowVolumeExpansion: true
+      parameters:
+        type: gp3
+        encrypted: "true"
+      provisioner: ebs.csi.aws.com
+    - name: io2-encrypted
+      volumeBindingMode: WaitForFirstConsumer
+      reclaimPolicy: Delete
+      allowVolumeExpansion: true
+      parameters:
+        type: io2
+        encrypted: "true"
+      provisioner: ebs.csi.aws.com
+
+  volumeSnapshotClasses:
+    - name: ebs-csi-aws
+      driver: ebs.csi.aws.com
+      annotations:
+        snapshot.storage.kubernetes.io/is-default-class: "true"
+      deletionPolicy: Delete
+
+  controller:
+    nodeSelector:
+      node-type: system
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: ebs-csi-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: ebs-csi-controller
+    resources:
+      requests:
+        cpu: 10m
+        memory: 75Mi
+      limits:
+        memory: 150Mi
+    serviceAccount:
+      create: true
+      name: aws-ebs-csi-driver
+
+  node:
+    tolerations:
+      - operator: Exists
+        effect: NoSchedule
+    resources:
+      requests:
+        cpu: 10m
+        memory: 43Mi
+      limits:
+        memory: 86Mi

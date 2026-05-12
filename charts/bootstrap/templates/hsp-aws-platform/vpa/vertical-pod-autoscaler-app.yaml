@@ -6,56 +6,15 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/manifest-generate-paths: /charts/vertical-pod-autoscaler
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://kubernetes.github.io/autoscaler
-    # renovate: datasource=helm registryUrl=https://kubernetes.github.io/autoscaler depName=vertical-pod-autoscaler
-    targetRevision: 0.9.0
-    chart: vertical-pod-autoscaler
-    helm:
-      valuesObject:
-        # Admission controller configuration
-        admissionController:
-          enabled: true
-          replicas: 1
-          resources:
-            requests:
-              cpu: 5m
-              memory: 32Mi
-            limits:
-              memory: 64Mi
-          podDisruptionBudget:
-            enabled: false
-
-        # Recommender configuration
-        recommender:
-          enabled: true
-          replicas: 1
-          resources:
-            requests:
-              cpu: 5m
-              memory: 64Mi
-            limits:
-              memory: 128Mi
-          podDisruptionBudget:
-            enabled: false
-
-        # Updater configuration
-        updater:
-          enabled: true
-          replicas: 1
-          resources:
-            requests:
-              cpu: 5m
-              memory: 64Mi
-            limits:
-              memory: 128Mi
-          podDisruptionBudget:
-            enabled: false
-
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/vertical-pod-autoscaler
+    targetRevision: HEAD
   destination:
     server: https://kubernetes.default.svc
     namespace: vpa-system

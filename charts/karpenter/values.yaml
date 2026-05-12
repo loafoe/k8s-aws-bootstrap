@@ -1,0 +1,72 @@
+karpenter:
+  topologySpreadConstraints: []
+
+  controller:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 352Mi
+
+  settings:
+    syncPeriod: 0h1m0s
+    featureGates:
+      drift: true
+      spotToSpotConsolidation: true
+    batchMaxDuration: 10s
+    batchIdleDuration: 1s
+
+  replicas: 1
+
+  serviceAccount:
+    create: true
+    name: karpenter
+
+  webhook:
+    enabled: true
+    port: 8443
+
+  logLevel: debug
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: karpenter.sh/nodepool
+            operator: DoesNotExist
+          - key: node-type
+            operator: In
+            values:
+            - system
+            - control-plane
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+              - karpenter
+          topologyKey: kubernetes.io/hostname
+
+  tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+
+  securityContext:
+    fsGroup: 65532
+
+  dnsPolicy: Default
+  dnsConfig:
+    options:
+    - name: ndots
+      value: "1"
+
+  serviceMonitor:
+    enabled: false
+    additionalLabels:
+      release: prometheus-stack

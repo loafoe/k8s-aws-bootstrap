@@ -1,0 +1,9 @@
+apiVersion: v2
+name: kyverno
+version: 0.1.0
+description: Thin wrapper for Kyverno
+dependencies:
+  - name: kyverno
+    # renovate: datasource=helm registryUrl=https://kyverno.github.io/kyverno depName=kyverno
+    version: "3.8.0"
+    repository: "https://kyverno.github.io/kyverno"

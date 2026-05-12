@@ -1,0 +1,9 @@
+apiVersion: v2
+name: spire
+version: 0.1.0
+description: Thin wrapper for SPIRE
+dependencies:
+  - name: spire
+    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire
+    version: "0.28.4"
+    repository: "https://spiffe.github.io/helm-charts-hardened/"
