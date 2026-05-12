@@ -25,10 +25,10 @@ spec:
         resourcesCrossplane:
           requests:
             cpu: 5m
-            memory: 512Mi
+            memory: 256Mi
           limits:
             cpu: 500m
-            memory: 1Gi
+            memory: 512Mi
 
         podSecurityContextCrossplane:
           runAsNonRoot: true
@@ -72,10 +72,10 @@ spec:
         resourcesRBACManager:
           requests:
             cpu: 5m
-            memory: 64Mi
+            memory: 32Mi
           limits:
             cpu: 100m
-            memory: 128Mi
+            memory: 64Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: crossplane-system

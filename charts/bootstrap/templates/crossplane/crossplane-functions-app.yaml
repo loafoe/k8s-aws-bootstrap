@@ -16,6 +16,12 @@ spec:
     path: .
     helm:
       valuesObject:
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
         extraFunctions: []
   destination:
     server: https://kubernetes.default.svc
