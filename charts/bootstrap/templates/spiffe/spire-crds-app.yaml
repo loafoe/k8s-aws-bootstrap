@@ -6,13 +6,15 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "12"
+    argocd.argoproj.io/manifest-generate-paths: /charts/spire-crds
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://spiffe.github.io/helm-charts-hardened/
-    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire-crds
-    targetRevision: 0.5.0
-    chart: spire-crds
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/spire-crds
+    targetRevision: HEAD
   destination:
     server: https://kubernetes.default.svc
     namespace: spire-system
