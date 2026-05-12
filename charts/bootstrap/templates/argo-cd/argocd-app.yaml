@@ -244,14 +244,14 @@ spec:
 
           service:
             servicePortHttpsAppProtocol: kubernetes.io/h2c
-          
+
           # Resource configuration
           resources:
             limits:
-              memory: 512Mi
+              memory: 128Mi
             requests:
               cpu: 5m
-              memory: 128Mi
+              memory: 48Mi
           
           # Require critical addon nodes for ArgoCD server
           affinity:
@@ -301,10 +301,10 @@ spec:
 
           resources:
             limits:
-              memory: 512Mi
+              memory: 192Mi
             requests:
               cpu: 5m
-              memory: 128Mi
+              memory: 64Mi
 
           # Require critical addon nodes for repo-server
           affinity:
@@ -359,10 +359,10 @@ spec:
           
           resources:
             limits:
-              memory: 2Gi
-            requests:
-              cpu: 200m
               memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 512Mi
           
           metrics:
             enabled: true
@@ -405,9 +405,9 @@ spec:
             limits:
               memory: 64Mi
             requests:
-              cpu: 20m
-              memory: 32Mi
-          
+              cpu: 5m
+              memory: 16Mi
+
           # Redis HA configuration
           ha:
             enabled: false
