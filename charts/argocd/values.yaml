@@ -279,10 +279,10 @@ argo-cd:
 
     resources:
       limits:
-        memory: 192Mi
+        memory: 512Mi
       requests:
         cpu: 5m
-        memory: 64Mi
+        memory: 128Mi
 
     # Require critical addon nodes for repo-server
     affinity:
