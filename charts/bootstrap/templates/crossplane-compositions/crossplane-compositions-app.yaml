@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/manifest-generate-paths: kustomize
 spec:
   destination:
     name: in-cluster
