@@ -1,0 +1,206 @@
+cilium:
+  # Networking Configuration
+  tunnelProtocol: vxlan
+  autoDirectNodeRoutes: false
+  routingMode: tunnel
+  kubeProxyReplacement: true
+
+  # API Server Configuration
+  k8sServicePort: "6443"
+
+  # Socket-level Load Balancing
+  socketLB:
+    enabled: true
+    hostNamespaceOnly: false
+
+  # BPF Configuration
+  bpf:
+    masquerade: true
+    tproxy: true
+    lbExternalClusterIP: true
+
+  # Load Balancer Configuration
+  loadBalancer:
+    algorithm: random
+    mode: snat
+
+  # Gateway API Configuration
+  gatewayAPI:
+    enabled: true
+    externalTrafficPolicy: Cluster
+    enableAlpn: true
+    enableAppProtocol: true
+
+  # Envoy Configuration
+  envoy:
+    enabled: true
+    tolerations:
+      - operator: Exists
+    resources:
+      limits:
+        memory: 74Mi
+      requests:
+        cpu: 20m
+        memory: 43Mi
+
+  # Prometheus Metrics
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kps
+
+  # Hubble Observability Platform
+  hubble:
+    enabled: true
+    relay:
+      enabled: true
+      replicas: 1
+      nodeSelector:
+        node-type: system
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+        - key: CriticalAddonsOnly
+          operator: Exists
+      resources:
+        limits:
+          memory: 40Mi
+        requests:
+          cpu: 20m
+          memory: 32Mi
+    ui:
+      enabled: true
+      replicas: 1
+      nodeSelector:
+        node-type: system
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+        - key: CriticalAddonsOnly
+          operator: Exists
+      backend:
+        resources:
+          limits:
+            memory: 32Mi
+          requests:
+            cpu: 10m
+            memory: 16Mi
+      frontend:
+        resources:
+          limits:
+            memory: 16Mi
+          requests:
+            cpu: 10m
+            memory: 8Mi
+    metrics:
+      enabled:
+        - dns
+        - drop
+        - tcp
+        - flow
+        - icmp
+        - http
+
+  # Operator Configuration
+  operator:
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        labels:
+          release: kps
+    replicas: 1
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-type
+                  operator: In
+                  values:
+                    - system
+                    - control-plane
+    tolerations:
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
+      - key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      - key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - key: node.kubernetes.io/pid-pressure
+        operator: Exists
+      - key: node.kubernetes.io/unschedulable
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+    resources:
+      limits:
+        memory: 160Mi
+      requests:
+        cpu: 50m
+        memory: 80Mi
+
+  # Agent (DaemonSet) Configuration
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+    - key: node.kubernetes.io/unreachable
+      operator: Exists
+    - key: node.kubernetes.io/disk-pressure
+      operator: Exists
+    - key: node.kubernetes.io/memory-pressure
+      operator: Exists
+    - key: node.kubernetes.io/pid-pressure
+      operator: Exists
+    - key: node.kubernetes.io/unschedulable
+      operator: Exists
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node.cilium.io/agent-not-ready
+      operator: Exists
+
+  resources:
+    limits:
+      memory: 384Mi
+    requests:
+      cpu: 100m
+      memory: 192Mi
+
+  # Device Configuration
+  # Explicitly set devices to ensure all IPv6 addresses are detected for NodePort
+  # ens+ for most EC2 instances, enp+ for m7a and other PCI-based naming
+  devices: "ens+ enp+"
+  directRoutingDevice: ""
+
+  # NodePort Configuration
+  # Bind NodePort to all addresses (including global IPv6) for dualstack NLB support
+  nodePort:
+    enableHealthCheckNodePort: true
+
+  # Encryption Configuration
+  encryption:
+    enabled: false
+    type: wireguard
+
+  # Policy Configuration
+  policyEnforcementMode: default
+  identityAllocationMode: crd
+
+  # Disable CiliumEndpointSlice (obsolete)
+  ciliumEndpointSlice:
+    enabled: false
+
+  # API Rate Limiting - increased for faster endpoint reconciliation
+  k8sClientRateLimit:
+    qps: 20
+    burst: 40

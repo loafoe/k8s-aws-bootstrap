@@ -1,2 +1,5 @@
 .envrc
 .claude/
+
+# Helm dependency tarballs
+charts/*/charts/*.tgz
