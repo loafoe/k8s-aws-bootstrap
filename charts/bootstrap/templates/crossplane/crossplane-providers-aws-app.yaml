@@ -16,15 +16,79 @@ spec:
       valuesObject:
         environmentConfig:
           foo: "bar"
+        providers:
+          - name: provider-family-aws
+            enabled: true
+            resources:
+              requests:
+                cpu: 20m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+          - name: provider-aws-s3
+            enabled: true
+            managedPolicyArns:
+              - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+            resources:
+              requests:
+                cpu: 20m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+          - name: provider-aws-rds
+            enabled: true
+            managedPolicyArns:
+              - "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
+            resources:
+              requests:
+                cpu: 20m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+          - name: provider-aws-kms
+            enabled: true
+            policy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Action": [
+                      "kms:UntagResource",
+                      "kms:TagResource",
+                      "kms:ScheduleKeyDeletion",
+                      "kms:ListRetirableGrants",
+                      "kms:ListKeys",
+                      "kms:ListAliases",
+                      "kms:List*",
+                      "kms:Get*",
+                      "kms:GenerateRandom",
+                      "kms:DescribeCustomKeyStores",
+                      "kms:Describe*",
+                      "kms:DeleteAlias",
+                      "kms:CreateKey",
+                      "kms:CreateAlias"
+                    ],
+                    "Resource": "*"
+                  }
+                ]
+              }
+            resources:
+              requests:
+                cpu: 20m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
         extraProviders:
           - name: provider-aws-iam
             enabled: true
             roleArn: {{ .Values.environmentConfig.bootstrap.crossplaneProviderAwsIamRoleArn }}
             resources:
               requests:
-                memory: 400Mi
+                cpu: 20m
+                memory: 256Mi
               limits:
-                memory: 640Mi 
+                memory: 512Mi 
   destination:
     namespace: crossplane-system
   syncPolicy:
