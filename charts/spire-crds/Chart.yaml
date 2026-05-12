@@ -1,0 +1,9 @@
+apiVersion: v2
+name: spire-crds
+version: 0.1.0
+description: Thin wrapper for SPIRE CRDs
+dependencies:
+  - name: spire-crds
+    # renovate: datasource=helm registryUrl=https://spiffe.github.io/helm-charts-hardened depName=spire-crds
+    version: "0.5.0"
+    repository: "https://spiffe.github.io/helm-charts-hardened/"
