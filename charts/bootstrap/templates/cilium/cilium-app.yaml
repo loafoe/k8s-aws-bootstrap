@@ -135,17 +135,17 @@ spec:
             backend:
               resources:
                 limits:
-                  memory: 64Mi
-                requests:
-                  cpu: 10m
-                  memory: 32Mi
-            frontend:
-              resources:
-                limits:
                   memory: 32Mi
                 requests:
                   cpu: 10m
                   memory: 16Mi
+            frontend:
+              resources:
+                limits:
+                  memory: 16Mi
+                requests:
+                  cpu: 10m
+                  memory: 8Mi
           metrics:
             enabled:
               - dns
@@ -191,10 +191,10 @@ spec:
               operator: Exists
           resources:
             limits:
-              memory: 256Mi
+              memory: 160Mi
             requests:
               cpu: 50m
-              memory: 128Mi
+              memory: 80Mi
         
         # Agent (DaemonSet) Configuration
         tolerations:
@@ -219,10 +219,10 @@ spec:
         
         resources:
           limits:
-            memory: 512Mi
+            memory: 384Mi
           requests:
             cpu: 100m
-            memory: 256Mi
+            memory: 192Mi
         
         # Device Configuration
         # Explicitly set devices to ensure all IPv6 addresses are detected for NodePort
