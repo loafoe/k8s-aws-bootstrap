@@ -1,0 +1,10 @@
+{{- if .Values.features.descheduler.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: descheduler
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+{{- end }}
