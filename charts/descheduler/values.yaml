@@ -35,6 +35,12 @@ descheduler:
     profiles:
       - name: default
         pluginConfig:
+          - name: DefaultEvictor
+            args:
+              evictSystemCriticalPods: false
+              evictFailedBarePods: false
+              evictLocalStoragePods: false
+
           - name: RemovePodsHavingTooManyRestarts
             args:
               podRestartThreshold: 5
@@ -57,7 +63,7 @@ descheduler:
 
           - name: RemovePodsViolatingTopologySpreadConstraint
             args:
-              evictableNamespaces:
+              namespaces:
                 exclude:
                   - kube-system
                   - karpenter
