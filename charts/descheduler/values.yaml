@@ -1,0 +1,68 @@
+descheduler:
+  kind: Deployment
+  deschedulingInterval: 5m
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: karpenter.sh/nodepool
+                operator: DoesNotExist
+              - key: node-type
+                operator: In
+                values:
+                  - system
+                  - control-plane
+
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+
+  deschedulerPolicy:
+    profiles:
+      - name: default
+        pluginConfig:
+          - name: RemovePodsHavingTooManyRestarts
+            args:
+              podRestartThreshold: 5
+              includingInitContainers: true
+
+          - name: LowNodeUtilization
+            args:
+              thresholds:
+                cpu: 30
+                memory: 30
+              targetThresholds:
+                cpu: 70
+                memory: 70
+              evictableNamespaces:
+                exclude:
+                  - kube-system
+                  - karpenter
+                  - argocd
+                  - cert-manager
+
+          - name: RemovePodsViolatingTopologySpreadConstraint
+            args:
+              evictableNamespaces:
+                exclude:
+                  - kube-system
+                  - karpenter
+
+        plugins:
+          balance:
+            enabled:
+              - LowNodeUtilization
+              - RemovePodsViolatingTopologySpreadConstraint
+          deschedule:
+            enabled:
+              - RemovePodsHavingTooManyRestarts
