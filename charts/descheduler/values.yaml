@@ -3,6 +3,10 @@ descheduler:
   deschedulingInterval: 5m
   replicas: 1
 
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+
   resources:
     requests:
       cpu: 10m
