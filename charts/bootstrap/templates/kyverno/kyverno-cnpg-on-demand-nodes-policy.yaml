@@ -1,0 +1,34 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cnpg-on-demand-nodes
+  annotations:
+    policies.kyverno.io/title: CNPG On-Demand Nodes
+    policies.kyverno.io/category: Best Practices, Database
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      CloudNativePG database pods should run on on-demand nodes for stability.
+      Spot instances can be interrupted, causing database failovers and potential
+      EBS volume detach/reattach issues. This policy automatically injects the
+      nodeSelector to ensure CNPG pods are scheduled on on-demand instances only.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  rules:
+  - name: add-on-demand-node-selector
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          selector:
+            matchExpressions:
+            - key: cnpg.io/cluster
+              operator: Exists
+    mutate:
+      patchStrategicMerge:
+        spec:
+          nodeSelector:
+            karpenter.sh/capacity-type: on-demand
