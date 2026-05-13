@@ -5,6 +5,11 @@ cilium:
   routingMode: tunnel
   kubeProxyReplacement: true
 
+  # Bandwidth Manager - improves TCP performance for high-throughput workloads
+  bandwidthManager:
+    enabled: true
+    bbr: true  # BBR congestion control for better throughput
+
   # API Server Configuration
   k8sServicePort: "6443"
 
@@ -118,7 +123,7 @@ cilium:
         enabled: true
         labels:
           release: kps
-    replicas: 1
+    replicas: 2
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
