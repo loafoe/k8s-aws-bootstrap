@@ -12,6 +12,9 @@ cilium:
   socketLB:
     enabled: true
     hostNamespaceOnly: false
+    # Terminate cached connections when backend pods are removed - prevents stale
+    # connection errors ("operation not permitted") after pod restarts/rollouts
+    terminatePodConnections: true
 
   # BPF Configuration
   bpf:
