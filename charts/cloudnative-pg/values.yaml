@@ -23,3 +23,6 @@ cloudnative-pg:
       labelSelector:
         matchLabels:
           app.kubernetes.io/name: cloudnative-pg
+
+plugin-barman-cloud:
+  enabled: true
