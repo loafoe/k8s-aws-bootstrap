@@ -38,6 +38,10 @@ features:
     grafana:
       enabled: false
 
+  # Descheduler for pod rebalancing
+  descheduler:
+    enabled: true
+
   # Shutdown mode
   shutdown:
     enabled: false
