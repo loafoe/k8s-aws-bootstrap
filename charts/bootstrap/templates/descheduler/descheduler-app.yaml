@@ -1,0 +1,37 @@
+{{- if .Values.features.descheduler.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: descheduler
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/manifest-generate-paths: /charts/descheduler
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.project }}
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/descheduler
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: descheduler
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - HealthCheckTimeout=10m
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+{{- end }}
