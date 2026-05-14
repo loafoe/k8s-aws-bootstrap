@@ -340,7 +340,7 @@ argo-cd:
         memory: 3Gi
       requests:
         cpu: 100m
-        memory: 3Gi
+        memory: 2Gi
 
     metrics:
       enabled: true
