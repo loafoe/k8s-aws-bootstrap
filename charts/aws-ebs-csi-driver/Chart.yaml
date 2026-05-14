@@ -5,5 +5,5 @@ description: Thin wrapper for AWS EBS CSI Driver
 dependencies:
   - name: aws-ebs-csi-driver
     # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/aws-ebs-csi-driver depName=aws-ebs-csi-driver
-    version: "2.59.0"
+    version: "2.60.0"
     repository: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver/"
