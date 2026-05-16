@@ -45,10 +45,10 @@ kyverno:
     container:
       resources:
         limits:
-          memory: 256Mi
+          memory: 160Mi
         requests:
           cpu: 5m
-          memory: 128Mi
+          memory: 96Mi
 
   backgroundController:
     replicas: 1
@@ -59,7 +59,7 @@ kyverno:
       operator: Exists
     resources:
       limits:
-        memory: 256Mi
+        memory: 160Mi
       requests:
         cpu: 5m
         memory: 64Mi
