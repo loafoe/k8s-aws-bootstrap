@@ -49,10 +49,10 @@ spec:
           operator: In
           values: ["medium", "large", "xlarge"]
 
-        # Ensure sufficient memory capacity per node (> 1500MB)
+        # Ensure sufficient memory capacity per node (> 6GB forces t4g.large minimum)
         - key: karpenter.k8s.aws/instance-memory
           operator: Gt
-          values: ["1500"]
+          values: ["6000"]
 
         # Ensure sufficient CPU capacity per node (>= 2 vCPU)
         - key: karpenter.k8s.aws/instance-cpu
