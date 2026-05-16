@@ -27,28 +27,12 @@ kyverno:
             verbs:
               - list
               - get
-    replicas: 3
+    replicas: 1
     nodeSelector:
       node-type: system
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
-    topologySpreadConstraints:
-    - maxSkew: 1
-      topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: admission-controller
-    - maxSkew: 1
-      topologyKey: kubernetes.io/hostname
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: admission-controller
-    podDisruptionBudget:
-      minAvailable: ""
-      maxUnavailable: 1
     container:
       resources:
         limits:
@@ -58,28 +42,12 @@ kyverno:
           memory: 128Mi
 
   backgroundController:
-    replicas: 2
+    replicas: 1
     nodeSelector:
       node-type: system
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
-    topologySpreadConstraints:
-    - maxSkew: 1
-      topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: background-controller
-    - maxSkew: 1
-      topologyKey: kubernetes.io/hostname
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: background-controller
-    podDisruptionBudget:
-      minAvailable: ""
-      maxUnavailable: 1
     resources:
       limits:
         memory: 256Mi
@@ -88,28 +56,12 @@ kyverno:
         memory: 64Mi
 
   cleanupController:
-    replicas: 2
+    replicas: 1
     nodeSelector:
       node-type: system
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
-    topologySpreadConstraints:
-    - maxSkew: 1
-      topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: ScheduleAnyway
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: cleanup-controller
-    - maxSkew: 1
-      topologyKey: kubernetes.io/hostname
-      whenUnsatisfiable: ScheduleAnyway
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: cleanup-controller
-    podDisruptionBudget:
-      minAvailable: ""
-      maxUnavailable: 1
     resources:
       limits:
         memory: 128Mi
@@ -118,28 +70,12 @@ kyverno:
         memory: 32Mi
 
   reportsController:
-    replicas: 2
+    replicas: 1
     nodeSelector:
       node-type: system
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
-    topologySpreadConstraints:
-    - maxSkew: 1
-      topologyKey: topology.kubernetes.io/zone
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: reports-controller
-    - maxSkew: 1
-      topologyKey: kubernetes.io/hostname
-      whenUnsatisfiable: DoNotSchedule
-      labelSelector:
-        matchLabels:
-          app.kubernetes.io/component: reports-controller
-    podDisruptionBudget:
-      minAvailable: ""
-      maxUnavailable: 1
     resources:
       limits:
         memory: 256Mi
