@@ -5,5 +5,5 @@ description: Thin wrapper for External Secrets Operator
 dependencies:
   - name: external-secrets
     # renovate: datasource=helm registryUrl=https://charts.external-secrets.io depName=external-secrets
-    version: "2.4.1"
+    version: "2.5.0"
     repository: "https://charts.external-secrets.io"
