@@ -27,7 +27,7 @@ kyverno:
             verbs:
               - list
               - get
-    replicas: 1
+    replicas: 2
     nodeSelector:
       node-type: system
     tolerations:
