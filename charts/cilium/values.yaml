@@ -74,6 +74,8 @@ cilium:
           operator: Exists
         - key: CriticalAddonsOnly
           operator: Exists
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
       resources:
         limits:
           memory: 40Mi
@@ -91,6 +93,8 @@ cilium:
         - key: node.kubernetes.io/unreachable
           operator: Exists
         - key: CriticalAddonsOnly
+          operator: Exists
+        - key: node-role.kubernetes.io/control-plane
           operator: Exists
       backend:
         resources:
@@ -148,6 +152,8 @@ cilium:
       - key: node.kubernetes.io/unschedulable
         operator: Exists
       - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/control-plane
         operator: Exists
     resources:
       limits:
