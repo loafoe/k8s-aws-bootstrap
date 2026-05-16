@@ -33,6 +33,13 @@ kyverno:
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
+    topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: admission-controller
     container:
       resources:
         limits:
