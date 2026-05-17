@@ -1,48 +1,67 @@
 name: Update Helm Dependencies
 
 on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'charts/**/Chart.yaml'
-
-permissions:
-  contents: write
+  workflow_run:
+    workflows: ["Renovate"]
+    types:
+      - completed
+  workflow_dispatch:
 
 jobs:
   update-deps:
     runs-on: ubuntu-latest
-    if: startsWith(github.head_ref, 'renovate/')
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.RENOVATE_TOKEN }}
-
       - name: Set up Helm
         uses: azure/setup-helm@v4
 
-      - name: Update all chart dependencies
+      - name: Update chart dependencies on Renovate branches
+        env:
+          GH_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
         run: |
-          for chart in charts/*/Chart.yaml; do
-            dir=$(dirname "$chart")
-            if [ -d "$dir/charts" ]; then
-              echo "Updating dependencies for $dir"
-              rm -f "$dir/charts/"*.tgz
-              helm dependency update "$dir"
-            fi
-          done
+          branches=$(gh pr list --repo ${{ github.repository }} --state open --json headRefName --jq '.[] | select(.headRefName | startswith("renovate/")) | .headRefName')
 
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add 'charts/*/charts/*.tgz' 'charts/*/Chart.lock'
-          if git diff --cached --quiet; then
-            echo "No dependency changes to commit"
-          else
-            git commit -m "chore: update helm dependency artifacts"
-            git push
-          fi
+          for branch in $branches; do
+            echo "=== Checking $branch ==="
+            tmp=$(mktemp -d)
+            git clone --branch "$branch" --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$tmp"
+            pushd "$tmp"
+
+            updated=false
+            for chart in charts/*/Chart.yaml; do
+              [ -f "$chart" ] || continue
+              dir=$(dirname "$chart")
+              [ -d "$dir/charts" ] || mkdir -p "$dir/charts"
+
+              dep_name=$(awk '/dependencies:/{found=1} found && /name:/{print $NF; exit}' "$chart" | tr -d '"')
+              dep_version=$(awk '/dependencies:/{found=1} found && /version:/{print $NF; exit}' "$chart" | tr -d '"')
+
+              if [ -z "$dep_name" ] || [ -z "$dep_version" ]; then
+                continue
+              fi
+
+              expected="${dir}/charts/${dep_name}-${dep_version}.tgz"
+              if [ ! -f "$expected" ]; then
+                echo "  Updating $dir: need ${dep_name}-${dep_version}.tgz"
+                rm -f "$dir/charts/"*.tgz
+                helm dependency update "$dir"
+                updated=true
+              fi
+            done
+
+            if [ "$updated" = true ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add -A
+              if ! git diff --cached --quiet; then
+                git commit -m "chore: update helm dependency artifacts"
+                git push
+                echo "  Pushed update to $branch"
+              fi
+            else
+              echo "  No updates needed"
+            fi
+
+            popd
+            rm -rf "$tmp"
+          done
