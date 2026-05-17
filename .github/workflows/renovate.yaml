@@ -23,9 +23,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@v43.0.16
         with:
@@ -37,3 +34,4 @@ jobs:
           RENOVATE_SEPARATE_MAJOR_MINOR: false
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           LOG_LEVEL: 'info'
+          RENOVATE_BINARY_SOURCE: 'install'
