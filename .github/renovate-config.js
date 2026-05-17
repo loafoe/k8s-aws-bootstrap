@@ -12,7 +12,7 @@ module.exports = {
   forkProcessing: "disabled",
   dryRun: null,
   allowedPostUpgradeCommands: ["^rm -f .+/charts/\\*\\.tgz$", "^helm dependency update .+$"],
-  enabledManagers: ["custom.regex"],
+  enabledManagers: ["custom.regex", "helmv3"],
   customManagers: [
     {
       customType: "regex",
@@ -20,7 +20,8 @@ module.exports = {
       managerFilePatterns: [
         "/.github/workflows/.*.(yaml|yml)/",
         "/.github/actions/.*.(yaml|yml)/",
-        "/charts/.*.(yaml|yml)/"
+        "/charts/.*.(yaml|yml)/",
+        "!/charts/.*/Chart.yaml/"
       ],
       matchStrings: [
         '# renovate:\\s+?datasource=(?<datasource>\\S+?)\\s+?depName=(?<depName>\\S+?)\\s+?(default|(?i:.*version))\\s?(:|=|:=|\\?=)\\s+"?(?<currentValue>\\S+?)"\\s',
