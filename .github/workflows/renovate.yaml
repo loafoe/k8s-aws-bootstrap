@@ -34,4 +34,3 @@ jobs:
           RENOVATE_SEPARATE_MAJOR_MINOR: false
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           LOG_LEVEL: 'info'
-          RENOVATE_BINARY_SOURCE: 'install'
