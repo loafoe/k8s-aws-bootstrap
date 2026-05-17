@@ -1,9 +1,9 @@
 name: Update Helm Dependencies
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'renovate/**'
+      - main
     paths:
       - 'charts/**/Chart.yaml'
 
@@ -13,23 +13,26 @@ permissions:
 jobs:
   update-deps:
     runs-on: ubuntu-latest
+    if: startsWith(github.head_ref, 'renovate/')
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
 
-      - name: Update changed chart dependencies
+      - name: Update all chart dependencies
         run: |
-          for chart in $(git diff-tree --no-commit-id --name-only -r HEAD -- 'charts/*/Chart.yaml'); do
+          for chart in charts/*/Chart.yaml; do
             dir=$(dirname "$chart")
-            echo "Updating dependencies for $dir"
-            rm -f "$dir/charts/"*.tgz
-            helm dependency update "$dir"
+            if [ -d "$dir/charts" ]; then
+              echo "Updating dependencies for $dir"
+              rm -f "$dir/charts/"*.tgz
+              helm dependency update "$dir"
+            fi
           done
 
       - name: Commit and push
