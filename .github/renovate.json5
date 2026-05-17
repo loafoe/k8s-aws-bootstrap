@@ -7,14 +7,6 @@
     'config:best-practices',
     ':disableDependencyDashboard',
   ],
-  postUpgradeTasks: {
-    commands: [
-      'rm -f {{{parentDir}}}/charts/*.tgz',
-      'helm dependency update {{{parentDir}}}',
-    ],
-    fileFilters: ['**/Chart.yaml', '**/charts/*.tgz', '**/Chart.lock'],
-    executionMode: 'branch',
-  },
   customManagers: [
     {
       customType: 'regex',
