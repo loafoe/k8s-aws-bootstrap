@@ -49,7 +49,7 @@ description: Thin wrapper for Kubernetes Descheduler
 dependencies:
   - name: descheduler
     # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/descheduler depName=descheduler
-    version: "0.32.2"
+    version: "0.35.1"
     repository: "https://kubernetes-sigs.github.io/descheduler"
 ```
 
