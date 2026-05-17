@@ -11,6 +11,7 @@ module.exports = {
   platform: "github",
   forkProcessing: "disabled",
   dryRun: null,
+  allowedPostUpgradeCommands: ["^rm -f .+/charts/\\*\\.tgz$", "^helm dependency update .+$"],
   enabledManagers: ["custom.regex"],
   customManagers: [
     {
