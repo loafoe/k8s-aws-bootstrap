@@ -62,6 +62,13 @@ aws-ebs-csi-driver:
           memory: 24Mi
         limits:
           memory: 48Mi
+    nodeDriverRegistrar:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 20Mi
+        limits:
+          memory: 40Mi
 
   controller:
     nodeSelector:
@@ -99,6 +106,6 @@ aws-ebs-csi-driver:
     resources:
       requests:
         cpu: 10m
-        memory: 43Mi
+        memory: 32Mi
       limits:
-        memory: 86Mi
+        memory: 64Mi
