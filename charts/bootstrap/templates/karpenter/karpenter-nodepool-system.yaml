@@ -29,6 +29,11 @@ spec:
           
       # Node requirements for system workloads
       requirements:
+        # Architecture: prefer ARM64, allow AMD64 as fallback
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["arm64", "amd64"]
+
         # Prefer on-demand for stability, allow spot as fallback
         - key: karpenter.sh/capacity-type
           operator: In
