@@ -3,6 +3,12 @@ cloudnative-pg:
   namespace: cnpg-system
   replicaCount: 2
 
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+
   resources:
     limits:
       memory: 256Mi
