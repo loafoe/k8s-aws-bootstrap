@@ -10,3 +10,8 @@ spec:
     name: cloudnative-pg
   updatePolicy:
     updateMode: InPlaceOrRecreate
+  resourcePolicy:
+    containerPolicies:
+      - containerName: manager
+        maxAllowed:
+          memory: 512Mi
