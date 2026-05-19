@@ -26,6 +26,43 @@ aws-ebs-csi-driver:
         snapshot.storage.kubernetes.io/is-default-class: "true"
       deletionPolicy: Delete
 
+  sidecars:
+    provisioner:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 40Mi
+        limits:
+          memory: 80Mi
+    attacher:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 24Mi
+        limits:
+          memory: 48Mi
+    resizer:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 24Mi
+        limits:
+          memory: 48Mi
+    snapshotter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 24Mi
+        limits:
+          memory: 48Mi
+    livenessProbe:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 24Mi
+        limits:
+          memory: 48Mi
+
   controller:
     nodeSelector:
       node-type: system
@@ -48,9 +85,9 @@ aws-ebs-csi-driver:
     resources:
       requests:
         cpu: 10m
-        memory: 75Mi
+        memory: 32Mi
       limits:
-        memory: 150Mi
+        memory: 64Mi
     serviceAccount:
       create: true
       name: aws-ebs-csi-driver
