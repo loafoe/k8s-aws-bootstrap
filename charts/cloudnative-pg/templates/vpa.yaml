@@ -1,0 +1,12 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: cloudnative-pg
+  namespace: cnpg-system
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cloudnative-pg
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
