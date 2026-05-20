@@ -134,6 +134,14 @@ cilium:
                   values:
                     - system
                     - control-plane
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  io.cilium/app: operator
     tolerations:
       - key: node.kubernetes.io/not-ready
         operator: Exists
