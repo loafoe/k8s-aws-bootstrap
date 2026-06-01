@@ -123,16 +123,16 @@ cilium:
     metrics:
       enableOpenMetrics: true
       enabled:
-        - dns:query;ignoreAAAA;destinationContext=pod-short
-        - drop:sourceContext=pod-short;destinationContext=pod-short
-        - tcp:sourceContext=pod-short;destinationContext=pod-short
-        - flow:sourceContext=pod-short;destinationContext=pod-short
-        - icmp:sourceContext=pod-short;destinationContext=pod-short
-        - httpV2:sourceContext=pod-short;destinationContext=pod-short;exemplars=true
-        - flows-to-world:destinationContext=pod-short
-        - port-distribution:sourceContext=pod-short;destinationContext=pod-short
-        - kafka:sourceContext=pod-short;destinationContext=pod-short
-        - policy:sourceContext=pod-short;destinationContext=pod-short
+        - dns:query;ignoreAAAA;destinationContext=pod
+        - drop:sourceContext=pod;destinationContext=pod
+        - tcp:sourceContext=pod;destinationContext=pod
+        - flow:sourceContext=pod;destinationContext=pod
+        - icmp:sourceContext=pod;destinationContext=pod
+        - httpV2:sourceContext=pod;destinationContext=pod;exemplars=true
+        - flows-to-world:destinationContext=pod
+        - port-distribution:sourceContext=pod;destinationContext=pod
+        - kafka:sourceContext=pod;destinationContext=pod
+        - policy:sourceContext=pod;destinationContext=pod
 
   # Operator Configuration
   operator:
