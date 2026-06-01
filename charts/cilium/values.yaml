@@ -42,6 +42,12 @@ cilium:
   # Envoy Configuration
   envoy:
     enabled: true
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        labels:
+          release: kps
     tolerations:
       - operator: Exists
     resources:
@@ -58,6 +64,14 @@ cilium:
       enabled: true
       labels:
         release: kps
+    metrics:
+      - "+bpf_syscall_duration_seconds"
+      - "+fqdn_active_names"
+      - "+fqdn_active_ips"
+      - "+fqdn_alive_zombie_connections"
+      - "+k8s_event_lag_seconds"
+      - "+cidrgroup_translation_time_stats_seconds"
+      - "+api_limiter_wait_history_duration_seconds"
 
   # Hubble Observability Platform
   hubble:
@@ -107,13 +121,18 @@ cilium:
             cpu: 10m
             memory: 8Mi
     metrics:
+      enableOpenMetrics: true
       enabled:
-        - dns
-        - drop
-        - tcp
-        - flow
-        - icmp
-        - http
+        - dns:query;ignoreAAAA;destinationContext=pod-short
+        - drop:sourceContext=pod-short;destinationContext=pod-short
+        - tcp:sourceContext=pod-short;destinationContext=pod-short
+        - flow:sourceContext=pod-short;destinationContext=pod-short
+        - icmp:sourceContext=pod-short;destinationContext=pod-short
+        - httpV2:sourceContext=pod-short;destinationContext=pod-short;exemplars=true
+        - flows-to-world:destinationContext=pod-short
+        - port-distribution:sourceContext=pod-short;destinationContext=pod-short
+        - kafka:sourceContext=pod-short;destinationContext=pod-short
+        - policy:sourceContext=pod-short;destinationContext=pod-short
 
   # Operator Configuration
   operator:
