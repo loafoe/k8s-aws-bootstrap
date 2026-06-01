@@ -206,9 +206,16 @@ cilium:
     enableHealthCheckNodePort: true
 
   # Encryption Configuration
+  # WireGuard transparent encryption for pod-to-pod traffic. nodeEncryption
+  # also encrypts host/node-to-node traffic between Cilium-managed nodes; the
+  # control-plane node is auto-exempted by Cilium to avoid a key-rotation
+  # bootstrap deadlock. WireGuard auto-generates per-node keys (no secrets to
+  # manage). In tunnel/vxlan mode traffic is double-encapsulated, but the EC2
+  # 9001 (jumbo) MTU leaves ample headroom.
   encryption:
-    enabled: false
+    enabled: true
     type: wireguard
+    nodeEncryption: true
 
   # Policy Configuration
   policyEnforcementMode: default
