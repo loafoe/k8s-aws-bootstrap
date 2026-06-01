@@ -122,6 +122,10 @@ cilium:
             memory: 8Mi
     metrics:
       enableOpenMetrics: true
+      serviceMonitor:
+        enabled: true
+        labels:
+          release: kps
       enabled:
         - dns:query;ignoreAAAA;destinationContext=pod
         - drop:sourceContext=pod;destinationContext=pod
