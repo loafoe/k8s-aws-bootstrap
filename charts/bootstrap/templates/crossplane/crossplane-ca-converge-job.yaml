@@ -86,10 +86,29 @@ spec:
     spec:
       serviceAccountName: crossplane-ca-converger
       restartPolicy: OnFailure
+      # crossplane-system enforces PodSecurity "restricted".
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: converger
         # renovate: datasource=docker depName=alpine/k8s
         image: alpine/k8s:1.36.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop:
+              - ALL
+        env:
+        # uid 65532 has no home dir; keep kubectl's discovery cache writable.
+        - name: HOME
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
         resources:
           requests:
             cpu: 10m
