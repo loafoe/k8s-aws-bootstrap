@@ -122,27 +122,30 @@ spec:
           set -eu
           NS=crossplane-system
 
-          ca_fingerprint() {
-            # $1 secret name, $2 data key with the dot escaped (e.g. tls\.crt),
-            # so jsonpath treats it as one literal key instead of a nested
-            # field path ({.data.tls.crt} would wrongly descend tls -> crt).
-            # Empty string if the secret or key is absent.
-            kubectl get secret "$1" -n "$NS" -o "jsonpath={.data.$2}" 2>/dev/null \
-              | base64 -d 2>/dev/null \
-              | openssl x509 -noout -fingerprint -sha256 2>/dev/null || true
+          # Returns a sha256 hash of the (PEM) cert bytes in a secret key, or an
+          # empty string if the secret/key is absent or empty. We hash the bytes
+          # rather than parse the cert because the alpine/k8s image ships kubectl
+          # but NOT the openssl CLI. $2 is the data key with the dot escaped
+          # (e.g. tls\.crt) so jsonpath matches the literal key instead of
+          # descending a nested field path ({.data.tls.crt} -> tls -> crt).
+          ca_hash() {
+            pem="$(kubectl get secret "$1" -n "$NS" -o "jsonpath={.data.$2}" 2>/dev/null \
+                     | base64 -d 2>/dev/null)"
+            [ -n "$pem" ] || return 0
+            printf '%s' "$pem" | sha256sum | cut -d' ' -f1
           }
 
           echo "Waiting for cert-manager managed CA in crossplane-root-ca..."
           i=0
-          while [ -z "$(ca_fingerprint crossplane-root-ca 'tls\.crt')" ]; do
+          while [ -z "$(ca_hash crossplane-root-ca 'tls\.crt')" ]; do
             i=$((i+1)); [ "$i" -gt 60 ] && echo "timed out waiting for crossplane-root-ca" && exit 1
             sleep 5
           done
 
-          ROOT_CA="$(ca_fingerprint crossplane-root-ca 'tls\.crt')"
-          SERVER_CA="$(ca_fingerprint crossplane-tls-server 'ca\.crt')"
-          echo "root-ca(tls.crt) fp:    $ROOT_CA"
-          echo "tls-server(ca.crt) fp:  $SERVER_CA"
+          ROOT_CA="$(ca_hash crossplane-root-ca 'tls\.crt')"
+          SERVER_CA="$(ca_hash crossplane-tls-server 'ca\.crt')"
+          echo "root-ca(tls.crt) sha256:   $ROOT_CA"
+          echo "tls-server(ca.crt) sha256: ${SERVER_CA:-<absent>}"
 
           if [ -n "$SERVER_CA" ] && [ "$ROOT_CA" = "$SERVER_CA" ]; then
             echo "CA already aligned. Nothing to do."
