@@ -4,7 +4,9 @@ metadata:
   name: crossplane-functions
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Wave 3: after the crossplane Application (wave 2) so the Function CRD and
+    # core (which signs each function's TLS cert from the shared CA) are ready.
+    argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
