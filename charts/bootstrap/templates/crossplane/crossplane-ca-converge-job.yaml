@@ -123,7 +123,10 @@ spec:
           NS=crossplane-system
 
           ca_fingerprint() {
-            # $1 secret name, $2 data key (tls.crt or ca.crt). Empty string if absent.
+            # $1 secret name, $2 data key with the dot escaped (e.g. tls\.crt),
+            # so jsonpath treats it as one literal key instead of a nested
+            # field path ({.data.tls.crt} would wrongly descend tls -> crt).
+            # Empty string if the secret or key is absent.
             kubectl get secret "$1" -n "$NS" -o "jsonpath={.data.$2}" 2>/dev/null \
               | base64 -d 2>/dev/null \
               | openssl x509 -noout -fingerprint -sha256 2>/dev/null || true
@@ -131,13 +134,13 @@ spec:
 
           echo "Waiting for cert-manager managed CA in crossplane-root-ca..."
           i=0
-          while [ -z "$(ca_fingerprint crossplane-root-ca tls.crt)" ]; do
+          while [ -z "$(ca_fingerprint crossplane-root-ca 'tls\.crt')" ]; do
             i=$((i+1)); [ "$i" -gt 60 ] && echo "timed out waiting for crossplane-root-ca" && exit 1
             sleep 5
           done
 
-          ROOT_CA="$(ca_fingerprint crossplane-root-ca tls.crt)"
-          SERVER_CA="$(ca_fingerprint crossplane-tls-server ca.crt)"
+          ROOT_CA="$(ca_fingerprint crossplane-root-ca 'tls\.crt')"
+          SERVER_CA="$(ca_fingerprint crossplane-tls-server 'ca\.crt')"
           echo "root-ca(tls.crt) fp:    $ROOT_CA"
           echo "tls-server(ca.crt) fp:  $SERVER_CA"
 
