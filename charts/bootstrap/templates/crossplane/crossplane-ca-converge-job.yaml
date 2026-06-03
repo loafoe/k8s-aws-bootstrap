@@ -40,9 +40,10 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "delete"]
+# watch is required by `kubectl rollout status` to follow the rollout.
 - apiGroups: ["apps"]
   resources: ["deployments"]
-  verbs: ["get", "list", "patch"]
+  verbs: ["get", "list", "watch", "patch"]
 # Allows removing the stale, hand-applied cert-manager Certificate that issues
 # crossplane-tls-client with the wrong CA. If left in place it would re-issue
 # the secret (wrong CA) the moment this Job deletes it, racing crossplane core.
