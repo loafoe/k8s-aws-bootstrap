@@ -1,0 +1,54 @@
+# Crossplane internal PKI, externally managed by cert-manager.
+#
+# Why this exists:
+# Crossplane core (`core init`) bootstraps its own internal CA into the
+# `crossplane-root-ca` secret and signs the server/client certs AND every
+# per-package (function/provider) TLS server cert from it. `core init` REUSES
+# an existing CA secret if `tls.crt`+`tls.key` are already present (verified in
+# crossplane v2.3.1 internal/initializer/tls.go `loadOrGenerateCA`).
+#
+# By having cert-manager populate `crossplane-root-ca` with a STABLE, git-tracked
+# CA BEFORE crossplane init runs, every cert crossplane subsequently generates
+# chains to one CA that never silently diverges. This removes the recurring
+# "certificate signed by unknown authority" handshake failures between crossplane
+# core and the composition functions.
+#
+# cert-manager writes into the (chart pre-created, empty, Opaque) secret and
+# preserves its type; crossplane reads certs by key (tls.crt/tls.key/ca.crt),
+# not by secret type, so an Opaque secret is fine.
+#
+# Ordering: these resources sync at wave 1 alongside cert-manager (which must be
+# Healthy to serve its webhook); the `crossplane` Application is moved to wave 2
+# so the CA exists in `crossplane-root-ca` before `core init` executes.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: crossplane-selfsigned-issuer
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: crossplane-root-ca
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
+  # uses to sign all server/client/package certificates.
+  secretName: crossplane-root-ca
+  isCA: true
+  commonName: crossplane-ca
+  duration: 87600h    # 10y, matches crossplane's own internal CA lifetime
+  renewBefore: 8760h  # 1y
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: crossplane-selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
