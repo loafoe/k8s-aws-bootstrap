@@ -13,6 +13,14 @@ kube-prometheus-stack:
   prometheus:
     prometheusSpec:
       enableOTLPReceiver: true
+      # Discover ServiceMonitors/PodMonitors/Rules/Probes/ScrapeConfigs across all
+      # namespaces without requiring the `release: kps` label. Setting these to false
+      # makes a nil selector mean "match everything" (matches our EKS clusters).
+      ruleSelectorNilUsesHelmValues: false
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      probeSelectorNilUsesHelmValues: false
+      scrapeConfigSelectorNilUsesHelmValues: false
       resources:
         requests:
           cpu: 100m
