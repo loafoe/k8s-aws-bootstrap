@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-providers
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-providers
-    targetRevision: 0.0.31
+    targetRevision: 0.0.32
     path: .
     helm:
       valuesObject:
