@@ -15,4 +15,8 @@ spec:
     # Add a single challenge solver, DNS01 using Route53
     solvers:
     - dns01:
-        route53: {}
+        route53:
+          # cert-manager v1.20+ uses aws-sdk-go-v2, which requires an explicit
+          # region — Pod Identity injects credentials but not AWS_REGION, so
+          # without this the Route53 solver fails with "Missing Region".
+          region: {{ .Values.environmentConfig.bootstrap.awsRegion }}
