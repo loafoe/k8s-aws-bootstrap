@@ -137,6 +137,20 @@ cilium:
         - port-distribution:sourceContext=pod;destinationContext=pod
         - kafka:sourceContext=pod;destinationContext=pod
         - policy:sourceContext=pod;destinationContext=pod
+    # Hubble Flow Export — Gateway API / Envoy L7 (HTTP) access logs.
+    # Static exporter is bound to the agent lifecycle and rotates natively.
+    # The file is tailed off-node by a logs collector (configured separately).
+    export:
+      static:
+        enabled: true
+        filePath: /var/run/cilium/hubble/events.log
+        # event_type 129 = AccessLog (L7/HTTP) — verified against live Hubble
+        # records on dip-ce-k3s-eu. Excludes L3/L4 flow noise.
+        allowList:
+          - '{"event_type":[{"type":129}]}'
+        fileMaxSizeMb: 50
+        fileMaxBackups: 5
+        fileCompress: true
 
   # Operator Configuration
   operator:
