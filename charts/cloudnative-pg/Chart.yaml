@@ -9,6 +9,6 @@ dependencies:
     repository: "https://cloudnative-pg.io/charts/"
   - name: plugin-barman-cloud
     # renovate: datasource=helm registryUrl=https://cloudnative-pg.io/charts depName=plugin-barman-cloud
-    version: "0.6.0"
+    version: "0.7.0"
     repository: "https://cloudnative-pg.io/charts/"
     condition: plugin-barman-cloud.enabled
