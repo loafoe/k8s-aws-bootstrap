@@ -5,7 +5,7 @@ description: Thin wrapper for CloudNative-PG operator and barman-cloud plugin
 dependencies:
   - name: cloudnative-pg
     # renovate: datasource=helm registryUrl=https://cloudnative-pg.io/charts depName=cloudnative-pg
-    version: "0.28.2"
+    version: "0.28.3"
     repository: "https://cloudnative-pg.io/charts/"
   - name: plugin-barman-cloud
     # renovate: datasource=helm registryUrl=https://cloudnative-pg.io/charts depName=plugin-barman-cloud
