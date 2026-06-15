@@ -1,13 +1,14 @@
 snapshot-controller:
-  replicaCount: 1
+  controller:
+    replicaCount: 1
 
-  resources:
-    requests:
-      cpu: 10m
-      memory: 30Mi
-    limits:
-      memory: 50Mi
+    resources:
+      requests:
+        cpu: 10m
+        memory: 30Mi
+      limits:
+        memory: 50Mi
 
-  tolerations:
-  - key: CriticalAddonsOnly
-    operator: Exists
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
