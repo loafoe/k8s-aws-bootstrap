@@ -31,5 +31,21 @@
       ],
       groupName: 'argo-cd chart (OCI)',
     },
+    {
+      // piraeus snapshot-controller 5.1.0 (appVersion v8.6.0) ships a broken
+      // crds.yaml: the conversion-webhook block for the VolumeGroupSnapshotContent
+      // CRD is missing, so apiserver rejects it with
+      //   spec.conversion.strategy: Required value
+      //   spec.conversion.webhookClientConfig: Forbidden ...
+      // Pin to 5.0.4 (appVersion v8.5.0) until upstream restores the injection.
+      // Tracking: https://github.com/piraeusdatastore/helm-charts/issues (filed)
+      matchDatasources: [
+        'helm',
+      ],
+      matchDepNames: [
+        'snapshot-controller',
+      ],
+      allowedVersions: '<=5.0.4',
+    },
   ],
 }
