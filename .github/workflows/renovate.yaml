@@ -9,6 +9,7 @@ on:
   workflow_dispatch:
 
 env:
+  # renovate: datasource=npm depName=renovate
   RENOVATE_VERSION: 41.141.0
 
 jobs:
