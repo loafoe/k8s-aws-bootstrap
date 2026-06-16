@@ -5,5 +5,5 @@ description: Thin wrapper for Vertical Pod Autoscaler
 dependencies:
   - name: vertical-pod-autoscaler
     # renovate: datasource=helm registryUrl=https://kubernetes.github.io/autoscaler depName=vertical-pod-autoscaler
-    version: "0.9.0"
+    version: "0.10.0"
     repository: "https://kubernetes.github.io/autoscaler"
