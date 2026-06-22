@@ -35,6 +35,7 @@ features:
 
   # Kube Prometheus Stack
   kubePrometheusStack:
+    enabled: true
     grafana:
       enabled: false
 
