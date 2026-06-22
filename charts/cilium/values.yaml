@@ -79,8 +79,26 @@ cilium:
     relay:
       enabled: true
       replicas: 1
-      nodeSelector:
-        node-type: system
+      # Prefer system nodes, then karpenter-managed nodes. Soft (preferred)
+      # affinity so the pod stays schedulable even when neither node-type is
+      # available, while favoring system when it is.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - system
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - karpenter-managed
       tolerations:
         - key: node.kubernetes.io/not-ready
           operator: Exists
@@ -97,8 +115,26 @@ cilium:
     ui:
       enabled: true
       replicas: 1
-      nodeSelector:
-        node-type: system
+      # Prefer system nodes, then karpenter-managed nodes. Soft (preferred)
+      # affinity so the pod stays schedulable even when neither node-type is
+      # available, while favoring system when it is.
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - system
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                      - karpenter-managed
       tolerations:
         - key: node.kubernetes.io/not-ready
           operator: Exists
