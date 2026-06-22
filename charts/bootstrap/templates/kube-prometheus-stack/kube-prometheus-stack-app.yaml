@@ -1,3 +1,4 @@
+{{- if .Values.features.kubePrometheusStack.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -38,3 +39,4 @@ spec:
       - ServerSideApply=true
       - HealthCheckTimeout=10m
   revisionHistoryLimit: 3
+{{- end }}
