@@ -5,5 +5,5 @@ description: Thin wrapper for Argo CD
 dependencies:
   - name: argo-cd
     # renovate: datasource=docker depName=ghcr.io/argoproj/argo-helm/argo-cd
-    version: "9.5.22"
+    version: "9.7.0"
     repository: "oci://ghcr.io/argoproj/argo-helm"
