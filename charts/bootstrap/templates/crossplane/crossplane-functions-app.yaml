@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-functions
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-functions
-    targetRevision: 0.0.13
+    targetRevision: 0.0.14
     path: .
     helm:
       valuesObject:
