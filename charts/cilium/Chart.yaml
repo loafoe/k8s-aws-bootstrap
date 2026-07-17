@@ -5,5 +5,5 @@ description: Thin wrapper for Cilium CNI
 dependencies:
   - name: cilium
     # renovate: datasource=helm registryUrl=https://helm.cilium.io depName=cilium
-    version: "1.19.5"
+    version: "1.19.6"
     repository: "https://helm.cilium.io/"
