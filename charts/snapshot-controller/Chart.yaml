@@ -5,5 +5,5 @@ description: Thin wrapper for Snapshot Controller
 dependencies:
   - name: snapshot-controller
     # renovate: datasource=helm registryUrl=https://piraeus.io/helm-charts/ depName=snapshot-controller
-    version: "5.1.1"
+    version: "5.2.0"
     repository: "https://piraeus.io/helm-charts/"
