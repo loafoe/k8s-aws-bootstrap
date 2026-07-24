@@ -15,7 +15,7 @@ features:
   hspAwsPlatform:
     enabled: true
     cloudnativePg:
-      enabled: true
+      enabled: false
     ecrPullThrough:
       enabled: true
     hspAddons:
