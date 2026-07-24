@@ -1,4 +1,4 @@
-{{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.cloudnativePg }}
+{{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.cloudnativePg.enabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
