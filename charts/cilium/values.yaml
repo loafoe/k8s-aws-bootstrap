@@ -1,4 +1,12 @@
 cilium:
+  # Pin pre-1.20 defaults (e.g. Envoy xDS mode) across the 1.19->1.20 chart bump to
+  # avoid a datapath behavior change mid-upgrade. Remove once fully on 1.20+ and
+  # defaults are verified. Note: this does NOT cover bpf-lb-sock-hostns-only /
+  # bpf-lb-algorithm-annotation, which Cilium 1.20 force-enables unconditionally
+  # whenever gatewayAPI.enabled=true (required for per-backend TCPRoute/UDPRoute
+  # weighting) - that change lands regardless of this pin.
+  upgradeCompatibility: "1.19"
+
   # Networking Configuration
   tunnelProtocol: vxlan
   autoDirectNodeRoutes: false

@@ -11,6 +11,9 @@
 #
 # Included CRDs (Experimental Channel):
 # - tlsroutes.yaml
+# - tcproutes.yaml
+# - udproutes.yaml
+# - backendtlspolicies.yaml
 #
 # Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.5.1
 #
