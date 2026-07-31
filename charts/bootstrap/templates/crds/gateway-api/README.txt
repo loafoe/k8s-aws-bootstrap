@@ -1,22 +1,25 @@
-# Gateway API CRDs v1.5.1 (Standard + Experimental Channel)
+# Gateway API CRDs v1.6.1 (Experimental Channel Bundle)
 #
 # These CRDs are installed when .Values.features.gatewayApi.enabled is true.
 #
-# Included CRDs (Standard Channel):
+# Included CRDs:
+# - backendtlspolicies.yaml
 # - gatewayclasses.yaml
 # - gateways.yaml
-# - httproutes.yaml
 # - grpcroutes.yaml
+# - httproutes.yaml
+# - listenersets.yaml
 # - referencegrants.yaml
-#
-# Included CRDs (Experimental Channel):
-# - tlsroutes.yaml
 # - tcproutes.yaml
+# - tlsroutes.yaml
 # - udproutes.yaml
-# - backendtlspolicies.yaml
+# - xbackends.yaml
+# - xbackendtrafficpolicies.yaml
+# - xmeshes.yaml
 #
-# Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.5.1
+# Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.1
 #
 # To update these CRDs, download from:
-# Standard: https://github.com/kubernetes-sigs/gateway-api/tree/v1.5.1/config/crd/standard
-# Experimental: https://github.com/kubernetes-sigs/gateway-api/tree/v1.5.1/config/crd/experimental
+# Standard: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml
+# Experimental: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/experimental-install.yaml
+
