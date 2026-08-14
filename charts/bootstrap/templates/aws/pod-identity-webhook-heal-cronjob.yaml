@@ -115,13 +115,13 @@ spec:
               # ---------------------------------------------------------------
               echo "Checking pod-identity-webhook readiness..."
 
-              WEBHOOK_NS=$(kubectl get mutatingwebhookconfiguration pod-identity-webhook \
+              WEBHOOK_NS=$(kubectl get mutatingwebhookconfiguration amazon-eks-pod-identity-webhook \
                 -o jsonpath='{.webhooks[0].clientConfig.service.namespace}' 2>/dev/null || true)
-              WEBHOOK_SVC=$(kubectl get mutatingwebhookconfiguration pod-identity-webhook \
+              WEBHOOK_SVC=$(kubectl get mutatingwebhookconfiguration amazon-eks-pod-identity-webhook \
                 -o jsonpath='{.webhooks[0].clientConfig.service.name}' 2>/dev/null || true)
 
               if [ -z "$WEBHOOK_NS" ] || [ -z "$WEBHOOK_SVC" ]; then
-                echo "MutatingWebhookConfiguration 'pod-identity-webhook' not found or incomplete. Skipping."
+                echo "MutatingWebhookConfiguration 'amazon-eks-pod-identity-webhook' not found or incomplete. Skipping."
                 exit 0
               fi
 
