@@ -1,0 +1,250 @@
+# ---------------------------------------------------------------------------
+# Self-healing CronJob: restart IRSA-dependent workloads that were admitted
+# before the amazon-eks-pod-identity-webhook was ready.
+# ---------------------------------------------------------------------------
+# The pod-identity-webhook is a MutatingAdmissionWebhook (failurePolicy: Ignore)
+# that injects projected SA token volumes + AWS env vars into pods whose service
+# accounts carry the eks.amazonaws.com/role-arn annotation. Pods admitted while
+# the webhook isn't serving are created WITHOUT mutation and crashloop because
+# they can't assume their IAM role. Kubernetes never re-runs admission on
+# existing pods — only a pod delete (triggering ReplicaSet recreation) passes
+# the new pod through the now-ready webhook.
+#
+# This CronJob runs every 2 minutes and dynamically discovers ALL
+# IRSA-annotated ServiceAccounts (no hardcoded list to maintain). For each,
+# it checks if pods are missing the aws-iam-token volume and triggers a
+# rollout restart of the owning Deployment so new pods go through admission.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pod-identity-webhook-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-identity-webhook-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+rules:
+# List ServiceAccounts to discover IRSA-annotated workloads dynamically
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["list"]
+# Read pods across namespaces to detect unmutated workloads
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Read endpoints to verify webhook readiness
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get"]
+# Read MutatingWebhookConfigurations
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources: ["mutatingwebhookconfigurations"]
+  verbs: ["get"]
+# Read ReplicaSets to walk the Pod → ReplicaSet → Deployment owner chain
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get"]
+# Rollout restart deployments in affected namespaces
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pod-identity-webhook-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pod-identity-webhook-healer
+subjects:
+- kind: ServiceAccount
+  name: pod-identity-webhook-healer
+  namespace: kube-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pod-identity-webhook-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 90
+      ttlSecondsAfterFinished: 120
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: pod-identity-webhook-healer
+        spec:
+          serviceAccountName: pod-identity-webhook-healer
+          restartPolicy: Never
+          containers:
+          - name: healer
+            # renovate: datasource=docker depName=alpine/k8s
+            image: alpine/k8s:1.36.0
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+            command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              # ---------------------------------------------------------------
+              # 1. Verify the pod-identity-webhook is actually ready.
+              #    If it's not, there's nothing we can do — exit early.
+              # ---------------------------------------------------------------
+              echo "Checking pod-identity-webhook readiness..."
+
+              WEBHOOK_NS=$(kubectl get mutatingwebhookconfiguration pod-identity-webhook \
+                -o jsonpath='{.webhooks[0].clientConfig.service.namespace}' 2>/dev/null || true)
+              WEBHOOK_SVC=$(kubectl get mutatingwebhookconfiguration pod-identity-webhook \
+                -o jsonpath='{.webhooks[0].clientConfig.service.name}' 2>/dev/null || true)
+
+              if [ -z "$WEBHOOK_NS" ] || [ -z "$WEBHOOK_SVC" ]; then
+                echo "MutatingWebhookConfiguration 'pod-identity-webhook' not found or incomplete. Skipping."
+                exit 0
+              fi
+
+              READY_ENDPOINTS=$(kubectl get endpoints "$WEBHOOK_SVC" -n "$WEBHOOK_NS" \
+                -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null || true)
+
+              if [ -z "$READY_ENDPOINTS" ]; then
+                echo "Webhook service $WEBHOOK_NS/$WEBHOOK_SVC has no ready endpoints. Skipping."
+                exit 0
+              fi
+
+              echo "✅ pod-identity-webhook is ready (endpoints: $READY_ENDPOINTS)"
+
+              # ---------------------------------------------------------------
+              # 2. Discover IRSA-dependent workloads dynamically.
+              #    Find all ServiceAccounts annotated with
+              #    eks.amazonaws.com/role-arn, then check if their pods were
+              #    properly mutated (have the aws-iam-token volume).
+              #
+              #    This is self-maintaining: any new workload that uses IRSA
+              #    is automatically covered without updating this script.
+              # ---------------------------------------------------------------
+              HEAL_COUNT_FILE=$(mktemp)
+              echo "0" > "$HEAL_COUNT_FILE"
+
+              echo ""
+              echo "Discovering IRSA-annotated ServiceAccounts..."
+
+              # Get all ServiceAccounts with the IRSA annotation across all namespaces
+              SA_LIST=$(kubectl get serviceaccounts --all-namespaces -o json | \
+                jq -r '.items[] |
+                  select(.metadata.annotations["eks.amazonaws.com/role-arn"] != null) |
+                  "\(.metadata.namespace) \(.metadata.name)"' 2>/dev/null || true)
+
+              if [ -z "$SA_LIST" ]; then
+                echo "No IRSA-annotated ServiceAccounts found. Nothing to check."
+                rm -f "$HEAL_COUNT_FILE"
+                exit 0
+              fi
+
+              echo "$SA_LIST" | while read -r ns sa_name; do
+                [ -z "$ns" ] && continue
+
+                # Find non-terminal pods using this ServiceAccount
+                PODS_JSON=$(kubectl get pods -n "$ns" \
+                  --field-selector=status.phase!=Succeeded,status.phase!=Failed \
+                  -o json 2>/dev/null || echo '{"items":[]}')
+
+                # Filter to pods using this specific ServiceAccount and missing the token volume
+                UNMUTATED=$(echo "$PODS_JSON" | jq -r --arg sa "$sa_name" '
+                  .items[] |
+                  select(.spec.serviceAccountName == $sa) |
+                  select(.metadata.deletionTimestamp == null) |
+                  select(.spec.volumes // [] | map(.name) | contains(["aws-iam-token"]) | not) |
+                  .metadata.name' 2>/dev/null || true)
+
+                if [ -z "$UNMUTATED" ]; then
+                  continue
+                fi
+
+                echo ""
+                echo "⚠️  Found unmutated pods in $ns (ServiceAccount: $sa_name):"
+                echo "$UNMUTATED" | sed 's/^/   - /'
+
+                # Determine the owning Deployment for each unmutated pod and restart it.
+                # We collect unique deployments to avoid restarting the same one multiple times.
+                RESTARTED_DEPLOYMENTS=""
+                for pod in $UNMUTATED; do
+                  # Walk the owner chain: Pod → ReplicaSet → Deployment
+                  OWNER_RS=$(kubectl get pod "$pod" -n "$ns" \
+                    -o jsonpath='{.metadata.ownerReferences[?(@.kind=="ReplicaSet")].name}' 2>/dev/null || true)
+
+                  if [ -z "$OWNER_RS" ]; then
+                    echo "   → Pod $pod has no ReplicaSet owner, skipping"
+                    continue
+                  fi
+
+                  OWNER_DEPLOY=$(kubectl get replicaset "$OWNER_RS" -n "$ns" \
+                    -o jsonpath='{.metadata.ownerReferences[?(@.kind=="Deployment")].name}' 2>/dev/null || true)
+
+                  if [ -z "$OWNER_DEPLOY" ]; then
+                    echo "   → ReplicaSet $OWNER_RS has no Deployment owner, skipping"
+                    continue
+                  fi
+
+                  # Skip if we already restarted this deployment
+                  if echo "$RESTARTED_DEPLOYMENTS" | grep -qw "$OWNER_DEPLOY"; then
+                    continue
+                  fi
+
+                  echo "   → Triggering rollout restart for $ns/$OWNER_DEPLOY"
+                  kubectl rollout restart deployment/"$OWNER_DEPLOY" -n "$ns"
+                  RESTARTED_DEPLOYMENTS="$RESTARTED_DEPLOYMENTS $OWNER_DEPLOY"
+                  # Increment the counter in the file (works across subshell boundary)
+                  CURRENT=$(cat "$HEAL_COUNT_FILE")
+                  echo $((CURRENT + 1)) > "$HEAL_COUNT_FILE"
+                done
+              done
+
+              # ---------------------------------------------------------------
+              # 3. Report
+              # ---------------------------------------------------------------
+              HEALED=$(cat "$HEAL_COUNT_FILE")
+              rm -f "$HEAL_COUNT_FILE"
+              echo ""
+              if [ "$HEALED" -gt 0 ]; then
+                echo "🔧 Triggered rollout restart for $HEALED deployment(s) with unmutated pods."
+              else
+                echo "✅ All IRSA-dependent pods are properly mutated. Nothing to do."
+              fi
+          # Schedule on control-plane / system nodes (always available)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                    - system
+                    - control-plane
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node.cilium.io/agent-not-ready
+            operator: Exists
