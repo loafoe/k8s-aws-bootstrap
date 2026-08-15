@@ -36,13 +36,16 @@ kube-prometheus-stack:
       limits:
         memory: 50Mi
 
+  # kube-state-metrics on dip-ce-k3s-eu was OOM-thrashing at its 38Mi limit
+  # (working set pinned at ~37Mi -> liveness/readiness timeouts and restarts).
+  # Bumped to give headroom for the current cluster size (130+ pods, 150+ secrets).
   kube-state-metrics:
     resources:
       requests:
-        cpu: 5m
-        memory: 19Mi
+        cpu: 10m
+        memory: 64Mi
       limits:
-        memory: 38Mi
+        memory: 128Mi
 
   nodeExporter:
     enabled: true
