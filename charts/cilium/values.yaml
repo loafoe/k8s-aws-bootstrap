@@ -268,12 +268,15 @@ cilium:
     - key: node.cilium.io/agent-not-ready
       operator: Exists
 
+  # cilium-agent on dip-ce-k3s-eu runs at 283-340Mi against its 384Mi limit
+  # (82-89%). Raised for headroom; WireGuard + Hubble export add memory as
+  # node/pod counts grow.
   resources:
     limits:
-      memory: 384Mi
+      memory: 512Mi
     requests:
       cpu: 100m
-      memory: 192Mi
+      memory: 256Mi
 
   # Device Configuration
   # Explicitly set devices to ensure all IPv6 addresses are detected for NodePort

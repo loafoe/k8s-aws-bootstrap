@@ -32,9 +32,9 @@ kube-prometheus-stack:
     resources:
       requests:
         cpu: 5m
-        memory: 25Mi
+        memory: 64Mi
       limits:
-        memory: 50Mi
+        memory: 128Mi
 
   # kube-state-metrics on dip-ce-k3s-eu was OOM-thrashing at its 38Mi limit
   # (working set pinned at ~37Mi -> liveness/readiness timeouts and restarts).
