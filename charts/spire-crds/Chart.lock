@@ -1,0 +1,6 @@
+dependencies:
+- name: spire-crds
+  repository: https://spiffe.github.io/helm-charts-hardened/
+  version: 0.6.0
+digest: sha256:0b78de07fa73985afff544ba83436c537bc38287a86e95928de4bdff00e06aef
+generated: "2026-08-16T01:18:30.270678918Z"
