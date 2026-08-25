@@ -5,5 +5,5 @@ description: Thin wrapper for Crossplane
 dependencies:
   - name: crossplane
     # renovate: datasource=github-releases depName=crossplane/crossplane
-    version: "v2.3.4"
+    version: "v2.4.0"
     repository: "https://charts.crossplane.io/stable"
