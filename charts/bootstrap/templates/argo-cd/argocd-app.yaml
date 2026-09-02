@@ -18,6 +18,10 @@ spec:
         argo-cd:
           global:
             domain: "argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
+          configs:
+            cm:
+              ui.bannercontent: "Account ID: {{ .Values.environmentConfig.bootstrap.awsAccountId }} | Region: {{ .Values.environmentConfig.bootstrap.awsRegion }} | Cluster: {{ .Values.environmentConfig.bootstrap.clusterName }}"
+              ui.bannerpermanent: "true"
           server:
             config:
               url: "https://argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
