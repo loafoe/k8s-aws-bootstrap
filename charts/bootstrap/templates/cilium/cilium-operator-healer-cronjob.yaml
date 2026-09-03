@@ -1,0 +1,198 @@
+# ---------------------------------------------------------------------------
+# Self-healing CronJob: restart cilium-operator when Gateway TLS secret-sync
+# has silently died.
+# ---------------------------------------------------------------------------
+# cilium-operator syncs the Secret referenced by a Gateway's TLS
+# certificateRefs into the cilium-secrets namespace, which cilium-envoy's
+# SDS reads from to terminate TLS. If cilium-operator's GatewayAPI CRD
+# discovery hits a non-2xx it doesn't classify as transient (e.g. a 403/500
+# while the apiserver's RBAC cache is still warming up after a control-plane
+# restart), it silently disables Gateway API / secret-sync for the rest of
+# that pod's life - no crash, no retry, no further log line
+# (cilium/cilium#48083). Every TLS handshake on every hostname behind that
+# Gateway then resets. A `kubectl rollout restart deployment cilium-operator`
+# fully clears it once the apiserver is healthy again.
+#
+# The master-userdata bootstrap script proactively restarts cilium-operator
+# right after a master replacement (the most likely trigger), so this
+# CronJob is a slower defense-in-depth backstop for any other apiserver
+# blip that isn't a master replacement. Detection is symptom-based, not a
+# log/version-coupled check: if any Gateway needs a TLS secret but
+# cilium-secrets has none, secret-sync is broken.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cilium-operator-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cilium-operator-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+rules:
+# List Gateways cluster-wide to find TLS listeners that need a synced secret
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["gateways"]
+  verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cilium-operator-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cilium-operator-healer
+subjects:
+- kind: ServiceAccount
+  name: cilium-operator-healer
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cilium-operator-healer
+  namespace: cilium-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+rules:
+# Only need to know whether any secret exists here, never read one
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cilium-operator-healer
+  namespace: cilium-secrets
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cilium-operator-healer
+subjects:
+- kind: ServiceAccount
+  name: cilium-operator-healer
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cilium-operator-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+rules:
+# Scoped to the one deployment this healer is allowed to restart
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  resourceNames: ["cilium-operator"]
+  verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cilium-operator-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cilium-operator-healer
+subjects:
+- kind: ServiceAccount
+  name: cilium-operator-healer
+  namespace: kube-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cilium-operator-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  # Defense-in-depth backstop, not primary detection - the master-userdata
+  # restart handles the common trigger (master replacement) immediately.
+  # Daily is enough to bound worst-case exposure to the rarer other triggers.
+  schedule: "17 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 90
+      ttlSecondsAfterFinished: 120
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: cilium-operator-healer
+        spec:
+          serviceAccountName: cilium-operator-healer
+          restartPolicy: Never
+          containers:
+          - name: healer
+            # renovate: datasource=docker depName=alpine/k8s
+            image: alpine/k8s:1.36.0
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+            command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "Counting Gateway TLS listeners that require a synced secret..."
+              REQUIRED=$(kubectl get gateways.gateway.networking.k8s.io -A -o json | jq '
+                [.items[].spec.listeners[]? |
+                  select(.tls != null) |
+                  select((.tls.mode // "Terminate") == "Terminate") |
+                  select((.tls.certificateRefs // []) | length > 0)
+                ] | length')
+
+              if [ "$REQUIRED" -eq 0 ]; then
+                echo "No Gateway TLS listeners found. Nothing to check."
+                exit 0
+              fi
+
+              echo "$REQUIRED TLS listener(s) need a synced secret. Checking cilium-secrets..."
+              SYNCED=$(kubectl get secrets -n cilium-secrets --no-headers 2>/dev/null | wc -l)
+
+              if [ "$SYNCED" -gt 0 ]; then
+                echo "✅ cilium-secrets has $SYNCED secret(s). Gateway secret-sync is healthy."
+                exit 0
+              fi
+
+              echo "⚠️  cilium-secrets is empty but $REQUIRED TLS listener(s) need a secret."
+              echo "🔧 Restarting cilium-operator to clear a stuck GatewayAPI CRD-discovery state."
+              kubectl rollout restart deployment cilium-operator -n kube-system
+          # Schedule on control-plane / system nodes (always available)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                    - system
+                    - control-plane
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node.cilium.io/agent-not-ready
+            operator: Exists
