@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: helmapplication-forbid-argocd-finalizer
+  annotations:
+    policies.kyverno.io/title: Forbid ArgoCD Finalizer on HelmApplication
+    policies.kyverno.io/category: Argo
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: HelmApplication
+    policies.kyverno.io/description: >-
+      The resources-finalizer.argocd.argoproj.io finalizer is only reconciled by
+      the ArgoCD application-controller against Application objects. If it is set
+      directly on a HelmApplication composite (dip.io), nothing ever clears it and
+      the composite deadlocks in Terminating forever, since Crossplane's own
+      composite.apiextensions.crossplane.io finalizer never gets a chance to be
+      added either. This policy blocks that finalizer from being set on the
+      composite itself; the Composition adds it only to the generated Application.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+  - name: forbid-argocd-finalizer-on-helmapplication
+    match:
+      any:
+      - resources:
+          kinds:
+          - HelmApplication
+    validate:
+      message: >-
+        Do not set the resources-finalizer.argocd.argoproj.io finalizer on a
+        HelmApplication itself. That finalizer is only understood by the ArgoCD
+        application-controller reconciling an Application, not this composite -
+        setting it here permanently blocks deletion. Crossplane manages its own
+        finalizer automatically; omit metadata.finalizers entirely.
+      pattern:
+        metadata:
+          =(finalizers):
+          - "!resources-finalizer.argocd.argoproj.io"
