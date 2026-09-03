@@ -58,12 +58,17 @@ cilium:
           release: kps
     tolerations:
       - operator: Exists
+    # envoy was OOMKilling repeatedly (exit 137) on every worker node under the
+    # 74Mi limit, causing intermittent TLS connection resets (ERR_CONNECTION_RESET)
+    # for clients of any hostname on the shared `platform` Gateway - observed
+    # 2026-09-03. Idle usage is ~20-26Mi; raised for headroom as the number of
+    # attached HTTPS routes grows, mirroring the cilium-agent resources note above.
     resources:
       limits:
-        memory: 74Mi
+        memory: 256Mi
       requests:
         cpu: 20m
-        memory: 43Mi
+        memory: 64Mi
 
   # Prometheus Metrics
   prometheus:
