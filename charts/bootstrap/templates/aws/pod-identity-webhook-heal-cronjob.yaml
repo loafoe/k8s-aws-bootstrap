@@ -12,8 +12,18 @@
 #
 # This CronJob runs every 2 minutes and dynamically discovers ALL
 # IRSA-annotated ServiceAccounts (no hardcoded list to maintain). For each,
-# it checks if pods are missing the aws-iam-token volume and triggers a
-# rollout restart of the owning Deployment so new pods go through admission.
+# it checks if pods are missing the aws-iam-token volume:
+#   - Deployment-owned pods (Pod -> ReplicaSet -> Deployment): triggers a
+#     rollout restart of the Deployment.
+#   - Pods with no ReplicaSet owner (StatefulSets, DaemonSets, and
+#     operator-managed pods such as CloudNativePG instances): deletes the
+#     pod directly so its actual controller recreates it through admission -
+#     EXCEPT pods labeled role=primary (e.g. a CNPG primary), which are left
+#     alone and just logged as needing a manual, graceful switchover first.
+#     Deleting a database primary outright can lose the last few seconds of
+#     asynchronously-replicated writes; a rollout restart has no such risk
+#     for stateless Deployment replicas, which is why only this fallback
+#     path carries the role=primary guard.
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ServiceAccount
@@ -54,6 +64,13 @@ rules:
 - apiGroups: ["apps"]
   resources: ["deployments"]
   verbs: ["get", "patch"]
+# Delete unmutated pods that have no ReplicaSet owner (StatefulSets,
+# DaemonSets, and operator-managed pods like CloudNativePG instances) so
+# their actual controller recreates them through admission. Pods labeled
+# role=primary are never deleted this way - see the script for why.
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -195,7 +212,26 @@ spec:
                     -o jsonpath='{.metadata.ownerReferences[?(@.kind=="ReplicaSet")].name}' 2>/dev/null || true)
 
                   if [ -z "$OWNER_RS" ]; then
-                    echo "   → Pod $pod has no ReplicaSet owner, skipping"
+                    # No ReplicaSet owner: this is a StatefulSet/DaemonSet/
+                    # operator-managed pod (e.g. CloudNativePG). Delete it
+                    # directly so its controller recreates it through
+                    # admission - unless it's a database primary, which
+                    # needs a graceful switchover first, not an abrupt delete.
+                    POD_ROLE=$(kubectl get pod "$pod" -n "$ns" \
+                      -o jsonpath='{.metadata.labels.role}' 2>/dev/null || true)
+
+                    if [ "$POD_ROLE" = "primary" ]; then
+                      echo "   → Pod $pod has no ReplicaSet owner and is labeled role=primary - NOT deleting automatically."
+                      echo "     This looks like a database primary (e.g. CloudNativePG). Deleting it outright can lose"
+                      echo "     the last few seconds of async-replicated writes. Promote a healthy replica first, e.g.:"
+                      echo "     kubectl cnpg promote <cluster-name> <replica-pod> -n $ns"
+                      continue
+                    fi
+
+                    echo "   → Pod $pod has no ReplicaSet owner, deleting directly so its controller recreates it"
+                    kubectl delete pod "$pod" -n "$ns" --wait=false
+                    CURRENT=$(cat "$HEAL_COUNT_FILE")
+                    echo $((CURRENT + 1)) > "$HEAL_COUNT_FILE"
                     continue
                   fi
 
