@@ -1,3 +1,4 @@
+{{- if .Values.features.spiffe.enabled }}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -49,3 +50,4 @@ spec:
       patchStrategicMerge:
         spec:
           priorityClassName: system-node-critical
+{{- end }}

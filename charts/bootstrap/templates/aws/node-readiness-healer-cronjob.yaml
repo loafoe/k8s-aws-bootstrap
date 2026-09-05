@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: clears the k8s-aws-bootstrap.io/csi-not-ready taint
-# once a new node's EBS CSI and SPIFFE CSI node plugins are actually
-# registered and Ready - not just once kubelet is Ready.
+# once a new node's EBS CSI (and, when features.spiffe.enabled, SPIFFE CSI)
+# node plugins are actually registered and Ready - not just once kubelet is
+# Ready.
 # ---------------------------------------------------------------------------
 # Karpenter's NodeClaim Initialized condition (see karpenter-nodepool.yaml)
 # requires all startupTaints to be removed before Karpenter will consider a
@@ -9,8 +10,9 @@
 # to drain the node it's replacing. This taint is registered via kubelet
 # --register-with-taints at boot (karpenter-ec2nodeclass.yaml) and only
 # removed here, once real readiness is confirmed:
-#   - CSINode lists both ebs.csi.aws.com and csi.spiffe.io
-#   - the ebs-csi-node and spiffe-csi-driver pods on that node are Ready
+#   - CSINode lists ebs.csi.aws.com (and csi.spiffe.io, if SPIFFE is enabled)
+#   - the ebs-csi-node (and spiffe-csi-driver, if enabled) pods on that node
+#     are Ready
 #
 # Runs every minute (CronJob's minimum granularity) but loops internally for
 # up to ~45s polling every ~10s, so reaction latency is ~10s, not 60s.
@@ -107,9 +109,9 @@ spec:
 
                 if [ -n "$NODES" ]; then
                   # Piped into a subshell under POSIX sh: variables set inside
-                  # this while loop (HAS_EBS, REMAINING_TAINTS, etc.) do not
-                  # escape back to the outer loop. That's fine here since
-                  # nothing after this block depends on per-node state.
+                  # this while loop (MISSING_DRIVERS, REMAINING_TAINTS, etc.)
+                  # do not escape back to the outer loop. That's fine here
+                  # since nothing after this block depends on per-node state.
                   echo "$NODES" | while read -r node; do
                     [ -z "$node" ] && continue
 
@@ -117,22 +119,34 @@ spec:
 
                     DRIVERS=$(kubectl get csinode "$node" -o jsonpath='{.spec.drivers[*].name}' 2>/dev/null || true)
 
-                    HAS_EBS=false
-                    HAS_SPIFFE=false
-                    case " $DRIVERS " in *" ebs.csi.aws.com "*) HAS_EBS=true ;; esac
-                    case " $DRIVERS " in *" csi.spiffe.io "*) HAS_SPIFFE=true ;; esac
+                    # SPIFFE isn't a required driver when features.spiffe.enabled
+                    # is false - there's no spiffe-csi-driver DaemonSet to ever
+                    # register csi.spiffe.io in that case, and requiring it
+                    # anyway would permanently taint every new node.
+                    REQUIRED_DRIVERS="ebs.csi.aws.com{{ if .Values.features.spiffe.enabled }} csi.spiffe.io{{ end }}"
+                    MISSING_DRIVERS=""
+                    for drv in $REQUIRED_DRIVERS; do
+                      case " $DRIVERS " in
+                        *" $drv "*) ;;
+                        *) MISSING_DRIVERS="$MISSING_DRIVERS $drv" ;;
+                      esac
+                    done
 
-                    if [ "$HAS_EBS" != "true" ] || [ "$HAS_SPIFFE" != "true" ]; then
-                      echo "  -> CSINode drivers not fully registered yet (drivers: ${DRIVERS:-none}). Skipping."
+                    if [ -n "$MISSING_DRIVERS" ]; then
+                      echo "  -> CSINode missing required drivers:$MISSING_DRIVERS (have: ${DRIVERS:-none}). Skipping."
                       continue
                     fi
 
                     EBS_READY=$(kubectl get pods -n aws-ebs-csi-driver -l app=ebs-csi-node \
                       --field-selector spec.nodeName="$node" \
                       -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="ebs-plugin")].ready}' 2>/dev/null || true)
+                    {{ if .Values.features.spiffe.enabled }}
                     SPIFFE_READY=$(kubectl get pods -n spire-system -l app.kubernetes.io/name=spiffe-csi-driver \
                       --field-selector spec.nodeName="$node" \
                       -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="spiffe-csi-driver")].ready}' 2>/dev/null || true)
+                    {{ else }}
+                    SPIFFE_READY=true
+                    {{ end }}
 
                     if [ "$EBS_READY" != "true" ] || [ "$SPIFFE_READY" != "true" ]; then
                       echo "  -> Driver pods not Ready yet (ebs=$EBS_READY, spiffe=$SPIFFE_READY). Skipping."
