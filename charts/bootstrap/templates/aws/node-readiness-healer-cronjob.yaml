@@ -1,0 +1,214 @@
+# ---------------------------------------------------------------------------
+# Self-healing CronJob: clears the k8s-aws-bootstrap.io/csi-not-ready taint
+# once a new node's EBS CSI (and, when features.spiffe.enabled, SPIFFE CSI)
+# node plugins are actually registered and Ready - not just once kubelet is
+# Ready.
+# ---------------------------------------------------------------------------
+# Karpenter's NodeClaim Initialized condition (see karpenter-nodepool.yaml)
+# requires all startupTaints to be removed before Karpenter will consider a
+# replacement node usable, which is also what gates when Karpenter is willing
+# to drain the node it's replacing. This taint is registered via kubelet
+# --register-with-taints at boot (karpenter-ec2nodeclass.yaml) and only
+# removed here, once real readiness is confirmed:
+#   - CSINode lists ebs.csi.aws.com (and csi.spiffe.io, if SPIFFE is enabled)
+#   - the ebs-csi-node (and spiffe-csi-driver, if enabled) pods on that node
+#     are Ready
+#
+# Runs every minute (CronJob's minimum granularity) but loops internally for
+# up to ~45s polling every ~10s, so reaction latency is ~10s, not 60s.
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-readiness-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-readiness-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+rules:
+# List nodes to find ones still carrying the readiness taint; patch to clear it
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "patch"]
+# Read CSINode to check which CSI drivers are registered on each node
+- apiGroups: ["storage.k8s.io"]
+  resources: ["csinodes"]
+  verbs: ["get"]
+# Read pods to confirm ebs-csi-node/spiffe-csi-driver are Ready on each node
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-readiness-healer
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-readiness-healer
+subjects:
+- kind: ServiceAccount
+  name: node-readiness-healer
+  namespace: kube-system
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: node-readiness-healer
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  # CronJob's minimum granularity is 1 minute; the script itself loops
+  # internally every ~10s so real reaction latency is ~10s, not 60s.
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 90
+      ttlSecondsAfterFinished: 120
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: node-readiness-healer
+        spec:
+          serviceAccountName: node-readiness-healer
+          restartPolicy: Never
+          containers:
+          - name: healer
+            # renovate: datasource=docker depName=alpine/k8s
+            image: alpine/k8s:1.36.0
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 64Mi
+            command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              END=$(( $(date +%s) + 45 ))
+
+              while [ "$(date +%s)" -lt "$END" ]; do
+                NODES=$(kubectl get nodes -o json | \
+                  jq -r '.items[] | select((.spec.taints // []) | any(.key == "k8s-aws-bootstrap.io/csi-not-ready")) | .metadata.name')
+
+                if [ -n "$NODES" ]; then
+                  # Piped into a subshell under POSIX sh: variables set inside
+                  # this while loop (MISSING_DRIVERS, REMAINING_TAINTS, etc.)
+                  # do not escape back to the outer loop. That's fine here
+                  # since nothing after this block depends on per-node state.
+                  echo "$NODES" | while read -r node; do
+                    [ -z "$node" ] && continue
+
+                    echo "Checking readiness for node $node..."
+
+                    DRIVERS=$(kubectl get csinode "$node" -o jsonpath='{.spec.drivers[*].name}' 2>/dev/null || true)
+
+                    # SPIFFE isn't a required driver when features.spiffe.enabled
+                    # is false - there's no spiffe-csi-driver DaemonSet to ever
+                    # register csi.spiffe.io in that case, and requiring it
+                    # anyway would permanently taint every new node.
+                    REQUIRED_DRIVERS="ebs.csi.aws.com{{ if .Values.features.spiffe.enabled }} csi.spiffe.io{{ end }}"
+                    MISSING_DRIVERS=""
+                    for drv in $REQUIRED_DRIVERS; do
+                      case " $DRIVERS " in
+                        *" $drv "*) ;;
+                        *) MISSING_DRIVERS="$MISSING_DRIVERS $drv" ;;
+                      esac
+                    done
+
+                    if [ -n "$MISSING_DRIVERS" ]; then
+                      echo "  -> CSINode missing required drivers:$MISSING_DRIVERS (have: ${DRIVERS:-none}). Skipping."
+                      continue
+                    fi
+
+                    EBS_READY=$(kubectl get pods -n aws-ebs-csi-driver -l app=ebs-csi-node \
+                      --field-selector spec.nodeName="$node" \
+                      -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="ebs-plugin")].ready}' 2>/dev/null || true)
+                    {{ if .Values.features.spiffe.enabled }}
+                    SPIFFE_READY=$(kubectl get pods -n spire-system -l app.kubernetes.io/name=spiffe-csi-driver \
+                      --field-selector spec.nodeName="$node" \
+                      -o jsonpath='{.items[0].status.containerStatuses[?(@.name=="spiffe-csi-driver")].ready}' 2>/dev/null || true)
+                    {{ else }}
+                    SPIFFE_READY=true
+                    {{ end }}
+
+                    if [ "$EBS_READY" != "true" ] || [ "$SPIFFE_READY" != "true" ]; then
+                      echo "  -> Driver pods not Ready yet (ebs=$EBS_READY, spiffe=$SPIFFE_READY). Skipping."
+                      continue
+                    fi
+
+                    echo "  -> Node $node is ready. Clearing k8s-aws-bootstrap.io/csi-not-ready taint."
+
+                    # Node may have vanished (Karpenter drain/termination race)
+                    # between the readiness checks above and here - guard the
+                    # re-read the same way the other kubectl/jsonpath calls
+                    # above are guarded, and validate the result before using
+                    # it, so a disappeared node can't produce a malformed
+                    # patch body and kill the whole script under `set -e`.
+                    REMAINING_TAINTS=$(kubectl get node "$node" -o json 2>/dev/null | \
+                      jq -c '[.spec.taints[]? | select(.key != "k8s-aws-bootstrap.io/csi-not-ready")]' 2>/dev/null || true)
+
+                    case "$REMAINING_TAINTS" in
+                      \[*\]) ;;
+                      *)
+                        echo "  -> Could not re-read taints for $node (node may have vanished). Skipping."
+                        continue
+                        ;;
+                    esac
+
+                    # Capture stderr (rather than discarding it) so a real,
+                    # persistent failure here - bad RBAC, an admission webhook
+                    # rejection, an API server error - is visible in job logs
+                    # instead of looking identical to the benign "node
+                    # vanished mid-loop" race forever, every ~10s, while the
+                    # node stays permanently tainted.
+                    if ! PATCH_ERR=$(kubectl patch node "$node" --type=merge -p "{\"spec\":{\"taints\":${REMAINING_TAINTS}}}" 2>&1); then
+                      echo "  -> Failed to patch node $node (may have vanished, or a real error): $PATCH_ERR"
+                      continue
+                    fi
+
+                    echo "  -> Taint cleared on $node."
+                  done
+                fi
+
+                sleep 10
+              done
+
+              echo "node-readiness-healer: loop window elapsed, exiting."
+          # Schedule on control-plane / system nodes (always available)
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-type
+                    operator: In
+                    values:
+                    - system
+                    - control-plane
+          tolerations:
+          - key: CriticalAddonsOnly
+            operator: Exists
+          - key: node.cilium.io/agent-not-ready
+            operator: Exists
+          # System-pool nodes get this taint at boot too (shared
+          # EC2NodeClass/userData) - the healer must tolerate the very
+          # taint it's responsible for clearing on other nodes.
+          - key: k8s-aws-bootstrap.io/csi-not-ready
+            operator: Exists
