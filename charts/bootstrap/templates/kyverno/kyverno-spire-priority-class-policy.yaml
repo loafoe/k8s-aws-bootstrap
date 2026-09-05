@@ -1,0 +1,51 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: spire-priority-class
+  annotations:
+    policies.kyverno.io/title: SPIRE Node-Local Priority Class
+    policies.kyverno.io/category: Best Practices, Reliability
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      spire-agent and spiffe-csi-driver are node-local daemons that gate
+      k8s-aws-bootstrap.io/csi-not-ready (see node-readiness-healer-cronjob.yaml).
+      Their upstream Helm charts don't expose priorityClassName, so this policy
+      injects system-node-critical to prevent them being preempted on a busy
+      new node during exactly the startup window the readiness gate protects.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  rules:
+  - name: add-priority-class-spiffe-csi-driver
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - spire-system
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: spiffe-csi-driver
+    mutate:
+      patchStrategicMerge:
+        spec:
+          priorityClassName: system-node-critical
+  - name: add-priority-class-spire-agent
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+          namespaces:
+          - spire-system
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: agent
+              app.kubernetes.io/component: default
+    mutate:
+      patchStrategicMerge:
+        spec:
+          priorityClassName: system-node-critical
