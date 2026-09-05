@@ -62,6 +62,13 @@ spire:
       operator: Exists
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
+    # spire-agent needs no pod networking and must register csi.spiffe.io
+    # (via spiffe-csi-driver) before these taints will ever clear - tolerate
+    # both so it isn't blocked on itself.
+    - key: node.cilium.io/agent-not-ready
+      operator: Exists
+    - key: k8s-aws-bootstrap.io/csi-not-ready
+      operator: Exists
 
   spiffe-csi-driver:
     enabled: true
@@ -75,6 +82,13 @@ spire:
     - key: CriticalAddonsOnly
       operator: Exists
     - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+    # Must be able to schedule and register csi.spiffe.io before
+    # k8s-aws-bootstrap.io/csi-not-ready can ever clear - tolerate both new
+    # readiness taints so it isn't blocked on itself.
+    - key: node.cilium.io/agent-not-ready
+      operator: Exists
+    - key: k8s-aws-bootstrap.io/csi-not-ready
       operator: Exists
 
   spiffe-oidc-discovery-provider:
