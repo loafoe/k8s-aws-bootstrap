@@ -73,6 +73,14 @@ spec:
         - /spec/volumeClaimTemplates/0/kind
         - /spec/volumeClaimTemplates/0/status
       kind: StatefulSet
+    # kyverno-spire-priority-class-policy.yaml mutates
+    # spec.template.spec.priorityClassName on the spiffe-csi-driver and
+    # spire-agent DaemonSets; without this, selfHeal would revert Kyverno's
+    # patch on every sync since git has no priorityClassName set.
+    - group: apps
+      jsonPointers:
+        - /spec/template/spec/priorityClassName
+      kind: DaemonSet
   syncPolicy:
     automated:
       prune: true
