@@ -172,8 +172,15 @@ spec:
                         ;;
                     esac
 
-                    if ! kubectl patch node "$node" --type=merge -p "{\"spec\":{\"taints\":${REMAINING_TAINTS}}}" 2>/dev/null; then
-                      echo "  -> Failed to patch node $node (may have vanished). Skipping."
+                    # Capture stderr (rather than discarding it) so a real,
+                    # persistent failure here - bad RBAC, an admission webhook
+                    # rejection, an API server error - is visible in job logs
+                    # instead of looking identical to the benign "node
+                    # vanished mid-loop" race forever, every ~10s, while the
+                    # node stays permanently tainted.
+                    PATCH_ERR=$(kubectl patch node "$node" --type=merge -p "{\"spec\":{\"taints\":${REMAINING_TAINTS}}}" 2>&1)
+                    if [ $? -ne 0 ]; then
+                      echo "  -> Failed to patch node $node (may have vanished, or a real error): $PATCH_ERR"
                       continue
                     fi
 
