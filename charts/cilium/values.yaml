@@ -253,6 +253,8 @@ cilium:
         memory: 80Mi
 
   # Agent (DaemonSet) Configuration
+  # Never preempted by other pods competing for resources on a busy new node
+  priorityClassName: system-node-critical
   tolerations:
     - operator: Exists
       effect: NoSchedule
