@@ -13,7 +13,7 @@
 #   - the ebs-csi-node and spiffe-csi-driver pods on that node are Ready
 #
 # Runs every minute (CronJob's minimum granularity) but loops internally for
-# up to ~50s polling every ~10s, so reaction latency is ~10s, not 60s.
+# up to ~45s polling every ~10s, so reaction latency is ~10s, not 60s.
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ServiceAccount
@@ -106,6 +106,10 @@ spec:
                   jq -r '.items[] | select((.spec.taints // []) | any(.key == "k8s-aws-bootstrap.io/csi-not-ready")) | .metadata.name')
 
                 if [ -n "$NODES" ]; then
+                  # Piped into a subshell under POSIX sh: variables set inside
+                  # this while loop (HAS_EBS, REMAINING_TAINTS, etc.) do not
+                  # escape back to the outer loop. That's fine here since
+                  # nothing after this block depends on per-node state.
                   echo "$NODES" | while read -r node; do
                     [ -z "$node" ] && continue
 
@@ -137,9 +141,27 @@ spec:
 
                     echo "  -> Node $node is ready. Clearing k8s-aws-bootstrap.io/csi-not-ready taint."
 
-                    REMAINING_TAINTS=$(kubectl get node "$node" -o json | \
-                      jq -c '[.spec.taints[]? | select(.key != "k8s-aws-bootstrap.io/csi-not-ready")]')
-                    kubectl patch node "$node" --type=merge -p "{\"spec\":{\"taints\":${REMAINING_TAINTS}}}"
+                    # Node may have vanished (Karpenter drain/termination race)
+                    # between the readiness checks above and here - guard the
+                    # re-read the same way the other kubectl/jsonpath calls
+                    # above are guarded, and validate the result before using
+                    # it, so a disappeared node can't produce a malformed
+                    # patch body and kill the whole script under `set -e`.
+                    REMAINING_TAINTS=$(kubectl get node "$node" -o json 2>/dev/null | \
+                      jq -c '[.spec.taints[]? | select(.key != "k8s-aws-bootstrap.io/csi-not-ready")]' 2>/dev/null || true)
+
+                    case "$REMAINING_TAINTS" in
+                      \[*\]) ;;
+                      *)
+                        echo "  -> Could not re-read taints for $node (node may have vanished). Skipping."
+                        continue
+                        ;;
+                    esac
+
+                    if ! kubectl patch node "$node" --type=merge -p "{\"spec\":{\"taints\":${REMAINING_TAINTS}}}" 2>/dev/null; then
+                      echo "  -> Failed to patch node $node (may have vanished). Skipping."
+                      continue
+                    fi
 
                     echo "  -> Taint cleared on $node."
                   done
