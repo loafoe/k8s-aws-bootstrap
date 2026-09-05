@@ -7,7 +7,7 @@ metadata:
     policies.kyverno.io/title: SPIRE Node-Local Priority Class
     policies.kyverno.io/category: Best Practices, Reliability
     policies.kyverno.io/severity: medium
-    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/subject: DaemonSet
     policies.kyverno.io/minversion: 1.6.0
     policies.kyverno.io/description: >-
       spire-agent and spiffe-csi-driver are node-local daemons that gate
@@ -15,16 +15,24 @@ metadata:
       Their upstream Helm charts don't expose priorityClassName, so this policy
       injects system-node-critical to prevent them being preempted on a busy
       new node during exactly the startup window the readiness gate protects.
+      Mutates the DaemonSet's pod template (not the Pod directly): the in-tree
+      Priority admission plugin - which resolves priorityClassName into the
+      numeric spec.priority field kubelet/scheduler actually use - runs before
+      MutatingAdmissionWebhook, so patching a live Pod's priorityClassName
+      would be cosmetic only. Patching the DaemonSet template means pods are
+      created with priorityClassName already set, so Priority admission
+      resolves it correctly at pod-creation time.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-wave: "4"
 spec:
+  mutateExistingOnPolicyUpdate: true
   rules:
   - name: add-priority-class-spiffe-csi-driver
     match:
       any:
       - resources:
           kinds:
-          - Pod
+          - DaemonSet
           namespaces:
           - spire-system
           selector:
@@ -33,13 +41,15 @@ spec:
     mutate:
       patchStrategicMerge:
         spec:
-          priorityClassName: system-node-critical
+          template:
+            spec:
+              priorityClassName: system-node-critical
   - name: add-priority-class-spire-agent
     match:
       any:
       - resources:
           kinds:
-          - Pod
+          - DaemonSet
           namespaces:
           - spire-system
           selector:
@@ -49,5 +59,7 @@ spec:
     mutate:
       patchStrategicMerge:
         spec:
-          priorityClassName: system-node-critical
+          template:
+            spec:
+              priorityClassName: system-node-critical
 {{- end }}
