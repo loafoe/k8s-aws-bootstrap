@@ -63,6 +63,19 @@ spec:
         - key: karpenter.sh/unregistered
           value: "true"
           effect: NoExecute
+        # Cilium already manages this taint's full lifecycle (applies at boot,
+        # removes once cilium-agent is healthy). Declaring it here makes
+        # Karpenter's own Initialized/disruption-sequencing wait for real CNI
+        # readiness, not just kubelet Ready.
+        - key: node.cilium.io/agent-not-ready
+          value: "true"
+          effect: NoSchedule
+        # Cleared by the node-readiness-healer CronJob once ebs.csi.aws.com
+        # and csi.spiffe.io are registered in CSINode and their DaemonSet
+        # pods are Ready on this node. See node-readiness-healer-cronjob.yaml.
+        - key: k8s-aws-bootstrap.io/csi-not-ready
+          value: "true"
+          effect: NoSchedule
           
       # Node expiration for security and cost management
       expireAfter: 360h # 15 days
