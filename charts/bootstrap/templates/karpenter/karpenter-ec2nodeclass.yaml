@@ -190,7 +190,7 @@ spec:
       --kubelet-arg="kube-reserved=cpu=250m,memory=512Mi,ephemeral-storage=1Gi" \
       --kubelet-arg="system-reserved=cpu=250m,memory=384Mi,ephemeral-storage=1Gi" \
       --kubelet-arg="enforce-node-allocatable=pods" \
-      --kubelet-arg="max-pods=50" \
+      --kubelet-arg="max-pods=100" \
       --kubelet-arg="image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml" \
       --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
       --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
