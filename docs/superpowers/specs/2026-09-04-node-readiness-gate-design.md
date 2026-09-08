@@ -68,7 +68,10 @@ Same pattern as `pod-identity-webhook-heal-cronjob.yaml` / `cilium-operator-heal
 - Tolerates `CriticalAddonsOnly` and schedules on system/control-plane nodes, matching the existing healers.
 
 ### 5. Priority class
-Add `priorityClassName: system-node-critical` to `ebs-csi-node`, `spiffe-csi-driver`, `spire-agent`, and `cilium-agent` — none currently set a priority class, so on a busy new node they're preemptable like any ordinary pod. To be validated during implementation (the built-in `system-node-critical`/`system-cluster-critical` classes are the standard choice for this and are what upstream EBS CSI/Cilium charts default to; if this cluster's admission setup rejects it for pods outside `kube-system`, fall back to a custom high-value `PriorityClass` created in this repo).
+Verified against the vendored chart templates directly (not assumed):
+- `ebs-csi-node` — **no change needed.** The upstream chart's node DaemonSet template already defaults `priorityClassName` to `system-node-critical` (`{{ .Values.node.priorityClassName | default "system-node-critical" }}` in `_node.tpl`) regardless of target namespace — confirming there's no namespace restriction on this built-in PriorityClass in this cluster's Kubernetes version.
+- `cilium-agent` — the chart exposes a top-level `priorityClassName` field. Set it to `system-node-critical` in `charts/cilium/values.yaml`.
+- `spire-agent` and `spiffe-csi-driver` — their DaemonSet templates **don't expose `priorityClassName` at all** (confirmed: no such field in either `spire/charts/spire-agent/templates/daemonset.yaml` or `spire/charts/spiffe-csi-driver/templates/daemonset.yaml`), so it can't be set via Helm values. Add a new Kyverno `ClusterPolicy` that mutates pods matching these two DaemonSets to inject `spec.priorityClassName: system-node-critical`, following the exact pattern already used in `kyverno-cnpg-on-demand-nodes-policy.yaml` (match-and-patchStrategicMerge).
 
 ### 6. `docs/node-scheduling-guide.md`
 Document the new taints, what clears them, and add a **Future Improvements** note (see below) — no runbook implementation, just the note.
@@ -98,6 +101,7 @@ Not designed further here; flagged for a future iteration if manual rotations re
 2. `charts/bootstrap/templates/karpenter/karpenter-nodepool.yaml` — add `startupTaints` entries
 3. `charts/bootstrap/templates/karpenter/karpenter-nodepool-system.yaml` — add `startupTaints` entries
 4. `charts/spire/values.yaml` — add tolerations to `spire-agent`, `spiffe-csi-driver`
-5. `charts/aws-ebs-csi-driver/values.yaml`, `charts/cilium/values.yaml`, `charts/spire/values.yaml` — add `priorityClassName: system-node-critical` where missing
-6. New `charts/bootstrap/templates/aws/node-readiness-healer-cronjob.yaml` — ServiceAccount, ClusterRole, ClusterRoleBinding, CronJob
-7. `docs/node-scheduling-guide.md` — document new taints/healer + Future Improvements note
+5. `charts/cilium/values.yaml` — add `priorityClassName: system-node-critical` (ebs-csi-node already defaults to it; spire-agent/spiffe-csi-driver handled by the Kyverno policy below since their charts don't expose the field)
+6. New `charts/bootstrap/templates/kyverno/kyverno-spire-priority-class-policy.yaml` — Kyverno `ClusterPolicy` injecting `priorityClassName: system-node-critical` onto `spire-agent`/`spiffe-csi-driver` pods
+7. New `charts/bootstrap/templates/aws/node-readiness-healer-cronjob.yaml` — ServiceAccount, ClusterRole, ClusterRoleBinding, CronJob
+8. `docs/node-scheduling-guide.md` — document new taints/healer + Future Improvements note
