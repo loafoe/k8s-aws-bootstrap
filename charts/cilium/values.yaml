@@ -245,12 +245,15 @@ cilium:
         operator: Exists
       - key: node-role.kubernetes.io/control-plane
         operator: Exists
+    # cilium-operator on dip-ce-k3s-eu runs at ~126-132Mi against its 160Mi
+    # limit (~80-83%, matching the "High usage" alert). Raised for headroom;
+    # CPU usage is negligible (<10m against 50m request), left unchanged.
     resources:
       limits:
-        memory: 160Mi
+        memory: 256Mi
       requests:
         cpu: 50m
-        memory: 80Mi
+        memory: 128Mi
 
   # Agent (DaemonSet) Configuration
   tolerations:
