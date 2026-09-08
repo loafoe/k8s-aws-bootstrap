@@ -1,0 +1,49 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: default-revision-history-limit
+  annotations:
+    policies.kyverno.io/title: Default Revision History Limit
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/subject: Deployment, StatefulSet, DaemonSet
+    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/description: >-
+      Sets revisionHistoryLimit to 3 on Deployments, StatefulSets, and DaemonSets
+      when not explicitly configured. Kubernetes defaults this to 10, which can
+      accumulate excessive ReplicaSets over time. A limit of 3 balances
+      rollback capability with resource efficiency.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  rules:
+  - name: default-deployment-revision-history-limit
+    match:
+      any:
+      - resources:
+          kinds:
+          - Deployment
+    mutate:
+      patchStrategicMerge:
+        spec:
+          (revisionHistoryLimit): 3
+  - name: default-statefulset-revision-history-limit
+    match:
+      any:
+      - resources:
+          kinds:
+          - StatefulSet
+    mutate:
+      patchStrategicMerge:
+        spec:
+          (revisionHistoryLimit): 3
+  - name: default-daemonset-revision-history-limit
+    match:
+      any:
+      - resources:
+          kinds:
+          - DaemonSet
+    mutate:
+      patchStrategicMerge:
+        spec:
+          (revisionHistoryLimit): 3
