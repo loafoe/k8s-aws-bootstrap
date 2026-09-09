@@ -9,10 +9,12 @@ crossplane:
     # clusters, s3irsas, providerconfigs, ...) gets re-checked for drift and
     # status-patched that often even with nothing to do. This is a sandbox
     # cluster with no external actors mutating AWS resources outside
-    # Crossplane, so 10m still catches real drift promptly while cutting this
-    # steady-state reconcile traffic ~10x. sync-interval (full double-check,
-    # default 1h) is left alone.
-    - --poll-interval=10m
+    # Crossplane. Was 10m; confirmed via audit-log rate comparison
+    # (2026-09-09) that 10m did measurably cut crossplane's request rate, but
+    # 2m keeps drift detection tighter as a middle ground while still well
+    # below the 1m default. sync-interval (full double-check, default 1h) is
+    # left alone.
+    - --poll-interval=2m
   metrics:
     enabled: true
   resourcesCrossplane:
