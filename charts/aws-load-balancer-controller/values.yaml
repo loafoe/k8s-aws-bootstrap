@@ -22,7 +22,7 @@ aws-load-balancer-controller:
     limits:
       memory: 256Mi
     requests:
-      cpu: 5m
+      cpu: 50m
       memory: 128Mi
 
   tolerations:
