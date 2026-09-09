@@ -15,6 +15,10 @@ metadata:
       specifies a tag and that it is not called `latest`.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-wave: "4"
+    # Exclude ReplicaSet from autogen: Deployments (already covered) keep old,
+    # scaled-to-0 ReplicaSet revisions around for rollback history, and Kyverno's
+    # background scanner re-flags those stale revisions forever otherwise.
+    pod-policies.kyverno.io/autogen-controllers: DaemonSet,Deployment,StatefulSet,Job,CronJob
 spec:
   validationFailureAction: Audit
   background: true
