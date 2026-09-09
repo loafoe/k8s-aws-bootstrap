@@ -5,6 +5,14 @@ crossplane:
     repository: ghcr.io/crossplane/crossplane
   args:
     - --enable-operations
+    # Default poll-interval is 1m: every managed/composite resource (postgres,
+    # clusters, s3irsas, providerconfigs, ...) gets re-checked for drift and
+    # status-patched that often even with nothing to do. This is a sandbox
+    # cluster with no external actors mutating AWS resources outside
+    # Crossplane, so 10m still catches real drift promptly while cutting this
+    # steady-state reconcile traffic ~10x. sync-interval (full double-check,
+    # default 1h) is left alone.
+    - --poll-interval=10m
   metrics:
     enabled: true
   resourcesCrossplane:

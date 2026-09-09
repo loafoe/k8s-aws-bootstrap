@@ -2,6 +2,14 @@ kyverno:
   features:
     forceFailurePolicyIgnore:
       enabled: true
+    # No resource in this cluster carries a cleanup.kyverno.io/ttl label
+    # (checked: `kubectl get all -A -l cleanup.kyverno.io/ttl` returns nothing)
+    # and no CleanupPolicy/ClusterCleanupPolicy exists either, so this loop
+    # scans the whole cluster every minute for work that never exists.
+    # Default is 1m; there's no flag to disable the loop outright, only to
+    # slow it down.
+    ttlController:
+      reconciliationInterval: 1h
 
   config:
     preserve: false
