@@ -15,6 +15,16 @@ crossplane:
     # below the 1m default. sync-interval (full double-check, default 1h) is
     # left alone.
     - --poll-interval=2m
+    # Caps concurrency, not frequency: sync-interval/poll-interval only
+    # control *when* reconciles fire, not how much work happens per tick.
+    # Default worker pool (100) lets a full resync (e.g. the
+    # managedresourcedefinitions/customresourcedefinitions churn seen during
+    # the 2026-09-12 13:21 UTC leader-election-loss incident, ~785+197
+    # writes in under 2 minutes) blast the apiserver all at once. Capping to
+    # 20 spreads the same total work over more wall-clock time, lowering
+    # peak concurrent writes regardless of when a resync lands. Trade-off:
+    # legitimate multi-resource changes converge more slowly.
+    - --max-concurrent-reconciles=20
   metrics:
     enabled: true
   resourcesCrossplane:
