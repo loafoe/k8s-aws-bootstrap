@@ -5,5 +5,5 @@ description: Thin wrapper for External DNS
 dependencies:
   - name: external-dns
     # renovate: datasource=helm registryUrl=https://kubernetes-sigs.github.io/external-dns depName=external-dns
-    version: "1.21.1"
+    version: "1.22.0"
     repository: "https://kubernetes-sigs.github.io/external-dns/"
