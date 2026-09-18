@@ -1,5 +1,18 @@
+# Copyright The Kubernetes Authors.
 #
-# config/crd/experimental/gateway.networking.k8s.io_backendtlspolicies.yaml
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# config/crd/standard/gateway.networking.k8s.io_backendtlspolicies.yaml
 #
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -8,7 +21,7 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
     api-approved.kubernetes.io: https://github.com/kubernetes-sigs/gateway-api/pull/4530
     gateway.networking.k8s.io/bundle-version: v1.6.1
-    gateway.networking.k8s.io/channel: experimental
+    gateway.networking.k8s.io/channel: standard
   labels:
     gateway.networking.k8s.io/policy: Direct
   name: backendtlspolicies.gateway.networking.k8s.io
@@ -533,18 +546,6 @@ spec:
                             Gateway has the AllowedRoutes field, and ReferenceGrant provides a
                             generic way to enable any other kind of cross-namespace reference.
 
-
-                            ParentRefs from a Route to a Service in the same namespace are "producer"
-                            routes, which apply default routing rules to inbound connections from
-                            any namespace to the Service.
-
-                            ParentRefs from a Route to a Service in a different namespace are
-                            "consumer" routes, and these routing rules are only applied to outbound
-                            connections originating from the same namespace as the Route, for which
-                            the intended destination of the connections are a Service targeted as a
-                            ParentRef of the Route.
-
-
                             Support: Core
                           maxLength: 63
                           minLength: 1
@@ -562,12 +563,6 @@ spec:
                             as opposed to a listener(s) whose port(s) may be changed. When both Port
                             and SectionName are specified, the name and port of the selected listener
                             must match both specified values.
-
-
-                            When the parent resource is a Service, this targets a specific port in the
-                            Service spec. When both Port (experimental) and SectionName are specified,
-                            the name and port of the selected port must match both specified values.
-
 
                             Implementations MAY choose to support other parent resources.
                             Implementations supporting other types of parent resources MUST clearly
@@ -1227,18 +1222,6 @@ spec:
                             Gateway has the AllowedRoutes field, and ReferenceGrant provides a
                             generic way to enable any other kind of cross-namespace reference.
 
-
-                            ParentRefs from a Route to a Service in the same namespace are "producer"
-                            routes, which apply default routing rules to inbound connections from
-                            any namespace to the Service.
-
-                            ParentRefs from a Route to a Service in a different namespace are
-                            "consumer" routes, and these routing rules are only applied to outbound
-                            connections originating from the same namespace as the Route, for which
-                            the intended destination of the connections are a Service targeted as a
-                            ParentRef of the Route.
-
-
                             Support: Core
                           maxLength: 63
                           minLength: 1
@@ -1256,12 +1239,6 @@ spec:
                             as opposed to a listener(s) whose port(s) may be changed. When both Port
                             and SectionName are specified, the name and port of the selected listener
                             must match both specified values.
-
-
-                            When the parent resource is a Service, this targets a specific port in the
-                            Service spec. When both Port (experimental) and SectionName are specified,
-                            the name and port of the selected port must match both specified values.
-
 
                             Implementations MAY choose to support other parent resources.
                             Implementations supporting other types of parent resources MUST clearly
@@ -1410,7 +1387,7 @@ spec:
         required:
         - spec
         type: object
-    served: true
+    served: false
     storage: false
     subresources:
       status: {}
