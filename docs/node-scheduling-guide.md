@@ -73,6 +73,45 @@ These workloads run on ALL nodes and don't need special scheduling:
 - Node Exporter (DaemonSet)
 - Any other DaemonSets
 
+## Node Readiness Gate
+
+New Karpenter nodes carry two `NoSchedule` startup taints until real CSI/CNI readiness is confirmed, not just kubelet Ready:
+
+- `node.cilium.io/agent-not-ready` — cleared by Cilium itself once cilium-agent is healthy on the node.
+- `k8s-aws-bootstrap.io/csi-not-ready` — cleared by the `node-readiness-healer` CronJob (`kube-system`) once the node's `CSINode` object lists both `ebs.csi.aws.com` and `csi.spiffe.io`, and the `ebs-csi-node`/`spiffe-csi-driver` pods on that node are Ready.
+
+Both taints are listed in each Karpenter NodePool's `startupTaints`
+(`karpenter-nodepool.yaml`, `karpenter-nodepool-system.yaml`), so Karpenter's
+own `NodeClaim` `Initialized` condition — and therefore its create-before-delete
+disruption sequencing for drift/expiration/consolidation-replace — now waits
+for them, not just for kubelet.
+
+Check taint state on a node:
+```bash
+kubectl describe node <node> | grep -A5 "Taints:"
+```
+
+Check the healer's recent activity:
+```bash
+kubectl logs -n kube-system -l app.kubernetes.io/name=node-readiness-healer --tail=50
+```
+
+### Future Improvement (not implemented)
+
+This mechanism only protects **Karpenter-initiated** disruption (drift,
+expiration, consolidation-replace) — Karpenter launches the replacement node
+and waits for it to reach `Initialized` before draining the node it's
+replacing. A **manual** `kubectl delete node` / cordon+drain (e.g. to force an
+immediate k3s version rollout) bypasses that sequencing entirely, since the
+termination isn't a Karpenter disruption decision — Karpenter can't delay a
+manual eviction to wait for a replacement it didn't initiate. The readiness
+taints still help in that case (evicted pods sit safely `Pending` instead of
+landing on a broken node and hitting CSI attach failures), but the outage
+window isn't fully eliminated. Closing it fully would need either a real
+Karpenter *drift* trigger for version rollouts, or a scripted rotation
+procedure that waits for the new node's `Initialized` condition before
+draining the old one. Not designed further here.
+
 ## Configuration Validation
 
 ### For Critical Addon Worker Nodes
