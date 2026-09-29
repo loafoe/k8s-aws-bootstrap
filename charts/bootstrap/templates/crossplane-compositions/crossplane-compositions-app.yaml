@@ -14,14 +14,14 @@ spec:
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/common-bootstrap
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/common-bootstrap
-    targetRevision: 1.4.5
+    targetRevision: 1.4.6
     path: .
     helm:
       valuesObject:
         crossplaneCompositions:
           repoURL: https://github.com/loafoe/crossplane-compositions
           # renovate: datasource=github-tags depName=loafoe/crossplane-compositions
-          targetRevision: v0.0.41
+          targetRevision: v0.0.42
           path: kustomize
         argocd:
           project:
