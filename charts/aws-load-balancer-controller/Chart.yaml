@@ -1,6 +1,6 @@
 apiVersion: v2
 name: aws-load-balancer-controller
-version: 0.1.0
+version: 0.1.1
 description: Thin wrapper for AWS Load Balancer Controller
 dependencies:
   - name: aws-load-balancer-controller

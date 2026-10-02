@@ -1,6 +1,6 @@
 apiVersion: v2
 name: spire-crds
-version: 0.1.0
+version: 0.1.1
 description: Thin wrapper for SPIRE CRDs
 dependencies:
   - name: spire-crds

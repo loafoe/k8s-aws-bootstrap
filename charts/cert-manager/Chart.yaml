@@ -1,6 +1,6 @@
 apiVersion: v2
 name: cert-manager
-version: 0.1.0
+version: 0.1.1
 description: Thin wrapper for cert-manager
 dependencies:
   - name: cert-manager
