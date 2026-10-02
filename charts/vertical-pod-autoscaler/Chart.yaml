@@ -1,6 +1,6 @@
 apiVersion: v2
 name: vertical-pod-autoscaler
-version: 0.1.0
+version: 0.1.1
 description: Thin wrapper for Vertical Pod Autoscaler
 dependencies:
   - name: vertical-pod-autoscaler

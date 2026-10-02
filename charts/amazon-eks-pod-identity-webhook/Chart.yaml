@@ -1,6 +1,6 @@
 apiVersion: v2
 name: amazon-eks-pod-identity-webhook
-version: 0.1.0
+version: 0.1.1
 description: Thin wrapper for Amazon EKS Pod Identity Webhook
 dependencies:
   - name: amazon-eks-pod-identity-webhook
