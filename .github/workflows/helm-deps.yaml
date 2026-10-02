@@ -7,6 +7,10 @@ on:
       - completed
   workflow_dispatch:
 
+concurrency:
+  group: helm-deps-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update-deps:
     runs-on: ubuntu-latest
@@ -19,7 +23,72 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
         run: |
+          set -euo pipefail
+
+          # Emit "name<TAB>version" for every entry of a Chart.lock, or of the
+          # dependencies: block of a Chart.yaml. Stops at the next top-level key.
+          dump_deps() {
+            awk '
+              /^[[:space:]]*#/ { next }
+              /^dependencies:[[:space:]]*$/ { in_deps = 1; next }
+              /^[A-Za-z]/ { if (in_deps) exit; next }
+              in_deps && /name:[[:space:]]*/ {
+                n = $0; sub(/^.*name:[[:space:]]*/, "", n); gsub(/[^A-Za-z0-9._-]/, "", n); name = n
+              }
+              in_deps && /version:[[:space:]]*/ {
+                v = $0; sub(/^.*version:[[:space:]]*/, "", v); gsub(/[^0-9A-Za-z.+-]/, "", v)
+                if (name != "") { print name "\t" v; name = "" }
+              }
+            ' "$1"
+          }
+
+          # Succeeds when every dependency declared in Chart.yaml is vendored at
+          # the right version AND Chart.lock agrees with what is vendored.
+          #
+          # This checks ALL dependencies. The previous implementation read only
+          # the first name:/version: pair out of Chart.yaml and rebuilt the
+          # expected tarball name from it, which meant (a) dependencies after the
+          # first were never checked -- a stale plugin-barman-cloud tarball in
+          # charts/cloudnative-pg shipped unnoticed -- and (b) versions carrying
+          # a v prefix (crossplane v2.4.2 -> crossplane-2.4.2.tgz) were
+          # reconstructed wrong, so those charts were "fixed" on every run.
+          deps_in_sync() {
+            local dir="$1"
+            local bad
+
+            grep -q '^dependencies:' "$dir/Chart.yaml" || return 0
+
+            # Let helm do the version comparison rather than reconstructing
+            # filenames: helm normalises the v prefix when naming tarballs.
+            # NB: helm pads the STATUS column and emits a trailing blank line,
+            # hence the NF > 1 guard.
+            bad=$(helm dependency list "$dir" 2>/dev/null |
+              awk 'NR > 1 && NF > 1 && $NF != "ok" { sub(/^[[:space:]]+/, ""); print }')
+            if [ -n "$bad" ]; then
+              echo "    Chart.yaml declares versions that are not vendored:"
+              echo "$bad" | sed 's/^/      /'
+              return 1
+            fi
+
+            # Chart.lock must not pin versions we do not have vendored either.
+            if [ -f "$dir/Chart.lock" ]; then
+              while IFS=$'\t' read -r dep_name dep_version; do
+                [ -n "$dep_name" ] || continue
+                if [ ! -f "$dir/charts/${dep_name}-${dep_version}.tgz" ]; then
+                  echo "    Chart.lock pins ${dep_name}-${dep_version} but that tarball is not vendored"
+                  return 1
+                fi
+              done < <(dump_deps "$dir/Chart.lock")
+            fi
+
+            return 0
+          }
+
           branches=$(gh pr list --repo ${{ github.repository }} --state open --json headRefName --jq '.[] | select(.headRefName | startswith("renovate/")) | .headRefName')
+          # main is checked too: a version bump can land on main without anyone
+          # re-vendoring, and no renovate PR exists to trigger the check above.
+          branches="$branches
+          main"
 
           for branch in $branches; do
             echo "=== Checking $branch ==="
@@ -31,18 +100,10 @@ jobs:
             for chart in charts/*/Chart.yaml; do
               [ -f "$chart" ] || continue
               dir=$(dirname "$chart")
-              [ -d "$dir/charts" ] || mkdir -p "$dir/charts"
 
-              dep_name=$(awk '/dependencies:/{found=1} found && /name:/{print $NF; exit}' "$chart" | tr -d '"')
-              dep_version=$(awk '/dependencies:/{found=1} found && /version:/{print $NF; exit}' "$chart" | tr -d '"')
-
-              if [ -z "$dep_name" ] || [ -z "$dep_version" ]; then
-                continue
-              fi
-
-              expected="${dir}/charts/${dep_name}-${dep_version}.tgz"
-              if [ ! -f "$expected" ]; then
-                echo "  Updating $dir: need ${dep_name}-${dep_version}.tgz"
+              if ! deps_in_sync "$dir"; then
+                echo "  Re-vendoring $dir"
+                mkdir -p "$dir/charts"
                 rm -f "$dir/charts/"*.tgz
                 helm dependency update "$dir"
                 updated=true
