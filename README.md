@@ -33,6 +33,24 @@ kubectl logs -n argocd job/cluster-cleanup -f
 
 4. Once the job completes successfully, proceed with infrastructure destruction using your IaC tool (e.g., Pulumi).
 
+## Chart Changes
+
+Most charts under `charts/` are thin wrappers that pin an upstream chart as a
+dependency. Helm treats the vendored `charts/<name>/charts/*.tgz` together with
+the wrapper's own `values.yaml` and `templates/` as the chart artifact, so any
+change to them has to move the chart's own `version:`.
+
+- **Dependency changes** (`Chart.yaml` dependency version, `Chart.lock`,
+  vendored tarballs) bump the version for you. The `helm-deps-sync.sh`
+  pre-commit hook and the `Update Helm Dependencies` workflow both re-vendor
+  and bump in the same commit.
+- **Hand-written changes** to `values.yaml` or `templates/` need a manual
+  bump: `./scripts/bump-chart-version.sh charts/<name>`. The `Chart Version
+  Check` workflow fails a pull request that changes either without raising
+  the version.
+- `./scripts/check-chart-version-bump.sh [base-ref]` runs the same check
+  locally, and by default diffs against `origin/main`.
+
 ## Notes
 
 - **Order matters**: Follow the steps sequentially to avoid resource leaks
