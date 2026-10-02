@@ -39,10 +39,10 @@ sync_chart() {
 
     echo "Syncing dependencies for $chart_dir"
 
-    # Remove old tarballs
-    rm -f "$charts_subdir"/*.tgz 2>/dev/null || true
-
-    # Update dependencies
+    # No `rm -f` of the existing tarballs before updating: helm already drops
+    # charts that are no longer in the dependency set, and deleting them first
+    # meant a failed update (stale index, network, yanked version) left the
+    # working tree without the vendored chart and staged that deletion.
     helm dependency update "$chart_dir" --skip-refresh
 
     after="$(deps_fingerprint "$chart_dir")"
