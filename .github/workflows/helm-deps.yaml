@@ -106,6 +106,10 @@ jobs:
                 mkdir -p "$dir/charts"
                 rm -f "$dir/charts/"*.tgz
                 helm dependency update "$dir"
+                # The vendored tarballs are part of the chart artifact, so
+                # re-vendoring changes the chart and has to move its version.
+                # Keeps the wrapper version from going stale under renovate.
+                ./scripts/bump-chart-version.sh "$dir"
                 updated=true
               fi
             done

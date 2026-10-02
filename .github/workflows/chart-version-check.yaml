@@ -1,0 +1,25 @@
+name: Chart Version Check
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+  workflow_dispatch:
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check compares against the PR base, so the full history is
+          # needed to read the previous version out of the base ref.
+          fetch-depth: 0
+
+      - name: Check chart versions were bumped
+        run: |
+          base_ref='${{ github.event.pull_request.base.sha }}'
+          if [ -z "$base_ref" ]; then
+            base_ref='origin/main'
+          fi
+          ./scripts/check-chart-version-bump.sh "$base_ref"
