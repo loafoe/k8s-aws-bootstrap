@@ -69,6 +69,6 @@ karpenter:
       value: "1"
 
   serviceMonitor:
-    enabled: false
+    enabled: true
     additionalLabels:
       release: prometheus-stack
