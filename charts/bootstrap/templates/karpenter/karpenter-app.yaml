@@ -18,14 +18,7 @@ spec:
           settings:
             clusterName: {{ .Values.environmentConfig.bootstrap.clusterName }}
             clusterEndpoint: {{ .Values.environmentConfig.bootstrap.clusterEndpoint }}
-            aws:
-              defaultInstanceProfile: {{ .Values.environmentConfig.bootstrap.karpenterInstanceProfile }}
-              region: {{ .Values.environmentConfig.bootstrap.awsRegion }}
-              vpcId: {{ .Values.environmentConfig.bootstrap.awsVpcId }}
-              subnetSelector:
-                karpenter.sh/discovery/{{ .Values.environmentConfig.bootstrap.clusterName }}: "{{ .Values.environmentConfig.bootstrap.clusterName }}"
-              securityGroupSelector:
-                karpenter.sh/discovery/{{ .Values.environmentConfig.bootstrap.clusterName }}: "{{ .Values.environmentConfig.bootstrap.clusterName }}"
+            interruptionQueue: {{ .Values.environmentConfig.bootstrap.karpenterInterruptionQueueName }}
           serviceAccount:
             annotations:
               eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.karpenterRoleArn }}

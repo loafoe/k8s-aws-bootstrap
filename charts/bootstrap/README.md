@@ -1,6 +1,6 @@
 # bootstrap
 
-![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 0.4.6](https://img.shields.io/badge/Version-0.4.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure components
 
@@ -8,6 +8,7 @@ A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure compo
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| environmentConfig.bootstrap.additionalClusterFqdns | list | `[]` |  |
 | environmentConfig.bootstrap.awsAccountId | string | `""` |  |
 | environmentConfig.bootstrap.awsActivemqSecurityGroups | string | `""` |  |
 | environmentConfig.bootstrap.awsEbsCsiDriverRoleArn | string | `""` |  |
@@ -31,24 +32,33 @@ A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure compo
 | environmentConfig.bootstrap.crossplaneProviderAwsIamRoleArn | string | `""` |  |
 | environmentConfig.bootstrap.k3sChannel | string | `""` |  |
 | environmentConfig.bootstrap.k3sTokenParameterName | string | `""` |  |
+| environmentConfig.bootstrap.k3sVersion | string | `""` |  |
 | environmentConfig.bootstrap.k3sVersionParameterName | string | `""` |  |
 | environmentConfig.bootstrap.karpenterInstanceProfile | string | `""` |  |
+| environmentConfig.bootstrap.karpenterInterruptionQueueName | string | `""` |  |
 | environmentConfig.bootstrap.karpenterRoleArn | string | `""` |  |
 | environmentConfig.bootstrap.oidcProvider | string | `""` |  |
 | environmentConfig.bootstrap.oidcProviderArn | string | `""` |  |
 | environmentConfig.bootstrap.resourcePrefix | string | `""` |  |
 | environmentConfig.sharedServicesAccountId | string | `""` |  |
+| features.descheduler.enabled | bool | `true` |  |
 | features.gatewayApi.enabled | bool | `true` |  |
 | features.gatewayApi.httproutes.argocd | bool | `true` |  |
-| features.gatewayApi.httproutes.grafana | bool | `true` |  |
+| features.gatewayApi.httproutes.grafana | bool | `false` |  |
 | features.gatewayApi.sharedGateway.enabled | bool | `true` |  |
-| features.hspAwsPlatform.cloudnativePg.enabled | bool | `true` |  |
+| features.hspAwsPlatform.cloudnativePg.enabled | bool | `false` |  |
 | features.hspAwsPlatform.ecrPullThrough.enabled | bool | `true` |  |
 | features.hspAwsPlatform.enabled | bool | `true` |  |
 | features.hspAwsPlatform.hspAddons.enabled | bool | `true` |  |
 | features.hspAwsPlatform.vpa.enabled | bool | `true` |  |
+| features.kubePrometheusStack.enabled | bool | `true` |  |
+| features.kubePrometheusStack.grafana.enabled | bool | `false` |  |
 | features.shutdown.enabled | bool | `false` |  |
 | features.shutdown.image | string | `"alpine/k8s:1.35.0"` |  |
+| features.spiffe.enabled | bool | `true` |  |
+| features.spiffe.federation.enabled | bool | `true` |  |
+| features.spiffe.oidcDiscovery.enabled | bool | `true` |  |
+| features.spiffe.trustDomain | string | `""` |  |
 | project | string | `"default"` |  |
 
 ----------------------------------------------
