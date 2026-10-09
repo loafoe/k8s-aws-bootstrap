@@ -84,6 +84,7 @@ environmentConfig:
     
     # Karpenter
     karpenterInstanceProfile: ""
+    karpenterInterruptionQueueName: ""
     
     # K3S (for EC2NodeClass)
     k3sTokenParameterName: ""
