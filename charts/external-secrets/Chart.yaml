@@ -1,6 +1,6 @@
 apiVersion: v2
 name: external-secrets
-version: 0.1.1
+version: 0.1.2
 description: Thin wrapper for External Secrets Operator
 dependencies:
   - name: external-secrets
