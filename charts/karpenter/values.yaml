@@ -71,4 +71,4 @@ karpenter:
   serviceMonitor:
     enabled: true
     additionalLabels:
-      release: prometheus-stack
+      release: kps
