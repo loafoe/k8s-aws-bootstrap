@@ -1,0 +1,50 @@
+{{- $kps := index .Values "kube-prometheus-stack" -}}
+{{- if $kps.prometheus.enabled -}}
+{{- $scope := dict "Values" $kps "Chart" .Chart "Release" .Release -}}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "kube-prometheus-stack.fullname" $scope }}-prometheus
+  namespace: {{ $kps.namespace | default .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  # Must target the Prometheus CR, not the generated StatefulSet. VPA rejects
+  # a StatefulSet whose parent is prometheus-operator with ConfigUnsupported:
+  # "has a parent controller but it should point to a topmost well-known or
+  # scalable controller". The CR carries the scale subresource VPA needs.
+  targetRef:
+    apiVersion: monitoring.coreos.com/v1
+    kind: Prometheus
+    name: {{ include "kube-prometheus-stack.fullname" $scope }}-prometheus
+  updatePolicy:
+    updateMode: InPlaceOrRecreate
+    minReplicas: 1
+  resourcePolicy:
+    containerPolicies:
+      # Memory only, never CPU. The recommender badly overestimates this
+      # container's CPU (it measured 1836m against 79m of real usage on
+      # dip-ce-k3s-eu -- a 23x error, because Prometheus's rule evaluation and
+      # API queries are bursty and the recommender reads them as sustained).
+      # Acting on that number would request more CPU than a whole node has and
+      # leave the pod permanently unschedulable.
+      - containerName: prometheus
+        controlledResources:
+          - memory
+        minAllowed:
+          memory: 1Gi
+        # Ceiling is deliberate, not a guess: the workers sit at 90-95% of
+        # their memory-request budget, so a larger request cannot be placed.
+        # This is the same shape as the ci-obs-euw1 VPA, where the node pool
+        # is large enough to accommodate its ceiling.
+        maxAllowed:
+          memory: 1400Mi
+      - containerName: config-reloader
+        controlledResources:
+          - memory
+        minAllowed:
+          memory: 16Mi
+        maxAllowed:
+          memory: 64Mi
+{{- end }}

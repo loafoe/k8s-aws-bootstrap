@@ -41,6 +41,31 @@ kube-prometheus-stack:
         limits:
           memory: 3Gi
 
+      # Persist the TSDB. Previously it lived on an emptyDir, so every pod
+      # recreate wiped 10 days of history and rebuilt the WAL from scratch --
+      # which is what turned a memory spike into a permanent OOM loop.
+      #
+      # gp3 (the cluster default storage class) rather than the io1-encrypted
+      # class ci-obs-euw1 uses; io1 does not exist on this cluster. 20Gi
+      # covers 10d retention at the current ~450k series with room to grow.
+      #
+      # Note: EBS is AZ-bound. Once this binds, Prometheus is pinned to the AZ
+      # of the node it first lands on (currently eu-west-2b). That is
+      # acceptable here because both eu-west-2b workers have disk and memory
+      # headroom, but it is a real constraint if the node pool is later
+      # consolidated to a single AZ.
+      #
+      # Keyed as storageSpec, not storage: kube-prometheus-stack 88.x renamed
+      # this value, and `storage` is silently dropped by the subchart template.
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi
+
   prometheusOperator:
     resources:
       requests:
