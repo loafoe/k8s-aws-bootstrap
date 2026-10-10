@@ -21,12 +21,25 @@ kube-prometheus-stack:
       podMonitorSelectorNilUsesHelmValues: false
       probeSelectorNilUsesHelmValues: false
       scrapeConfigSelectorNilUsesHelmValues: false
+      # Prometheus was OOMKilled (exit 137) on dip-ce-k3s-eu, 247 restarts in
+      # 30h. Cause: WAL replay is a startup-time memory spike. The TSDB lives on
+      # an emptyDir, so every pod recreate replays the WAL from segment 0; with
+      # 262 segments accumulated the replay needs more than the 2100Mi limit, so
+      # the container died before finishing replay, restarted, and replayed the
+      # same WAL again -- a self-sustaining OOM loop that only broke once the
+      # emptyDir was recreated empty.
+      #
+      # 3Gi gives the replay spike headroom while keeping steady-state usage
+      # (~1.3Gi at 448k series) well inside the limit. Only the *limit* moves:
+      # the request stays at 1Gi because this node is already at 93% of its
+      # memory-request budget, and raising the request would make the pod
+      # unschedulable. Limits do not participate in scheduling.
       resources:
         requests:
           cpu: 100m
           memory: 1Gi
         limits:
-          memory: 2100Mi
+          memory: 3Gi
 
   prometheusOperator:
     resources:
