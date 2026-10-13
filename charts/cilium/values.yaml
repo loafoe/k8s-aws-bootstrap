@@ -186,6 +186,60 @@ cilium:
         - port-distribution:sourceContext=pod;destinationContext=pod
         - kafka:sourceContext=pod;destinationContext=pod
         - policy:sourceContext=pod;destinationContext=pod
+    # --- SECURITY: redact HTTP header values in ALL Hubble L7 flows ------------
+    # This is the parser-level control (pkg/hubble/parser/seven/http.go
+    # filterHeader) and it sits *upstream* of every Hubble consumer: the
+    # static exporter, relay, the UI and the hubble_http_* metrics. That makes
+    # it defence-in-depth over hubble.export.static.fieldMask below, which only
+    # protects the static export.
+    #
+    # Matching is case-insensitive (the allow/deny lists and the header keys
+    # are both lowercased before comparison), and it applies to REQUEST and
+    # RESPONSE records alike. Redacted values are replaced in place with the
+    # literal "HUBBLE_REDACTED" -- the header KEY stays visible, so you can
+    # still see that a header was present and debug around it.
+    #
+    # We use an ALLOW list, which is default-deny: anything not named here is
+    # redacted, so a newly introduced sensitive header is protected
+    # automatically rather than leaking until someone remembers to add it.
+    # (A deny list is allow-by-default and is the weaker option here.)
+    #
+    # Note filterHeader's other branch: enabling redact with BOTH lists empty
+    # redacts every header value. That is the strictest setting and is the
+    # right choice if the list below ever needs to be emptied -- keep at least
+    # one allow entry to retain the debugging headers.
+    #
+    # Deliberately NOT allowed: Authorization (SPIFFE JWT-SVIDs), Cookie,
+    # Set-Cookie, Proxy-Authorization, X-Forwarded-*, and the :scheme/:path/
+    # :authority pseudo-headers (path/query already ride in l7.http.url).
+    redact:
+      enabled: true
+      http:
+        # Non-sensitive headers kept visible for debugging. Everything else is
+        # replaced with HUBBLE_REDACTED.
+        headers:
+          allow:
+            - user-agent
+            - accept
+            - accept-encoding
+            - accept-language
+            - content-type
+            - content-length
+            - cache-control
+            - x-request-id
+            - x-envoy-upstream-service-time
+            - traceparent
+            - tracestate
+        # urlQuery stays false: it is a separate knob and turning it on would
+        # also strip query strings, which changes access-log usefulness
+        # cluster-wide. Query strings can carry tokens (`?access_token=`,
+        # OAuth `?code=`), so treat this as an open decision rather than an
+        # oversight -- see the PR description.
+        urlQuery: false
+        # userInfo (basic-auth password in the URL) is on by default upstream;
+        # set explicitly so the intent survives a future chart default change.
+        userInfo: true
+
     # Hubble Flow Export — Gateway API / Envoy L7 (HTTP) access logs.
     # Static exporter is bound to the agent lifecycle and rotates natively.
     # The file is tailed off-node by a logs collector (configured separately).
