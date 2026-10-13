@@ -193,6 +193,99 @@ cilium:
       static:
         enabled: true
         filePath: /var/run/cilium/hubble/events.log
+        # --- SECURITY: keep everything EXCEPT l7.http.headers ---------------------
+        # Hubble L7 records carry the FULL HTTP request/response headers, so
+        # with an empty fieldMask (the chart default) every
+        # `Authorization: Bearer <JWT>` — including the SPIFFE JWT-SVIDs minted
+        # for service workloads — was written verbatim to
+        # /var/run/cilium/hubble/events.log and shipped as-is to Loki by the
+        # `k8s-monitoring-alloy-logs` collector. Anyone with Loki read access
+        # could replay those tokens.
+        #
+        # fieldMask is an INCLUDE list with no "!" exclusion syntax (the
+        # upstream docs show "keep all except X" by enumerating everything
+        # else), so dropping one field means listing all the others. An empty
+        # mask is *not* "nothing" — `fieldmask.FieldMask.Active()` returns
+        # len(mask) > 0, so empty means the exporter skips the copy step and
+        # encodes the whole flow. Verified against cilium 1.20.2:
+        # pkg/hubble/exporter/exporter.go:187 and
+        # pkg/hubble/parser/fieldmask/fieldmask.go.
+        #
+        # This is an explicit allow-list, so any field added by a future Cilium
+        # release is dropped until reviewed rather than silently exported.
+        #
+        # `l7` is deliberately enumerated field-by-field instead of taken
+        # wholesale: `l7` or `l7.http` alone would pull l7.http.headers back in
+        # (a mask leaf copies the entire subtree).
+        #
+        # `source`/`destination` are safe to take wholesale — Endpoint is only
+        # {identity, cluster_name, namespace, labels, pod_name, workloads} and
+        # carries no headers.
+        #
+        # Paths are resolved against the Flow protobuf descriptor by proto
+        # field name (snake_case) via fieldmaskpb.ByName, NOT by JSON name —
+        # "nodeName"/"l7.http.code" style camelCase is rejected and would fail
+        # exporter construction. Verified against
+        # api/v1/flow/flow.proto @ v1.20.2 (95 reachable leaves; this mask
+        # covers 94 and excludes exactly one: l7.http.headers).
+        fieldMask:
+          # --- Top-level Flow fields, taken wholesale (no sensitive data) ---
+          - time
+          - uuid
+          - emitter
+          - verdict
+          - drop_reason
+          - auth_type
+          - ethernet
+          - IP
+          - l4
+          - tunnel
+          - source
+          - destination
+          - Type
+          - node_name
+          - node_labels
+          - source_names
+          - destination_names
+          - reply
+          - event_type
+          - source_service
+          - destination_service
+          - traffic_direction
+          - policy_match_type
+          - trace_observation_point
+          - trace_reason
+          - file
+          - ip_trace_id
+          - drop_reason_desc
+          - is_reply
+          - debug_capture_point
+          - interface
+          - proxy_port
+          - trace_context
+          - sock_xlate_point
+          - socket_cookie
+          - cgroup_id
+          - Summary
+          - extensions
+          - egress_allowed_by
+          - ingress_allowed_by
+          - egress_denied_by
+          - ingress_denied_by
+          - policy_log
+          - aggregate
+          # --- l7, field-by-field: everything except l7.http.headers ---
+          - l7.type
+          - l7.latency_ns
+          # DNS and Kafka records carry no HTTP headers.
+          - l7.dns
+          - l7.kafka
+          # HTTP access log metadata is retained...
+          - l7.http.code
+          - l7.http.method
+          - l7.http.url
+          - l7.http.protocol
+          # ...but l7.http.headers is intentionally OMITTED.
         # event_type 129 = AccessLog (L7/HTTP) — verified against live Hubble
         # records on dip-ce-k3s-eu. Excludes L3/L4 flow noise.
         allowList:
@@ -256,6 +349,18 @@ cilium:
         memory: 128Mi
 
   # Agent (DaemonSet) Configuration
+  # Roll agent pods whenever the cilium-config ConfigMap changes. The chart
+  # gates the `cilium.io/cilium-configmap-checksum` pod annotation behind this
+  # flag and defaults it to false, so without it the agents keep running with
+  # their original startup flags and ConfigMap-only changes are silently inert.
+  # That matters for anything read once at agent startup — notably
+  # hubble.export.static.fieldMask below, which is parsed when the static
+  # exporter is constructed. With this off, tightening the fieldMask would
+  # appear to apply in Git while the running agents still export full L7
+  # headers. Verified on dip-ce-k3s-eu: the DaemonSet carried no checksum
+  # annotation, and a ConfigMap patch produced no pod recreation.
+  rollOutCiliumPods: true
+
   tolerations:
     - operator: Exists
       effect: NoSchedule
