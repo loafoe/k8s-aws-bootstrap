@@ -1,6 +1,6 @@
 apiVersion: v2
 name: snapshot-controller
-version: 0.1.2
+version: 0.1.3
 description: Thin wrapper for Snapshot Controller
 dependencies:
   - name: snapshot-controller
