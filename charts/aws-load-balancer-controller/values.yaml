@@ -1,4 +1,10 @@
 aws-load-balancer-controller:
+  # Webhook certificates from cert-manager (wave 1) with cainjector filling the webhooks'
+  # caBundle. Without it the chart generates a new random CA + cert on every Helm render,
+  # so Argo CD can write the TLS Secret and the webhook caBundle from different renders:
+  # on dip-ops-tools-k3s-eu they were applied 17s apart with different CAs, the service
+  # mutating webhook (failurePolicy Fail) failed TLS, and no Service could be created.
+  enableCertManager: true
   syncPeriod: 0h5m0s
 
   serviceAccount:
