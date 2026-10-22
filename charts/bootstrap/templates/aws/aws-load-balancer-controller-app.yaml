@@ -52,7 +52,9 @@ spec:
       # CRDs may not be served yet when this app first syncs
       - SkipDryRunOnMissingResource=true
     retry:
-      limit: 5
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
+      # that isn't serving yet) must heal by themselves instead of exhausting retries
+      limit: -1
       backoff:
         duration: 5s
         factor: 2
