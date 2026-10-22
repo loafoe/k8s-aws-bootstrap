@@ -357,6 +357,10 @@ cilium:
         labels:
           release: kps
     replicas: 2
+    # The operator reads cilium-config only at startup, so without this a config
+    # change (e.g. enabling Gateway API on a cluster bootstrapped with it off) is
+    # silently ignored until something else restarts it
+    rollOutPods: true
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
