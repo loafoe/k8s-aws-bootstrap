@@ -29,10 +29,6 @@ spec:
   # caBundle is injected by cert-manager's cainjector (enableCertManager)
   # Webhook caBundle is injected by cert-manager's cainjector (enableCertManager)
   ignoreDifferences:
-    - group: apps
-      jsonPointers:
-        - /spec/replicas
-      kind: Deployment
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
       name: aws-load-balancer-webhook

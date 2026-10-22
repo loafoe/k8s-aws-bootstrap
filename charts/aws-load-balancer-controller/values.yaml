@@ -11,7 +11,12 @@ aws-load-balancer-controller:
     create: true
     name: aws-load-balancer-controller
 
-  replicaCount: 1
+  # Its service mutating webhook (failurePolicy Fail) sits in front of every Service
+  # CREATE in the cluster, so a single replica being unavailable (rollout, Karpenter
+  # consolidation or a spot interruption of its node) blocks creating any Service
+  replicaCount: 2
+  podDisruptionBudget:
+    maxUnavailable: 1
 
   podSecurityContext:
     runAsNonRoot: true
@@ -61,6 +66,13 @@ aws-load-balancer-controller:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: aws-load-balancer-controller
+  # Prefer separate nodes even when only one zone has capacity
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: aws-load-balancer-controller
