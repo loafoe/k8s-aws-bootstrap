@@ -10,6 +10,11 @@ argo-cd:
       application.namespaces: "*"
       # TODO: revert once we migrate to Gateway API v1.4
       server.insecure: "true"
+      # Diff via a dry-run server-side apply, so CRD defaults and mutating webhooks
+      # are accounted for. Apps synced with ServerSideApply=true carry no
+      # last-applied-configuration annotation, so the client-side diff reports every
+      # CRD default (Kyverno ClusterPolicies, Gateway API routes) as permanent drift.
+      controller.diff.server.side: "true"
     cm:
       application.resourceTrackingMethod: annotation
       resource.customizations: |
