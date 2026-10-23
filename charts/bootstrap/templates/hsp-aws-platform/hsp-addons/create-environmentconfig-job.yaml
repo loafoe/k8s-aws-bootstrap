@@ -43,6 +43,12 @@ metadata:
 spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 3
+  # Bounds the Job (across all backoffLimit retries) so a node with broken
+  # API-server connectivity (e.g. a worker whose Cilium datapath hasn't converged
+  # yet) fails fast instead of hanging the kubectl calls below indefinitely and
+  # blocking the ArgoCD sync that waits on this hook. Generous enough to allow the
+  # initContainer's kubectl/jq/yq downloads on a cold node.
+  activeDeadlineSeconds: 600
   template:
     metadata:
       labels:
@@ -196,8 +202,6 @@ spec:
                 tail -30 /tmp/environmentconfig.yaml
                 echo ""
                 echo "=========================================="
-                echo "Sleeping for 300 seconds to allow debugging..."
-                sleep 300
                 exit 1
               fi
               

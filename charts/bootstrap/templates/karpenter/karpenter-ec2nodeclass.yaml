@@ -207,6 +207,15 @@ spec:
     # Install K3s agent. Retry because the installer runs
     # `dnf install k3s-selinux`, which can transiently fail on a held RPM lock
     # (see wait_for_rpm_lock above).
+    #
+    # register-with-taints carries two taints:
+    #   - karpenter.sh/unregistered: lifted by Karpenter once the node is Ready.
+    #   - node.cilium.io/agent-not-ready: lifted by cilium-operator (removeNodeTaints)
+    #     once this node's cilium-agent is Running/Ready. Without it, kubelet marks
+    #     the node Ready and the scheduler can place pods here before Cilium's
+    #     datapath (incl. WireGuard peering) has converged, causing apiserver<->kubelet
+    #     proxy 502s and broken pod egress on the node until it catches up. Mirrors the
+    #     same taint already registered for the master in master-userdata.sh.tmpl.
     k3s_install_attempts=3
     for attempt in $(seq 1 "$k3s_install_attempts"); do
       wait_for_rpm_lock
@@ -215,7 +224,7 @@ spec:
         --kubelet-arg="feature-gates=InPlacePodVerticalScaling=true" \
         --kubelet-arg="provider-id=aws:///$AZ/$INSTANCE_ID" \
         --kubelet-arg="cloud-provider=external" \
-        --kubelet-arg="register-with-taints=karpenter.sh/unregistered=true:NoExecute" \
+        --kubelet-arg="register-with-taints=karpenter.sh/unregistered=true:NoExecute,node.cilium.io/agent-not-ready=true:NoSchedule" \
         --kubelet-arg="kube-reserved=cpu=250m,memory=512Mi,ephemeral-storage=1Gi" \
         --kubelet-arg="system-reserved=cpu=250m,memory=384Mi,ephemeral-storage=1Gi" \
         --kubelet-arg="enforce-node-allocatable=pods" \

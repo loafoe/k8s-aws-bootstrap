@@ -126,6 +126,12 @@ spec:
             - |
               set -e
 
+              # Every kubectl call below gets a hard timeout: if a node's Cilium
+              # datapath hasn't converged yet, apiserver<->kubelet calls can hang
+              # rather than error, which would otherwise eat most of this Job's
+              # activeDeadlineSeconds on a single stuck call instead of failing fast.
+              kubectl() { command kubectl --request-timeout=15s "$@"; }
+
               # ---------------------------------------------------------------
               # 1. Verify the pod-identity-webhook is actually ready.
               #    If it's not, there's nothing we can do — exit early.
