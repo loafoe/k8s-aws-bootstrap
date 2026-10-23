@@ -20,6 +20,18 @@
       versioningTemplate: 'semver',
       extractVersionTemplate: null,
     },
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/.*\\.ya?ml$/',
+      ],
+      matchStrings: [
+        'ECR_CREDENTIAL_PROVIDER_VERSION="(?<currentValue>v\\d+\\.\\d+\\.\\d+)"',
+      ],
+      depNameTemplate: 'loafoe/cloud-provider-aws',
+      datasourceTemplate: 'github-releases',
+      versioningTemplate: 'semver',
+    },
   ],
   packageRules: [
     {

@@ -65,7 +65,7 @@ spec:
     }
 
     # ECR Credential Provider version (renovate-friendly)
-    ECR_CREDENTIAL_PROVIDER_VERSION="v1.35.0"
+    ECR_CREDENTIAL_PROVIDER_VERSION="v1.37.0"
     
     # Disable firewalld (AL2023 has it enabled by default)
     # Required for K3s networking (kubelet, VXLAN, etc.)
