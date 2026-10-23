@@ -26,16 +26,9 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: aws-load-balancer-controller
+  # caBundle is injected by cert-manager's cainjector (enableCertManager)
+  # Webhook caBundle is injected by cert-manager's cainjector (enableCertManager)
   ignoreDifferences:
-    - group: apps
-      jsonPointers:
-        - /spec/replicas
-      kind: Deployment
-    - group: ""
-      kind: Secret
-      name: aws-load-balancer-tls
-      jsonPointers:
-        - /data
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
       name: aws-load-balancer-webhook
@@ -54,8 +47,14 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+      - RespectIgnoreDifferences=true
+      # The chart's cert-manager Issuer/Certificate: on a fresh cluster cert-manager's
+      # CRDs may not be served yet when this app first syncs
+      - SkipDryRunOnMissingResource=true
     retry:
-      limit: 5
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
+      # that isn't serving yet) must heal by themselves instead of exhausting retries
+      limit: -1
       backoff:
         duration: 5s
         factor: 2

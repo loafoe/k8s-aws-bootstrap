@@ -82,7 +82,9 @@ spec:
       - ServerSideApply=true
       - HealthCheckTimeout=10m
     retry:
-      limit: 5
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
+      # that isn't serving yet) must heal by themselves instead of exhausting retries
+      limit: -1
       backoff:
         duration: 5s
         factor: 2

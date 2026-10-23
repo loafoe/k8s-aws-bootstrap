@@ -5,6 +5,10 @@ apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
   name: {{ include "kube-prometheus-stack.fullname" $scope }}-prometheus
+  annotations:
+    # VPA CRDs come from the vertical-pod-autoscaler app (sync wave 21); without this a
+    # fresh cluster fails validation of this whole app until then
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   namespace: {{ $kps.namespace | default .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: {{ .Release.Name }}

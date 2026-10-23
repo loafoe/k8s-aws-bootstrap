@@ -27,6 +27,7 @@ metadata:
   name: crossplane-selfsigned-issuer
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   selfSigned: {}
 ---
@@ -37,6 +38,7 @@ metadata:
   namespace: crossplane-system
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
   # uses to sign all server/client/package certificates.

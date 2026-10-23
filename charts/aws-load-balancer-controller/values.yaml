@@ -1,11 +1,22 @@
 aws-load-balancer-controller:
+  # Webhook certificates from cert-manager (wave 1) with cainjector filling the webhooks'
+  # caBundle. Without it the chart generates a new random CA + cert on every Helm render,
+  # so Argo CD can write the TLS Secret and the webhook caBundle from different renders:
+  # on dip-ops-tools-k3s-eu they were applied 17s apart with different CAs, the service
+  # mutating webhook (failurePolicy Fail) failed TLS, and no Service could be created.
+  enableCertManager: true
   syncPeriod: 0h5m0s
 
   serviceAccount:
     create: true
     name: aws-load-balancer-controller
 
-  replicaCount: 1
+  # Its service mutating webhook (failurePolicy Fail) sits in front of every Service
+  # CREATE in the cluster, so a single replica being unavailable (rollout, Karpenter
+  # consolidation or a spot interruption of its node) blocks creating any Service
+  replicaCount: 2
+  podDisruptionBudget:
+    maxUnavailable: 1
 
   podSecurityContext:
     runAsNonRoot: true
@@ -55,6 +66,13 @@ aws-load-balancer-controller:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
     whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: aws-load-balancer-controller
+  # Prefer separate nodes even when only one zone has capacity
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
     labelSelector:
       matchLabels:
         app.kubernetes.io/name: aws-load-balancer-controller

@@ -1,24 +1,31 @@
 # ---------------------------------------------------------------------------
-# Self-healing CronJob: restart cilium-operator when Gateway TLS secret-sync
-# has silently died.
+# Self-healing CronJob: restart cilium-operator whenever its Gateway API
+# controller (or TLS secret-sync) is not running.
 # ---------------------------------------------------------------------------
-# cilium-operator syncs the Secret referenced by a Gateway's TLS
-# certificateRefs into the cilium-secrets namespace, which cilium-envoy's
-# SDS reads from to terminate TLS. If cilium-operator's GatewayAPI CRD
-# discovery hits a non-2xx it doesn't classify as transient (e.g. a 403/500
-# while the apiserver's RBAC cache is still warming up after a control-plane
-# restart), it silently disables Gateway API / secret-sync for the rest of
-# that pod's life - no crash, no retry, no further log line
-# (cilium/cilium#48083). Every TLS handshake on every hostname behind that
-# Gateway then resets. A `kubectl rollout restart deployment cilium-operator`
-# fully clears it once the apiserver is healthy again.
+# cilium-operator only decides at startup whether to run its Gateway API
+# controller, and then silently keeps that decision for the rest of the pod's
+# life - no crash, no retry, no further log line. It ends up without one when:
+#   - the Gateway API CRDs were missing at startup (e.g. a fresh cluster, where
+#     Cilium is installed before Argo CD installs the CRDs),
+#   - its CRD discovery hit a non-2xx it doesn't classify as transient (e.g. a
+#     403/500 while the apiserver's RBAC cache warms up after a control-plane
+#     restart; cilium/cilium#48083), which also kills TLS secret-sync,
+#   - enable-gateway-api was turned on in cilium-config without a restart.
+# Gateways then never get programmed, or every TLS handshake behind them
+# resets. A `kubectl rollout restart deployment cilium-operator` fully clears
+# it once the CRDs exist and the apiserver is healthy.
 #
-# The master-userdata bootstrap script proactively restarts cilium-operator
-# right after a master replacement (the most likely trigger), so this
-# CronJob is a slower defense-in-depth backstop for any other apiserver
-# blip that isn't a master replacement. Detection is symptom-based, not a
-# log/version-coupled check: if any Gateway needs a TLS secret but
-# cilium-secrets has none, secret-sync is broken.
+# Detection is symptom-based, not log/version-coupled: a running Gateway API
+# controller always sets an Accepted condition (True or False) on the Cilium
+# GatewayClass and its Gateways, so Accepted still at the CRD default
+# (Unknown/Pending, "Waiting for controller") means no controller is running;
+# and if any Gateway needs a TLS secret but cilium-secrets has none,
+# secret-sync is broken. Accepted=False (a real config error) is ignored, and
+# an operator younger than 5 minutes is left alone, so this cannot loop.
+#
+# operator.rollOutPods (charts/cilium) restarts the operator on config
+# changes and the master-userdata restarts it after a master replacement;
+# this runs every 5 minutes as the backstop for everything else.
 # ---------------------------------------------------------------------------
 apiVersion: v1
 kind: ServiceAccount
@@ -35,10 +42,16 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 rules:
-# List Gateways cluster-wide to find TLS listeners that need a synced secret
+# List GatewayClasses/Gateways to check they are claimed and to find TLS
+# listeners that need a synced secret
 - apiGroups: ["gateway.networking.k8s.io"]
-  resources: ["gateways"]
+  resources: ["gatewayclasses", "gateways"]
   verbs: ["list"]
+# Only act once the Gateway API CRDs are installed
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  resourceNames: ["gatewayclasses.gateway.networking.k8s.io"]
+  verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -97,6 +110,15 @@ rules:
   resources: ["deployments"]
   resourceNames: ["cilium-operator"]
   verbs: ["get", "patch"]
+# Whether Gateway API is enabled at all
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["cilium-config"]
+  verbs: ["get"]
+# Operator pod start times, to leave a freshly started operator alone
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -122,10 +144,9 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
-  # Defense-in-depth backstop, not primary detection - the master-userdata
-  # restart handles the common trigger (master replacement) immediately.
-  # Daily is enough to bound worst-case exposure to the rarer other triggers.
-  schedule: "17 3 * * *"
+  # Bounds how long Gateway API can stay off (fresh cluster, apiserver blip)
+  # to minutes; a healthy run is a few cheap list calls
+  schedule: "*/5 * * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
@@ -154,32 +175,68 @@ spec:
             - sh
             - -c
             - |
-              set -e
+              set -eu
+              NS=kube-system
+              MIN_AGE=300  # seconds: let a (re)started operator and new Gateways settle first
 
-              echo "Counting Gateway TLS listeners that require a synced secret..."
-              REQUIRED=$(kubectl get gateways.gateway.networking.k8s.io -A -o json | jq '
-                [.items[].spec.listeners[]? |
-                  select(.tls != null) |
-                  select((.tls.mode // "Terminate") == "Terminate") |
-                  select((.tls.certificateRefs // []) | length > 0)
-                ] | length')
-
-              if [ "$REQUIRED" -eq 0 ]; then
-                echo "No Gateway TLS listeners found. Nothing to check."
+              if [ "$(kubectl get configmap cilium-config -n "$NS" -o jsonpath='{.data.enable-gateway-api}')" != "true" ]; then
+                echo "Gateway API is not enabled in cilium-config. Nothing to check."
+                exit 0
+              fi
+              if ! kubectl get crd gatewayclasses.gateway.networking.k8s.io >/dev/null 2>&1; then
+                echo "Gateway API CRDs are not installed yet. Nothing to heal until they are."
                 exit 0
               fi
 
-              echo "$REQUIRED TLS listener(s) need a synced secret. Checking cilium-secrets..."
-              SYNCED=$(kubectl get secrets -n cilium-secrets --no-headers 2>/dev/null | wc -l)
-
-              if [ "$SYNCED" -gt 0 ]; then
-                echo "✅ cilium-secrets has $SYNCED secret(s). Gateway secret-sync is healthy."
+              NOW=$(date +%s)
+              NEWEST=$(kubectl get pods -n "$NS" -l io.cilium/app=operator -o json | jq '[.items[] | select(.status.phase == "Running") | .status.startTime | fromdateiso8601] | max // 0')
+              if [ "$NEWEST" -eq 0 ] || [ $((NOW - NEWEST)) -lt "$MIN_AGE" ]; then
+                echo "cilium-operator is not running or started less than ${MIN_AGE}s ago. Checking again next run."
                 exit 0
               fi
 
-              echo "⚠️  cilium-secrets is empty but $REQUIRED TLS listener(s) need a secret."
-              echo "🔧 Restarting cilium-operator to clear a stuck GatewayAPI CRD-discovery state."
-              kubectl rollout restart deployment cilium-operator -n kube-system
+              # A running Cilium Gateway API controller always sets an Accepted condition (True or
+              # False). Accepted still at the CRD default (Unknown/Pending, "Waiting for controller")
+              # means the operator never started its Gateway API controller: CRDs were missing at its
+              # startup, CRD discovery failed (cilium/cilium#48083), or Gateway API was enabled in
+              # cilium-config without restarting it. Accepted=False is a real config error that a
+              # restart cannot fix, so it is deliberately ignored.
+              CLASSES=$(kubectl get gatewayclasses.gateway.networking.k8s.io -o json | jq -c '[.items[] | select(.spec.controllerName == "io.cilium/gateway-controller")]')
+              if [ "$(echo "$CLASSES" | jq 'length')" -eq 0 ]; then
+                echo "No Cilium GatewayClass exists. Nothing to check."
+                exit 0
+              fi
+              UNCLAIMED='[.status.conditions[]? | select(.type == "Accepted" and .status != "Unknown")] | length == 0'
+              PENDING_CLASSES=$(echo "$CLASSES" | jq -r --argjson now "$NOW" --argjson min "$MIN_AGE" \
+                "[.[] | select($UNCLAIMED) | select((\$now - (.metadata.creationTimestamp | fromdateiso8601)) >= \$min) | .metadata.name] | join(\" \")")
+              PENDING_GATEWAYS=$(kubectl get gateways.gateway.networking.k8s.io -A -o json | jq -r --argjson classes "$(echo "$CLASSES" | jq -c '[.[].metadata.name]')" --argjson now "$NOW" --argjson min "$MIN_AGE" \
+                "[.items[] | select(.spec.gatewayClassName as \$c | \$classes | index(\$c)) | select($UNCLAIMED) | select((\$now - (.metadata.creationTimestamp | fromdateiso8601)) >= \$min) | .metadata.namespace + \"/\" + .metadata.name] | join(\" \")")
+
+              REASON=""
+              [ -n "$PENDING_CLASSES" ] && REASON="GatewayClass(es) not accepted by any controller: $PENDING_CLASSES"
+              [ -z "$REASON" ] && [ -n "$PENDING_GATEWAYS" ] && REASON="Gateway(s) not accepted by any controller: $PENDING_GATEWAYS"
+
+              if [ -z "$REASON" ]; then
+                # Secret-sync can die on its own (same CRD-discovery bug): any TLS listener needs a
+                # secret synced into cilium-secrets
+                REQUIRED=$(kubectl get gateways.gateway.networking.k8s.io -A -o json | jq '
+                  [.items[].spec.listeners[]? |
+                    select(.tls != null) |
+                    select((.tls.mode // "Terminate") == "Terminate") |
+                    select((.tls.certificateRefs // []) | length > 0)
+                  ] | length')
+                if [ "$REQUIRED" -gt 0 ] && [ "$(kubectl get secrets -n cilium-secrets --no-headers 2>/dev/null | wc -l)" -eq 0 ]; then
+                  REASON="$REQUIRED TLS listener(s) need a synced secret but cilium-secrets is empty"
+                fi
+              fi
+
+              if [ -z "$REASON" ]; then
+                echo "✅ Cilium Gateway API controller is running and secret-sync is healthy."
+                exit 0
+              fi
+              echo "⚠️  $REASON"
+              echo "🔧 Restarting cilium-operator so it (re)starts its Gateway API controller."
+              kubectl rollout restart deployment cilium-operator -n "$NS"
           # Schedule on control-plane / system nodes (always available)
           affinity:
             nodeAffinity:
