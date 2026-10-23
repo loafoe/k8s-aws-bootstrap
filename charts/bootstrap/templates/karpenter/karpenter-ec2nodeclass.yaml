@@ -40,7 +40,30 @@ spec:
   userData: |
     #!/bin/bash
     set -e
-    
+
+    # Avoid RPM/dnf transaction-lock races during boot. cloud-init's package
+    # module and dnf-makecache.timer can hold /var/lib/rpm/.rpm.lock while this
+    # script runs, which makes the `dnf install k3s-selinux` step inside the K3s
+    # installer fail with "can't create transaction lock on /var/lib/rpm/.rpm.lock"
+    # and "GPG check FAILED" (observed on node replacement). Stop the timer and
+    # wait for the lock before any dnf/rpm work.
+    systemctl stop dnf-makecache.timer dnf-makecache.service 2>/dev/null || true
+    systemctl disable dnf-makecache.timer 2>/dev/null || true
+
+    wait_for_rpm_lock() {
+      local timeout="${1:-120}" waited=0
+      while fuser /var/lib/rpm/.rpm.lock >/dev/null 2>&1 || \
+            fuser /var/lib/dnf/rpmdb_lock.pid >/dev/null 2>&1; do
+        if [ "$waited" -ge "$timeout" ]; then
+          echo "WARNING: RPM/dnf lock still held after ${timeout}s, proceeding anyway"
+          return 0
+        fi
+        echo "Waiting for RPM/dnf lock to be released..."
+        sleep 2
+        waited=$((waited + 2))
+      done
+    }
+
     # ECR Credential Provider version (renovate-friendly)
     ECR_CREDENTIAL_PROVIDER_VERSION="v1.35.0"
     
@@ -50,6 +73,7 @@ spec:
     systemctl disable firewalld || true
     
     # Install required packages (curl and awscli are pre-installed on AL2023)
+    wait_for_rpm_lock
     dnf install -y jq git
     
     # Get IMDSv2 token for architecture detection
@@ -180,21 +204,36 @@ spec:
     export K3S_TOKEN="$K3S_TOKEN"
     export K3S_URL="{{ .Values.environmentConfig.bootstrap.clusterEndpoint }}"
 
-    # Install K3s agent
-    curl -sfL https://get.k3s.io | sh -s - \
-      --node-name kworker-$INSTANCE_ID \
-      --kubelet-arg="feature-gates=InPlacePodVerticalScaling=true" \
-      --kubelet-arg="provider-id=aws:///$AZ/$INSTANCE_ID" \
-      --kubelet-arg="cloud-provider=external" \
-      --kubelet-arg="register-with-taints=karpenter.sh/unregistered=true:NoExecute" \
-      --kubelet-arg="kube-reserved=cpu=250m,memory=512Mi,ephemeral-storage=1Gi" \
-      --kubelet-arg="system-reserved=cpu=250m,memory=384Mi,ephemeral-storage=1Gi" \
-      --kubelet-arg="enforce-node-allocatable=pods" \
-      --kubelet-arg="max-pods=100" \
-      --kubelet-arg="image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml" \
-      --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
-      --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
-      --node-label="topology.kubernetes.io/zone=$AZ"
+    # Install K3s agent. Retry because the installer runs
+    # `dnf install k3s-selinux`, which can transiently fail on a held RPM lock
+    # (see wait_for_rpm_lock above).
+    k3s_install_attempts=3
+    for attempt in $(seq 1 "$k3s_install_attempts"); do
+      wait_for_rpm_lock
+      if curl -sfL https://get.k3s.io | sh -s - \
+        --node-name kworker-$INSTANCE_ID \
+        --kubelet-arg="feature-gates=InPlacePodVerticalScaling=true" \
+        --kubelet-arg="provider-id=aws:///$AZ/$INSTANCE_ID" \
+        --kubelet-arg="cloud-provider=external" \
+        --kubelet-arg="register-with-taints=karpenter.sh/unregistered=true:NoExecute" \
+        --kubelet-arg="kube-reserved=cpu=250m,memory=512Mi,ephemeral-storage=1Gi" \
+        --kubelet-arg="system-reserved=cpu=250m,memory=384Mi,ephemeral-storage=1Gi" \
+        --kubelet-arg="enforce-node-allocatable=pods" \
+        --kubelet-arg="max-pods=100" \
+        --kubelet-arg="image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml" \
+        --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
+        --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
+        --node-label="topology.kubernetes.io/zone=$AZ"; then
+        echo "K3s agent install succeeded (attempt $attempt/$k3s_install_attempts)"
+        break
+      fi
+      if [ "$attempt" -ge "$k3s_install_attempts" ]; then
+        echo "ERROR: K3s agent install failed after $k3s_install_attempts attempts"
+        exit 1
+      fi
+      echo "K3s agent install failed (attempt $attempt/$k3s_install_attempts); retrying in 15s..."
+      sleep 15
+    done
     
     # Verify K3s agent is running
     systemctl daemon-reload  # Reload again to pick up K3s service overrides
