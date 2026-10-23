@@ -130,7 +130,17 @@ spec:
               # datapath hasn't converged yet, apiserver<->kubelet calls can hang
               # rather than error, which would otherwise eat most of this Job's
               # activeDeadlineSeconds on a single stuck call instead of failing fast.
-              kubectl() { command kubectl --request-timeout=15s "$@"; }
+              #
+              # NOTE: this deliberately wraps kubectl in the shell `timeout` command
+              # instead of using kubectl's own --request-timeout flag. Setting
+              # --request-timeout applies an override to the client config, which makes
+              # kubectl treat its config as "non-default" and skip in-cluster
+              # (ServiceAccount) config detection. kubectl then falls back to
+              # http://localhost:8080 and every call fails, which previously surfaced
+              # as the misleading "MutatingWebhookConfiguration ... not found or
+              # incomplete. Skipping." message on every run.
+              KUBECTL_BIN="$(command -v kubectl)"
+              kubectl() { timeout 15 "$KUBECTL_BIN" "$@"; }
 
               # ---------------------------------------------------------------
               # 1. Verify the pod-identity-webhook is actually ready.
