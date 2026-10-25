@@ -1,6 +1,6 @@
 apiVersion: v2
 name: argocd
-version: 0.1.4
+version: 0.1.5
 description: Thin wrapper for Argo CD
 dependencies:
   - name: argo-cd
