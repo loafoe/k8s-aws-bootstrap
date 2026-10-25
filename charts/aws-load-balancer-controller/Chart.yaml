@@ -5,5 +5,5 @@ description: Thin wrapper for AWS Load Balancer Controller
 dependencies:
   - name: aws-load-balancer-controller
     # renovate: datasource=helm registryUrl=https://aws.github.io/eks-charts depName=aws-load-balancer-controller
-    version: "3.6.1"
+    version: "3.6.2"
     repository: "https://aws.github.io/eks-charts"
