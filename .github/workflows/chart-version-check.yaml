@@ -23,3 +23,17 @@ jobs:
             base_ref='origin/main'
           fi
           ./scripts/check-chart-version-bump.sh "$base_ref"
+
+  deps-vendored:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      # Renovate PRs start out red here and turn green once the Update Helm
+      # Dependencies workflow pushes its artifacts commit. If that workflow
+      # fails, this stays red instead of the PR looking ready to merge.
+      - name: Check chart dependencies are vendored
+        run: ./scripts/check-chart-deps.sh
