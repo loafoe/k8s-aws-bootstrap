@@ -1,0 +1,50 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-restricted-pod-security
+  annotations:
+    policies.kyverno.io/title: Require Restricted Pod Security
+    policies.kyverno.io/category: Zero Trust, Pod Security Standards (Restricted)
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Privileged containers, privilege escalation, and host namespace
+      sharing give a container a direct path to the underlying node and
+      defeat any other isolation the cluster relies on. This policy flags
+      Pods that run privileged containers, allow privilege escalation, or
+      share the host network, PID, or IPC namespace.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Audit
+  evaluation:
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers:
+      - deployments
+      - daemonsets
+      - statefulsets
+      - jobs
+      - cronjobs
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["pods"]
+  validations:
+  - expression: >-
+      (!has(object.spec.hostNetwork) || !object.spec.hostNetwork) &&
+      (!has(object.spec.hostPID) || !object.spec.hostPID) &&
+      (!has(object.spec.hostIPC) || !object.spec.hostIPC)
+    message: "Pods must not share the host network, PID, or IPC namespace."
+  - expression: >-
+      object.spec.containers.all(c,
+        (!has(c.securityContext) || !has(c.securityContext.privileged) || !c.securityContext.privileged) &&
+        (!has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation) || !c.securityContext.allowPrivilegeEscalation)
+      )
+    message: "Containers must not run as privileged or allow privilege escalation."
