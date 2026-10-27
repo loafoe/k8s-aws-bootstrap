@@ -1,0 +1,73 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: govern-policy-exceptions
+  annotations:
+    policies.kyverno.io/title: Govern Policy Exceptions
+    policies.kyverno.io/category: Zero Trust, Multi-Tenancy
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: PolicyException
+    policies.kyverno.io/description: >-
+      A PolicyException is a standing waiver of a cluster-wide guardrail, so an
+      ungoverned one is as risky as the control it bypasses. This policy
+      requires every PolicyException to carry a bounded
+      `cleanup.kyverno.io/ttl` label so it cannot outlive its approval, and
+      `exceptions.kyverno.io/ticket`, `exceptions.kyverno.io/owner`, and
+      `exceptions.kyverno.io/compensating-controls` annotations so the waiver
+      is traceable and accountable. It also restricts who may create or
+      update one to the platform-admin groups already granted write access in
+      exceptions-rbac.yaml.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["policies.kyverno.io"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["policyexceptions"]
+  variables:
+  - name: allowedTTLs
+    expression: "['1d', '3d', '7d', '14d']"
+  - name: platformAdminGroups
+    expression: "['system:masters', 'platform-admins']"
+  validations:
+  - expression: >-
+      has(object.metadata.labels) &&
+      'cleanup.kyverno.io/ttl' in object.metadata.labels &&
+      object.metadata.labels['cleanup.kyverno.io/ttl'] in variables.allowedTTLs
+    message: >-
+      PolicyExceptions must carry a 'cleanup.kyverno.io/ttl' label set to one
+      of '1d', '3d', '7d', or '14d' so the exception is automatically pruned.
+  - expression: >-
+      has(object.metadata.annotations) &&
+      'exceptions.kyverno.io/ticket' in object.metadata.annotations &&
+      object.metadata.annotations['exceptions.kyverno.io/ticket'].size() > 0
+    message: >-
+      PolicyExceptions must carry a non-empty 'exceptions.kyverno.io/ticket'
+      annotation referencing the approval ticket for this exception.
+  - expression: >-
+      has(object.metadata.annotations) &&
+      'exceptions.kyverno.io/owner' in object.metadata.annotations &&
+      object.metadata.annotations['exceptions.kyverno.io/owner'].size() > 0
+    message: >-
+      PolicyExceptions must carry a non-empty 'exceptions.kyverno.io/owner'
+      annotation naming who is accountable for this exception.
+  - expression: >-
+      has(object.metadata.annotations) &&
+      'exceptions.kyverno.io/compensating-controls' in object.metadata.annotations &&
+      object.metadata.annotations['exceptions.kyverno.io/compensating-controls'].size() > 0
+    message: >-
+      PolicyExceptions must carry a non-empty
+      'exceptions.kyverno.io/compensating-controls' annotation describing
+      what mitigates the risk this exception reintroduces.
+  - expression: >-
+      request.userInfo.groups.exists(g, g in variables.platformAdminGroups)
+    message: >-
+      Only platform-admin groups may create or update PolicyExceptions.
