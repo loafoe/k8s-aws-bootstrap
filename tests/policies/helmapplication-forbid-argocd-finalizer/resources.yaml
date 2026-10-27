@@ -1,0 +1,17 @@
+apiVersion: dip.io/v1alpha1
+kind: HelmApplication
+metadata:
+  name: good-app
+  namespace: default
+spec:
+  chart: example
+---
+apiVersion: dip.io/v1alpha1
+kind: HelmApplication
+metadata:
+  name: bad-app
+  namespace: default
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  chart: example
