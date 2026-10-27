@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: no-limit-deploy
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: no-limit
+  template:
+    metadata:
+      labels:
+        app: no-limit
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27.2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: has-limit-deploy
+  namespace: default
+spec:
+  revisionHistoryLimit: 7
+  selector:
+    matchLabels:
+      app: has-limit
+  template:
+    metadata:
+      labels:
+        app: has-limit
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27.2

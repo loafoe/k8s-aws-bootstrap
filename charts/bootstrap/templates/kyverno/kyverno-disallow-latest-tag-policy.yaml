@@ -1,11 +1,11 @@
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
 metadata:
   name: disallow-latest-tag
   annotations:
     policies.kyverno.io/title: Disallow Latest Tag
     policies.kyverno.io/category: Best Practices
-    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/minversion: 1.14.0
     policies.kyverno.io/severity: medium
     policies.kyverno.io/subject: Pod
     policies.kyverno.io/description: >-
@@ -15,47 +15,37 @@ metadata:
       specifies a tag and that it is not called `latest`.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-wave: "4"
-    # Exclude ReplicaSet from autogen: Deployments (already covered) keep old,
-    # scaled-to-0 ReplicaSet revisions around for rollback history, and Kyverno's
-    # background scanner re-flags those stale revisions forever otherwise.
-    pod-policies.kyverno.io/autogen-controllers: DaemonSet,Deployment,StatefulSet,Job,CronJob
 spec:
-  validationFailureAction: Audit
-  background: true
-  rules:
-  - name: require-image-tag
-    match:
-      any:
-      - resources:
-          kinds:
-          - Pod
-    validate:
-      message: "An image tag is required."
-      foreach:
-        - list: "request.object.spec.containers"
-          pattern:
-            image: "*:*"
-        - list: "request.object.spec.initContainers"
-          pattern:
-            image: "*:*"
-        - list: "request.object.spec.ephemeralContainers"
-          pattern:
-            image: "*:*"
-  - name: validate-image-tag
-    match:
-      any:
-      - resources:
-          kinds:
-          - Pod
-    validate:
-      message: "Using a mutable image tag e.g. 'latest' is not allowed."
-      foreach:
-        - list: "request.object.spec.containers"
-          pattern:
-            image: "!*:latest"
-        - list: "request.object.spec.initContainers"
-          pattern:
-            image: "!*:latest"
-        - list: "request.object.spec.ephemeralContainers"
-          pattern:
-            image: "!*:latest"
+  validationActions:
+  - Audit
+  evaluation:
+    background:
+      enabled: true
+  # Autogen is limited to Deployment/StatefulSet/Job/CronJob: a scaled-to-0
+  # ReplicaSet kept around by a Deployment for rollback history would
+  # otherwise be re-flagged by the background scanner forever.
+  autogen:
+    podControllers:
+      controllers:
+      - deployments
+      - daemonsets
+      - statefulsets
+      - jobs
+      - cronjobs
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["pods"]
+  validations:
+  - expression: >-
+      object.spec.containers.all(c, c.image.contains(':')) &&
+      (!has(object.spec.initContainers) || object.spec.initContainers.all(c, c.image.contains(':'))) &&
+      (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.all(c, c.image.contains(':')))
+    message: "An image tag is required."
+  - expression: >-
+      object.spec.containers.all(c, !c.image.endsWith(':latest')) &&
+      (!has(object.spec.initContainers) || object.spec.initContainers.all(c, !c.image.endsWith(':latest'))) &&
+      (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.all(c, !c.image.endsWith(':latest')))
+    message: "Using a mutable image tag e.g. 'latest' is not allowed."

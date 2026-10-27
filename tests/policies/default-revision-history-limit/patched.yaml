@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: no-limit-deploy
+  namespace: default
+  labels:
+    app.kubernetes.io/managed-by: kyverno
+spec:
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: no-limit
+  template:
+    metadata:
+      labels:
+        app: no-limit
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27.2

@@ -1,14 +1,14 @@
 {{- if .Values.features.gatewayApi.enabled }}
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
 metadata:
-  name: unique-gateway-route-hostnames
+  name: unique-tlsroute-hostnames
   annotations:
-    policies.kyverno.io/title: Unique Gateway Route Hostnames
+    policies.kyverno.io/title: Unique Gateway TLSRoute Hostnames
     policies.kyverno.io/category: Networking
-    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/minversion: 1.14.0
     policies.kyverno.io/severity: high
-    policies.kyverno.io/subject: TLSRoute, HTTPRoute, GRPCRoute
+    policies.kyverno.io/subject: TLSRoute
     policies.kyverno.io/description: >-
       Duplicate hostnames across Gateway API routes targeting the same Gateway listener
       cause Cilium's Envoy proxy to reject the entire listener configuration, breaking
@@ -18,91 +18,164 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-wave: "4"
 spec:
-  validationFailureAction: Enforce
-  background: false
-  rules:
-    - name: unique-tlsroute-hostnames
-      match:
-        any:
-          - resources:
-              kinds:
-                - TLSRoute
-      context:
-        - name: existingRoutes
-          apiCall:
-            urlPath: "/apis/gateway.networking.k8s.io/v1/tlsroutes"
-            jmesPath: "items[?metadata.name != '{{ "{{" }}request.object.metadata.name{{ "}}" }}' || metadata.namespace != '{{ "{{" }}request.object.metadata.namespace{{ "}}" }}']"
-      preconditions:
-        all:
-          - key: "{{ "{{" }} request.object.spec.hostnames || `[]` {{ "}}" }}"
-            operator: NotEquals
-            value: []
-      validate:
-        message: >-
-          TLSRoute hostname conflict detected. The hostname(s) {{ "{{" }} request.object.spec.hostnames {{ "}}" }}
-          are already used by another TLSRoute targeting the same Gateway. Duplicate hostnames
-          cause Cilium Envoy to reject listener configuration, breaking pod networking.
-          Delete the conflicting route or use a different hostname.
-        deny:
-          conditions:
-            any:
-              - key: "{{ "{{" }} request.object.spec.hostnames {{ "}}" }}"
-                operator: AnyIn
-                value: "{{ "{{" }} existingRoutes[?spec.parentRefs[?name == '{{ "{{" }}request.object.spec.parentRefs[0].name{{ "}}" }}' && namespace == '{{ "{{" }}request.object.spec.parentRefs[0].namespace || request.object.metadata.namespace{{ "}}" }}']].spec.hostnames[] {{ "}}" }}"
-    - name: unique-httproute-hostnames
-      match:
-        any:
-          - resources:
-              kinds:
-                - HTTPRoute
-      context:
-        - name: existingRoutes
-          apiCall:
-            urlPath: "/apis/gateway.networking.k8s.io/v1/httproutes"
-            jmesPath: "items[?metadata.name != '{{ "{{" }}request.object.metadata.name{{ "}}" }}' || metadata.namespace != '{{ "{{" }}request.object.metadata.namespace{{ "}}" }}']"
-      preconditions:
-        all:
-          - key: "{{ "{{" }} request.object.spec.hostnames || `[]` {{ "}}" }}"
-            operator: NotEquals
-            value: []
-      validate:
-        message: >-
-          HTTPRoute hostname conflict detected. The hostname(s) {{ "{{" }} request.object.spec.hostnames {{ "}}" }}
-          are already used by another HTTPRoute targeting the same Gateway. Duplicate hostnames
-          cause Cilium Envoy to reject listener configuration, breaking pod networking.
-          Delete the conflicting route or use a different hostname.
-        deny:
-          conditions:
-            any:
-              - key: "{{ "{{" }} request.object.spec.hostnames {{ "}}" }}"
-                operator: AnyIn
-                value: "{{ "{{" }} existingRoutes[?spec.parentRefs[?name == '{{ "{{" }}request.object.spec.parentRefs[0].name{{ "}}" }}' && namespace == '{{ "{{" }}request.object.spec.parentRefs[0].namespace || request.object.metadata.namespace{{ "}}" }}']].spec.hostnames[] {{ "}}" }}"
-    - name: unique-grpcroute-hostnames
-      match:
-        any:
-          - resources:
-              kinds:
-                - GRPCRoute
-      context:
-        - name: existingRoutes
-          apiCall:
-            urlPath: "/apis/gateway.networking.k8s.io/v1/grpcroutes"
-            jmesPath: "items[?metadata.name != '{{ "{{" }}request.object.metadata.name{{ "}}" }}' || metadata.namespace != '{{ "{{" }}request.object.metadata.namespace{{ "}}" }}']"
-      preconditions:
-        all:
-          - key: "{{ "{{" }} request.object.spec.hostnames || `[]` {{ "}}" }}"
-            operator: NotEquals
-            value: []
-      validate:
-        message: >-
-          GRPCRoute hostname conflict detected. The hostname(s) {{ "{{" }} request.object.spec.hostnames {{ "}}" }}
-          are already used by another GRPCRoute targeting the same Gateway. Duplicate hostnames
-          cause Cilium Envoy to reject listener configuration, breaking pod networking.
-          Delete the conflicting route or use a different hostname.
-        deny:
-          conditions:
-            any:
-              - key: "{{ "{{" }} request.object.spec.hostnames {{ "}}" }}"
-                operator: AnyIn
-                value: "{{ "{{" }} existingRoutes[?spec.parentRefs[?name == '{{ "{{" }}request.object.spec.parentRefs[0].name{{ "}}" }}' && namespace == '{{ "{{" }}request.object.spec.parentRefs[0].namespace || request.object.metadata.namespace{{ "}}" }}']].spec.hostnames[] {{ "}}" }}"
+  validationActions:
+  - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["gateway.networking.k8s.io"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["tlsroutes"]
+  matchConditions:
+  - name: has-parent-ref
+    expression: "has(object.spec.parentRefs) && object.spec.parentRefs.size() > 0"
+  variables:
+  - name: myParentRef
+    expression: "object.spec.parentRefs[0]"
+  - name: myParentNamespace
+    expression: >-
+      has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
+  - name: otherRoutes
+    expression: >-
+      resource.List("gateway.networking.k8s.io/v1", "tlsroutes", "").items.filter(r,
+        r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
+  validations:
+  - expression: >-
+      !has(object.spec.hostnames) || object.spec.hostnames.all(h,
+        !variables.otherRoutes.exists(r,
+          has(r.spec.parentRefs) && r.spec.parentRefs.exists(p,
+            p.name == variables.myParentRef.name &&
+            (has(p.namespace) ? p.namespace : r.metadata.namespace) == variables.myParentNamespace
+          ) &&
+          has(r.spec.hostnames) && r.spec.hostnames.exists(rh, rh == h)
+        )
+      )
+    message: >-
+      TLSRoute hostname conflict detected. One or more of this route's hostnames
+      are already used by another TLSRoute targeting the same Gateway. Duplicate hostnames
+      cause Cilium Envoy to reject listener configuration, breaking pod networking.
+      Delete the conflicting route or use a different hostname.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: unique-httproute-hostnames
+  annotations:
+    policies.kyverno.io/title: Unique Gateway HTTPRoute Hostnames
+    policies.kyverno.io/category: Networking
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: HTTPRoute
+    policies.kyverno.io/description: >-
+      Duplicate hostnames across Gateway API routes targeting the same Gateway listener
+      cause Cilium's Envoy proxy to reject the entire listener configuration, breaking
+      CNI endpoint regeneration and leaving pods stuck in ContainerCreating state.
+      This policy prevents creation of routes with hostnames that already exist on
+      another route targeting the same Gateway and listener.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["gateway.networking.k8s.io"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["httproutes"]
+  matchConditions:
+  - name: has-parent-ref
+    expression: "has(object.spec.parentRefs) && object.spec.parentRefs.size() > 0"
+  variables:
+  - name: myParentRef
+    expression: "object.spec.parentRefs[0]"
+  - name: myParentNamespace
+    expression: >-
+      has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
+  - name: otherRoutes
+    expression: >-
+      resource.List("gateway.networking.k8s.io/v1", "httproutes", "").items.filter(r,
+        r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
+  validations:
+  - expression: >-
+      !has(object.spec.hostnames) || object.spec.hostnames.all(h,
+        !variables.otherRoutes.exists(r,
+          has(r.spec.parentRefs) && r.spec.parentRefs.exists(p,
+            p.name == variables.myParentRef.name &&
+            (has(p.namespace) ? p.namespace : r.metadata.namespace) == variables.myParentNamespace
+          ) &&
+          has(r.spec.hostnames) && r.spec.hostnames.exists(rh, rh == h)
+        )
+      )
+    message: >-
+      HTTPRoute hostname conflict detected. One or more of this route's hostnames
+      are already used by another HTTPRoute targeting the same Gateway. Duplicate hostnames
+      cause Cilium Envoy to reject listener configuration, breaking pod networking.
+      Delete the conflicting route or use a different hostname.
+---
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: unique-grpcroute-hostnames
+  annotations:
+    policies.kyverno.io/title: Unique Gateway GRPCRoute Hostnames
+    policies.kyverno.io/category: Networking
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: GRPCRoute
+    policies.kyverno.io/description: >-
+      Duplicate hostnames across Gateway API routes targeting the same Gateway listener
+      cause Cilium's Envoy proxy to reject the entire listener configuration, breaking
+      CNI endpoint regeneration and leaving pods stuck in ContainerCreating state.
+      This policy prevents creation of routes with hostnames that already exist on
+      another route targeting the same Gateway and listener.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Deny
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["gateway.networking.k8s.io"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["grpcroutes"]
+  matchConditions:
+  - name: has-parent-ref
+    expression: "has(object.spec.parentRefs) && object.spec.parentRefs.size() > 0"
+  variables:
+  - name: myParentRef
+    expression: "object.spec.parentRefs[0]"
+  - name: myParentNamespace
+    expression: >-
+      has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
+  - name: otherRoutes
+    expression: >-
+      resource.List("gateway.networking.k8s.io/v1", "grpcroutes", "").items.filter(r,
+        r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
+  validations:
+  - expression: >-
+      !has(object.spec.hostnames) || object.spec.hostnames.all(h,
+        !variables.otherRoutes.exists(r,
+          has(r.spec.parentRefs) && r.spec.parentRefs.exists(p,
+            p.name == variables.myParentRef.name &&
+            (has(p.namespace) ? p.namespace : r.metadata.namespace) == variables.myParentNamespace
+          ) &&
+          has(r.spec.hostnames) && r.spec.hostnames.exists(rh, rh == h)
+        )
+      )
+    message: >-
+      GRPCRoute hostname conflict detected. One or more of this route's hostnames
+      are already used by another GRPCRoute targeting the same Gateway. Duplicate hostnames
+      cause Cilium Envoy to reject listener configuration, breaking pod networking.
+      Delete the conflicting route or use a different hostname.
 {{- end }}

@@ -1,0 +1,45 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: ebs-csi-controller-pod-identity
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-ebs-csi-controller-pod-identity-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: validate-ebs-csi-controller-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - ebs-csi-controller-good
+    kind: Pod
+    result: pass
+  - policy: validate-ebs-csi-controller-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - ebs-csi-controller-bad
+    kind: Pod
+    result: fail
+  - policy: validate-ebs-csi-controller-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - unrelated-pod
+    kind: Pod
+    result: skip
+  - policy: validate-ebs-csi-controller-serviceaccount-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - ebs-csi-controller-good
+    kind: Pod
+    result: pass
+  - policy: validate-ebs-csi-controller-serviceaccount-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - ebs-csi-controller-bad
+    kind: Pod
+    result: fail
+  - policy: validate-ebs-csi-controller-serviceaccount-pod-identity
+    isValidatingPolicy: true
+    resources:
+      - unrelated-pod
+    kind: Pod
+    result: skip

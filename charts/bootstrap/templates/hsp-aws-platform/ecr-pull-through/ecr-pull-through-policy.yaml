@@ -1,4 +1,15 @@
 {{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.ecrPullThrough }}
+# NOT MIGRATED to a CEL-based MutatingPolicy (CHAR-22): every mutate rule here
+# rewrites container images with regex_replace_all capture groups (e.g.
+# '^(?:docker\.io/)?([^:\W/]*)(:.*)?$' -> 'library/$1$2') driven by values read
+# from the hsp-addons ConfigMap. Kyverno's CEL mutate libraries (as of
+# kyverno 1.19 / the policies.kyverno.io CEL API) have no regex
+# substitution-with-capture-groups function - only boolean '.matches()' and a
+# plain, non-regex '.replace()' - so there is no non-lossy CEL expression that
+# reproduces this registry-rewrite logic. Forcing a conversion would either
+# silently drop the capture-group rewrite (breaking every pulled-through
+# image) or require bespoke regex parsing in CEL that can't be validated
+# without a cluster. Revisit once Kyverno ships a CEL regex-capture library.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:

@@ -1,5 +1,5 @@
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
 metadata:
   name: default-revision-history-limit
   annotations:
@@ -7,7 +7,7 @@ metadata:
     policies.kyverno.io/category: Best Practices
     policies.kyverno.io/severity: low
     policies.kyverno.io/subject: Deployment, StatefulSet, DaemonSet
-    policies.kyverno.io/minversion: 1.6.0
+    policies.kyverno.io/minversion: 1.14.0
     policies.kyverno.io/description: >-
       Sets revisionHistoryLimit to 3 on Deployments, StatefulSets, and DaemonSets
       when not explicitly configured. Kubernetes defaults this to 10, which can
@@ -16,34 +16,21 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     argocd.argoproj.io/sync-wave: "4"
 spec:
-  rules:
-  - name: default-deployment-revision-history-limit
-    match:
-      any:
-      - resources:
-          kinds:
-          - Deployment
-    mutate:
-      patchStrategicMerge:
-        spec:
-          (revisionHistoryLimit): 3
-  - name: default-statefulset-revision-history-limit
-    match:
-      any:
-      - resources:
-          kinds:
-          - StatefulSet
-    mutate:
-      patchStrategicMerge:
-        spec:
-          (revisionHistoryLimit): 3
-  - name: default-daemonset-revision-history-limit
-    match:
-      any:
-      - resources:
-          kinds:
-          - DaemonSet
-    mutate:
-      patchStrategicMerge:
-        spec:
-          (revisionHistoryLimit): 3
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["apps"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["deployments", "statefulsets", "daemonsets"]
+  matchConditions:
+  - name: revision-history-limit-unset
+    expression: "!has(object.spec.revisionHistoryLimit)"
+  mutations:
+  - patchType: ApplyConfiguration
+    applyConfiguration:
+      expression: >-
+        Object{
+          spec: Object.spec{
+            revisionHistoryLimit: 3
+          }
+        }
