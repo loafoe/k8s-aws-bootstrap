@@ -4,6 +4,13 @@
 # explicit grant for the `platform-admins` group is needed here. Nothing
 # else (including GitOps/CI service accounts) should be able to create or
 # modify an exception without going through one of those two paths.
+#
+# Grants on the `policies.kyverno.io` group, not the legacy `kyverno.io`
+# group: PolicyExceptions created against this Kyverno install are CEL-based
+# `policies.kyverno.io/v1` objects (see govern-policy-exceptions.yaml,
+# CHAR-20), and the legacy `kyverno.io` PolicyException is deprecated as of
+# Kyverno 1.19 and removed in 1.20. Granting on the old group here would
+# leave real PolicyException writes ungoverned by govern-policy-exceptions.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -12,7 +19,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
 rules:
 - apiGroups:
-  - kyverno.io
+  - policies.kyverno.io
   resources:
   - policyexceptions
   verbs:

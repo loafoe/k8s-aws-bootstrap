@@ -8,13 +8,13 @@ resources:
   - resources.yaml
 results:
   - policy: helmapplication-forbid-argocd-finalizer
-    rule: forbid-argocd-finalizer-on-helmapplication
+    isValidatingPolicy: true
     resources:
       - good-app
     kind: HelmApplication
     result: pass
   - policy: helmapplication-forbid-argocd-finalizer
-    rule: forbid-argocd-finalizer-on-helmapplication
+    isValidatingPolicy: true
     resources:
       - bad-app
     kind: HelmApplication

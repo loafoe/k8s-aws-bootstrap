@@ -1,0 +1,22 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: default-revision-history-limit
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-default-revision-history-limit-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: default-revision-history-limit
+    isMutatingPolicy: true
+    resources:
+      - no-limit-deploy
+    kind: Deployment
+    patchedResources: patched.yaml
+    result: pass
+  - policy: default-revision-history-limit
+    isMutatingPolicy: true
+    resources:
+      - has-limit-deploy
+    kind: Deployment
+    result: skip

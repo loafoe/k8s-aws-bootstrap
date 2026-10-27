@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aws-load-balancer-controller-good
+  namespace: aws-load-balancer-controller
+spec:
+  containers:
+  - name: aws-load-balancer-controller
+    image: aws-lbc:v2.9.0
+    env:
+    - name: AWS_ROLE_ARN
+      value: arn:aws:iam::111111111111:role/aws-lbc
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: aws-load-balancer-controller-bad
+  namespace: aws-load-balancer-controller
+spec:
+  containers:
+  - name: aws-load-balancer-controller
+    image: aws-lbc:v2.9.0
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unrelated-pod
+  namespace: default
+spec:
+  containers:
+  - name: app
+    image: nginx:1.27.2

@@ -1,0 +1,22 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: cnpg-on-demand-nodes
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-cnpg-on-demand-nodes-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: cnpg-on-demand-nodes
+    isMutatingPolicy: true
+    resources:
+      - cnpg-pod
+    kind: Pod
+    patchedResources: patched.yaml
+    result: pass
+  - policy: cnpg-on-demand-nodes
+    isMutatingPolicy: true
+    resources:
+      - non-cnpg-pod
+    kind: Pod
+    result: skip
