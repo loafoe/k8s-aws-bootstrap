@@ -15,6 +15,17 @@
 # "Policy is not ready for reporting", and the policy never appears in any
 # PolicyReport result. Confirmed live on dip-ce-k3s-eu 2026-10-27 for exactly
 # these 4 policies.
+#
+# Also grants gateway.networking.k8s.io httproutes/grpcroutes/tlsroutes:
+# unique-{http,grpc,tls}route-hostnames (CHAR-22) call resource.List() on
+# these kinds from within their CEL expression. kyverno-admission-controller
+# already has read access to them (so the actual Deny-time enforcement is
+# unaffected either way), but reports-controller doesn't, and tries to start
+# a watch on all three regardless of each policy's own
+# evaluation.background.enabled: false - logging a continuous
+# "missing RBAC to list/watch this resource" error every scan cycle
+# otherwise. Confirmed live: these 3 are the only reports-controller RBAC
+# errors still present after this file's first revision closed the 4 above.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -43,3 +54,15 @@ rules:
   - get
   - list
   - watch
+{{- if .Values.features.gatewayApi.enabled }}
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  - grpcroutes
+  - tlsroutes
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
