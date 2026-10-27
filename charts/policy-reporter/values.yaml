@@ -1,0 +1,10 @@
+policy-reporter:
+  ui:
+    enabled: true
+
+  monitoring:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kps
