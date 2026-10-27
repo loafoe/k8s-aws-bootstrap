@@ -1,0 +1,39 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: restrict-cluster-admin-binding
+  annotations:
+    policies.kyverno.io/title: Restrict Cluster Admin Binding
+    policies.kyverno.io/category: Zero Trust, RBAC Security
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: ClusterRoleBinding
+    policies.kyverno.io/description: >-
+      The built-in `cluster-admin` ClusterRole grants unrestricted access to
+      every resource in the cluster. Binding it should be reserved for a
+      small set of administrative groups rather than individual users or
+      service accounts. This policy flags any ClusterRoleBinding to
+      `cluster-admin` whose subjects are not in an administrative group.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Audit
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+    - apiGroups: ["rbac.authorization.k8s.io"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["clusterrolebindings"]
+  variables:
+  - name: adminGroups
+    expression: "['system:masters', 'cluster-admins']"
+  validations:
+  - expression: >-
+      object.roleRef.name != 'cluster-admin' ||
+      (has(object.subjects) &&
+        object.subjects.all(s, s.kind == 'Group' && s.name in variables.adminGroups))
+    message: "Binding the cluster-admin ClusterRole is only allowed for subjects in administrative groups."

@@ -1,0 +1,42 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-owner-label
+  annotations:
+    policies.kyverno.io/title: Require Owner Label
+    policies.kyverno.io/category: Zero Trust, Multi-Tenancy
+    policies.kyverno.io/minversion: 1.14.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob
+    policies.kyverno.io/description: >-
+      Workloads should be traceable to the team or controller that owns them.
+      This policy checks that the `app.kubernetes.io/managed-by` or `owner`
+      label is present, so untracked workloads can be identified during the
+      audit rollout before any enforcement is turned on.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  validationActions:
+  - Audit
+  evaluation:
+    background:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["pods"]
+    - apiGroups: ["apps"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["deployments", "statefulsets", "daemonsets"]
+    - apiGroups: ["batch"]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["jobs", "cronjobs"]
+  validations:
+  - expression: >-
+      has(object.metadata.labels) &&
+      ('app.kubernetes.io/managed-by' in object.metadata.labels || 'owner' in object.metadata.labels)
+    message: "The label `app.kubernetes.io/managed-by` or `owner` is required."
