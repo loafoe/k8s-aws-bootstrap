@@ -1,0 +1,45 @@
+# Grants kyverno's background-controller / reports-controller read access to
+# resource kinds that CHAR-18/CHAR-22's CEL ValidatingPolicies match against
+# but that Kyverno's own built-in RBAC bundle doesn't cover:
+#   - restrict-wildcard-rbac / restrict-escalation-verbs match Role/ClusterRole
+#   - restrict-cluster-admin-binding matches ClusterRoleBinding
+#   - helmapplication-forbid-argocd-finalizer matches the Crossplane-defined
+#     dip.io HelmApplication CRD (same class of gap as centcom-satellite's
+#     Crossplane CR RBAC - see innovation-day/AGENTS.md's "RBAC: letting
+#     get_resource/list_resources read a custom CR")
+#
+# Without this, each policy's admission webhook still enforces on new/
+# changed resources (status shows WebhookConfigured: true regardless), but
+# Kyverno can never background-scan resources that already existed before
+# the policy was created: status shows RBACPermissionsGranted: False /
+# "Policy is not ready for reporting", and the policy never appears in any
+# PolicyReport result. Confirmed live on dip-ce-k3s-eu 2026-10-27 for exactly
+# these 4 policies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-background-scan-rbac
+  labels:
+    rbac.kyverno.io/aggregate-to-background-controller: "true"
+    rbac.kyverno.io/aggregate-to-reports-controller: "true"
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+rules:
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dip.io
+  resources:
+  - helmapplications
+  verbs:
+  - get
+  - list
+  - watch
