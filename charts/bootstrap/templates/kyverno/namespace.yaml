@@ -6,3 +6,15 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
   labels:
     pod-security.kubernetes.io/enforce: restricted
+---
+# Dedicated home for Kyverno PolicyExceptions (kyverno.features.policyExceptions
+# namespace in charts/kyverno/values.yaml), isolated from the kyverno namespace
+# so exceptions-rbac.yaml can lock write access down on its own.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno-exceptions
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
