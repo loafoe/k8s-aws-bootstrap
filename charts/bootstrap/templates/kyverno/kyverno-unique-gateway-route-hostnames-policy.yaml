@@ -40,7 +40,7 @@ spec:
       has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
   - name: otherRoutes
     expression: >-
-      resource.List("gateway.networking.k8s.io/v1", "tlsroutes", "").items.filter(r,
+      dyn(resource.List("gateway.networking.k8s.io/v1", "tlsroutes", "").items).filter(r,
         r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
   validations:
   - expression: >-
@@ -100,7 +100,7 @@ spec:
       has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
   - name: otherRoutes
     expression: >-
-      resource.List("gateway.networking.k8s.io/v1", "httproutes", "").items.filter(r,
+      dyn(resource.List("gateway.networking.k8s.io/v1", "httproutes", "").items).filter(r,
         r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
   validations:
   - expression: >-
@@ -160,7 +160,7 @@ spec:
       has(variables.myParentRef.namespace) ? variables.myParentRef.namespace : object.metadata.namespace
   - name: otherRoutes
     expression: >-
-      resource.List("gateway.networking.k8s.io/v1", "grpcroutes", "").items.filter(r,
+      dyn(resource.List("gateway.networking.k8s.io/v1", "grpcroutes", "").items).filter(r,
         r.metadata.name != object.metadata.name || r.metadata.namespace != object.metadata.namespace)
   validations:
   - expression: >-
