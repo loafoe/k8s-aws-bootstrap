@@ -1,0 +1,22 @@
+name: Kyverno Test
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - 'tests/policies/**'
+
+jobs:
+  kyverno-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install Kyverno CLI
+        uses: kyverno/action-install-cli@v0.2.0
+        with:
+          release: 'v1.19.2'
+
+      - name: Run kyverno test
+        run: kyverno test tests/policies/

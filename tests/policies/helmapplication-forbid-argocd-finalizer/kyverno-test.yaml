@@ -1,0 +1,21 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: helmapplication-forbid-argocd-finalizer
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-helmapplication-forbid-argocd-finalizer-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: helmapplication-forbid-argocd-finalizer
+    rule: forbid-argocd-finalizer-on-helmapplication
+    resources:
+      - good-app
+    kind: HelmApplication
+    result: pass
+  - policy: helmapplication-forbid-argocd-finalizer
+    rule: forbid-argocd-finalizer-on-helmapplication
+    resources:
+      - bad-app
+    kind: HelmApplication
+    result: fail
