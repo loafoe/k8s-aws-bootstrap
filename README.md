@@ -58,6 +58,14 @@ cluster from the Argo CD bootstrap application without a Git change. See
 [`docs/optional-policies.md`](docs/optional-policies.md) for the full list
 and the enablement runbook.
 
+## Prometheus Retention
+
+`kps-prometheus` retains data for 14 days or 40GB, whichever is reached
+first, and both the period and the size cap can be overridden per cluster
+from the Argo CD bootstrap application without a Git change. See
+[`docs/prometheus-retention.md`](docs/prometheus-retention.md) for the
+override steps, verification commands, and the volume-resize procedure.
+
 ## Notes
 
 - **Order matters**: Follow the steps sequentially to avoid resource leaks
