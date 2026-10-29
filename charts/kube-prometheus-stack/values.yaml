@@ -46,8 +46,7 @@ kube-prometheus-stack:
       # which is what turned a memory spike into a permanent OOM loop.
       #
       # gp3 (the cluster default storage class) rather than the io1-encrypted
-      # class ci-obs-euw1 uses; io1 does not exist on this cluster. 20Gi
-      # covers 10d retention at the current ~450k series with room to grow.
+      # class ci-obs-euw1 uses; io1 does not exist on this cluster.
       #
       # Note: EBS is AZ-bound. Once this binds, Prometheus is pinned to the AZ
       # of the node it first lands on (currently eu-west-2b). That is
@@ -57,6 +56,22 @@ kube-prometheus-stack:
       #
       # Keyed as storageSpec, not storage: kube-prometheus-stack 88.x renamed
       # this value, and `storage` is silently dropped by the subchart template.
+      #
+      # Explicit retention bounds -- previously unset, so `retention` came
+      # from the upstream chart's default (10d, silently movable by Renovate)
+      # and `retentionSize` had no bound at all: the volume filling up
+      # (ENOSPC) rather than old data being dropped was the direct cause of a
+      # crash. Prometheus applies whichever of retention/retentionSize is
+      # reached first.
+      #
+      # 40GB only fits safely on a volume of >= ~50Gi: Prometheus recommends
+      # capping retention.size at 80-85% of the allocated disk, because
+      # compaction keeps the source blocks and the new compacted block on
+      # disk at the same time, so usage transiently exceeds the cap. 40GB on
+      # 50Gi is exactly 80%. Raising the cap without raising the volume
+      # returns to the original disk-full failure.
+      retention: "14d"
+      retentionSize: "40GB"
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -64,7 +79,7 @@ kube-prometheus-stack:
               - ReadWriteOnce
             resources:
               requests:
-                storage: 20Gi
+                storage: 50Gi
 
   prometheusOperator:
     resources:
