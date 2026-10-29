@@ -20,6 +20,13 @@ spec:
         kyverno:
           customLabels:
             {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          crds:
+            migration:
+              podLabels:
+                {{- include "bootstrap.ownerLabels" . | nindent 16 }}
+          webhooksCleanup:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
           admissionController:
             podLabels:
               {{- include "bootstrap.ownerLabels" . | nindent 14 }}
