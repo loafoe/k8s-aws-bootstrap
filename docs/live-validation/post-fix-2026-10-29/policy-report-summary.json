@@ -1,0 +1,159 @@
+{
+  "captured_at": "2026-10-29T20:46:00Z",
+  "cluster": "dip-ce-k3s-eu",
+  "report_object_count": 708,
+  "result_entry_count": 1942,
+  "counts_by_result": {
+    "pass": 1609,
+    "fail": 138,
+    "error": 0,
+    "skip": 195
+  },
+  "fail_and_error_by_policy": [
+    {
+      "result": "fail",
+      "policy": "require-owner-label",
+      "count": 61
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-wildcard-rbac",
+      "count": 50
+    },
+    {
+      "result": "fail",
+      "policy": "disallow-default-serviceaccount",
+      "count": 22
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-escalation-verbs",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-cluster-admin-binding",
+      "count": 1
+    }
+  ],
+  "fail_and_error_by_namespace": [
+    {
+      "result": "fail",
+      "namespace": "(cluster-scoped)",
+      "count": 55
+    },
+    {
+      "result": "fail",
+      "namespace": "langfuse-system",
+      "count": 24
+    },
+    {
+      "result": "fail",
+      "namespace": "mt-mcp-proxy-grafana",
+      "count": 14
+    },
+    {
+      "result": "fail",
+      "namespace": "k8s-observability-monitoring",
+      "count": 10
+    },
+    {
+      "result": "fail",
+      "namespace": "kube-system",
+      "count": 6
+    },
+    {
+      "result": "fail",
+      "namespace": "atlassian-mcp",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "github-mcp",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "mcp-notifier",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom",
+      "count": 3
+    },
+    {
+      "result": "fail",
+      "namespace": "dex-system",
+      "count": 3
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom-satellite",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom-satellite-src-co-dev",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "cnpg-system",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "hermes-agent",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "langfuse-mcp",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "kyverno",
+      "count": 1
+    }
+  ],
+  "distinct_fail_and_error_messages": [
+    {
+      "result": "fail",
+      "policy": "require-owner-label",
+      "message": "The label `app.kubernetes.io/managed-by` or `owner` is required.",
+      "count": 61
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-wildcard-rbac",
+      "message": "Wildcard '*' is not allowed in verbs or resources for Roles/ClusterRoles.",
+      "count": 50
+    },
+    {
+      "result": "fail",
+      "policy": "disallow-default-serviceaccount",
+      "message": "Pods must not use the default ServiceAccount; set `serviceAccountName` to a dedicated service account.",
+      "count": 22
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-escalation-verbs",
+      "message": "RBAC rules must not grant the 'bind', 'escalate', or 'impersonate' verbs.",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-cluster-admin-binding",
+      "message": "Binding the cluster-admin ClusterRole is only allowed for subjects in administrative groups.",
+      "count": 1
+    }
+  ],
+  "pruned_stale_reports": {
+    "deleted": 28,
+    "patched_results_removed": 5,
+    "namespaces": ["aws-ebs-csi-driver", "karpenter", "aws-load-balancer-controller", "external-dns"],
+    "note": "See ../README.md#phase-22-stale-policyreport-pruning for the full enumeration and rationale."
+  }
+}
