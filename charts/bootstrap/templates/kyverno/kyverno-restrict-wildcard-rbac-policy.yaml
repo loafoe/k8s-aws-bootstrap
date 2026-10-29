@@ -33,11 +33,23 @@ spec:
   # provider-specific aggregate-to-crossplane roles from cnpg/barmancloud/etc.)
   # need wildcard access to manage CRDs it doesn't know about at install time.
   # Both are inherent to how these controllers work, not something to fix.
+  #
+  # The `kubernetes.io/bootstrapping: rbac-defaults` label marks the
+  # kube-apiserver's own built-in ClusterRoles (cluster-admin,
+  # system:kube-controller-manager, system:kubelet-api-admin, and the
+  # system:controller:* roles) - the API server reconciles these itself on
+  # every restart (rbac.authorization.kubernetes.io/autoupdate: true); they
+  # live in no chart or repo we control.
+  #
+  # k3s-cloud-controller-manager is k3s's own embedded Addon manifest,
+  # applied by the k3s server process at node startup, not by any Helm
+  # chart or ArgoCD Application.
   matchConditions:
   - name: exclude-known-legit-wildcard-rbac
     expression: >-
-      !(object.metadata.name in ['argocd-server', 'argocd-application-controller'] ||
-        object.metadata.name.contains('crossplane'))
+      !(object.metadata.name in ['argocd-server', 'argocd-application-controller', 'k3s-cloud-controller-manager'] ||
+        object.metadata.name.contains('crossplane') ||
+        (has(object.metadata.labels) && object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
