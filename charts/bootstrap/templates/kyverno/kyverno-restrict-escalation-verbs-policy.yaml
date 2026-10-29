@@ -29,7 +29,7 @@ spec:
       resources: ["roles", "clusterroles"]
   validations:
   - expression: >-
-      object.rules.all(r,
+      !has(object.rules) || object.rules == null || object.rules.all(r,
         !(has(r.verbs) && r.verbs.exists(v, v in ['bind', 'escalate', 'impersonate']))
       )
     message: "RBAC rules must not grant the 'bind', 'escalate', or 'impersonate' verbs."

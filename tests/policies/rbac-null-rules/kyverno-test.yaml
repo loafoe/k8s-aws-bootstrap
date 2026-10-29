@@ -1,0 +1,82 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: rbac-null-rules
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-restrict-escalation-verbs-policy.yaml
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-restrict-wildcard-rbac-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - null-rules-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - null-rules-role
+    kind: Role
+    result: pass
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - empty-rules-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - good-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - escalate-clusterrole
+    kind: ClusterRole
+    result: fail
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - wildcard-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - null-rules-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - null-rules-role
+    kind: Role
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - empty-rules-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - good-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - escalate-clusterrole
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - wildcard-clusterrole
+    kind: ClusterRole
+    result: fail
