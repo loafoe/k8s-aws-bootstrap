@@ -1,6 +1,6 @@
 # bootstrap
 
-![Version: 0.4.7](https://img.shields.io/badge/Version-0.4.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 0.4.16](https://img.shields.io/badge/Version-0.4.16-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure components
 
@@ -53,6 +53,7 @@ A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure compo
 | features.hspAwsPlatform.vpa.enabled | bool | `true` |  |
 | features.kubePrometheusStack.enabled | bool | `true` |  |
 | features.kubePrometheusStack.grafana.enabled | bool | `false` |  |
+| features.kyverno.requireImageDigest.enabled | bool | `false` |  |
 | features.shutdown.enabled | bool | `false` |  |
 | features.shutdown.image | string | `"alpine/k8s:1.35.0"` |  |
 | features.spiffe.enabled | bool | `true` |  |

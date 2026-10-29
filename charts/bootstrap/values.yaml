@@ -43,6 +43,11 @@ features:
   descheduler:
     enabled: true
 
+  # Optional Kyverno guardrails, off by default. Enable per cluster.
+  kyverno:
+    requireImageDigest:
+      enabled: false
+
   # Shutdown mode
   shutdown:
     enabled: false
