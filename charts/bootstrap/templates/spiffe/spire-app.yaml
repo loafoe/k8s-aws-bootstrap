@@ -24,18 +24,14 @@ spec:
           spire-agent:
             podLabels:
               {{- include "bootstrap.ownerLabels" . | nindent 14 }}
-          spire-server:
-            podLabels:
-              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
-          spiffe-oidc-discovery-provider:
-            podLabels:
-              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
           global:
             spire:
               trustDomain: {{ $trustDomain }}
               jwtIssuer: {{ $jwtIssuer }}
-          {{- if .Values.features.spiffe.federation.enabled }}
           spire-server:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          {{- if .Values.features.spiffe.federation.enabled }}
             federation:
               enabled: true
               bundleEndpoint:
@@ -51,6 +47,8 @@ spec:
                   secretName: spire-federation-tls
           {{- end }}
           spiffe-oidc-discovery-provider:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
             {{- if .Values.features.spiffe.oidcDiscovery.enabled }}
             enabled: true
             resources:
