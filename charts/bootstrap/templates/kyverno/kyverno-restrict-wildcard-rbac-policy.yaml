@@ -44,12 +44,18 @@ spec:
   # k3s-cloud-controller-manager is k3s's own embedded Addon manifest,
   # applied by the k3s server process at node startup, not by any Helm
   # chart or ArgoCD Application.
+  #
+  # NB: object.metadata.labels['key'] errors (not false) when the map exists
+  # but lacks that key, so the bootstrapping check must use `in` - `has()`
+  # only confirms the labels field itself is present, not a specific key.
   matchConditions:
   - name: exclude-known-legit-wildcard-rbac
     expression: >-
       !(object.metadata.name in ['argocd-server', 'argocd-application-controller', 'k3s-cloud-controller-manager'] ||
         object.metadata.name.contains('crossplane') ||
-        (has(object.metadata.labels) && object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
+        (has(object.metadata.labels) &&
+         'kubernetes.io/bootstrapping' in object.metadata.labels &&
+         object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
