@@ -44,7 +44,10 @@ spec:
   # spire-system/spire-agent needs the host PID namespace to attest workloads
   # by process, and host network to reach the node's SPIRE server endpoint.
   # prometheus/kps-prometheus-node-exporter needs host network/PID to read
-  # host-level metrics. All four are inherent to what these DaemonSets do.
+  # host-level metrics. kube-system/cilium* (cilium, cilium-envoy,
+  # cilium-operator) is the cluster's CNI plugin - it manages the host's
+  # network namespace directly, so hostNetwork/hostPID is inherent, not an
+  # over-grant. All five are inherent to what these workloads do.
   matchConditions:
   - name: exclude-known-legit-pod-security
     expression: >-
@@ -52,7 +55,8 @@ spec:
         (object.metadata.namespace == 'aws-ebs-csi-driver' && object.metadata.name.startsWith('ebs-csi-node')) ||
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-spiffe-csi-driver')) ||
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-agent')) ||
-        (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter'))
+        (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter')) ||
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium'))
       )
   validations:
   - expression: >-
