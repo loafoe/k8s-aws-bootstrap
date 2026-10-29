@@ -43,11 +43,17 @@ spec:
   # system:aggregate-to-edit, system:controller:clusterrole-aggregation-controller)
   # - reconciled by the API server itself, not by any chart or repo we
   # control.
+  #
+  # NB: object.metadata.labels['key'] errors (not false) when the map exists
+  # but lacks that key, so the bootstrapping check must use `in` - `has()`
+  # only confirms the labels field itself is present, not a specific key.
   matchConditions:
   - name: exclude-known-legit-escalation-verbs
     expression: >-
       !(object.metadata.name in ['crossplane-rbac-manager', 'k8s-monitoring-alloy-operator'] ||
-        (has(object.metadata.labels) && object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
+        (has(object.metadata.labels) &&
+         'kubernetes.io/bootstrapping' in object.metadata.labels &&
+         object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
