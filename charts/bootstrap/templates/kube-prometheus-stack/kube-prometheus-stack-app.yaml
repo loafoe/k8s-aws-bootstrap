@@ -21,6 +21,25 @@ spec:
         kube-prometheus-stack:
           grafana:
             enabled: {{ .Values.features.kubePrometheusStack.grafana.enabled }}
+{{- $prometheus := .Values.features.kubePrometheusStack.prometheus }}
+{{- if or $prometheus.retention $prometheus.retentionSize $prometheus.storageSize }}
+          prometheus:
+            prometheusSpec:
+{{- if $prometheus.retention }}
+              retention: {{ $prometheus.retention | quote }}
+{{- end }}
+{{- if $prometheus.retentionSize }}
+              retentionSize: {{ $prometheus.retentionSize | quote }}
+{{- end }}
+{{- if $prometheus.storageSize }}
+              storageSpec:
+                volumeClaimTemplate:
+                  spec:
+                    resources:
+                      requests:
+                        storage: {{ $prometheus.storageSize | quote }}
+{{- end }}
+{{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: prometheus

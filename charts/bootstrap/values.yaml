@@ -38,6 +38,12 @@ features:
     enabled: true
     grafana:
       enabled: false
+    # Empty = use the kube-prometheus-stack chart defaults (14d / 40GB / 50Gi).
+    # Set any of these to override per cluster from the Argo CD UI.
+    prometheus:
+      retention: ""
+      retentionSize: ""
+      storageSize: ""
 
   # Descheduler for pod rebalancing
   descheduler:
