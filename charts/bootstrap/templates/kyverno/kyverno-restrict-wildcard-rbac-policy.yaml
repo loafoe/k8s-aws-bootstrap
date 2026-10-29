@@ -27,6 +27,17 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["roles", "clusterroles"]
+  # argocd-server/argocd-application-controller need broad access to manage
+  # arbitrary Applications' target resources; Crossplane's own ClusterRoles
+  # (crossplane, crossplane-rbac-manager, the aggregate-to-* roles, and the
+  # provider-specific aggregate-to-crossplane roles from cnpg/barmancloud/etc.)
+  # need wildcard access to manage CRDs it doesn't know about at install time.
+  # Both are inherent to how these controllers work, not something to fix.
+  matchConditions:
+  - name: exclude-known-legit-wildcard-rbac
+    expression: >-
+      !(object.metadata.name in ['argocd-server', 'argocd-application-controller'] ||
+        object.metadata.name.contains('crossplane'))
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
