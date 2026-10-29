@@ -74,6 +74,8 @@ kind: Job
 metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/hook: Sync
@@ -84,6 +86,8 @@ spec:
   template:
     metadata:
       name: crossplane-ca-converger
+      labels:
+        {{- include "bootstrap.ownerLabels" . | nindent 8 }}
     spec:
       serviceAccountName: crossplane-ca-converger
       restartPolicy: OnFailure

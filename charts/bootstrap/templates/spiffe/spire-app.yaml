@@ -18,6 +18,18 @@ spec:
     helm:
       valuesObject:
         spire:
+          spiffe-csi-driver:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          spire-agent:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          spire-server:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          spiffe-oidc-discovery-provider:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
           global:
             spire:
               trustDomain: {{ $trustDomain }}

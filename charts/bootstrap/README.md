@@ -1,6 +1,6 @@
 # bootstrap
 
-![Version: 0.4.17](https://img.shields.io/badge/Version-0.4.17-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
+![Version: 0.4.18](https://img.shields.io/badge/Version-0.4.18-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square)
 
 A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure components
 
@@ -37,9 +37,13 @@ A Helm chart for bootstrapping Kubernetes clusters with AWS infrastructure compo
 | environmentConfig.bootstrap.karpenterInstanceProfile | string | `""` |  |
 | environmentConfig.bootstrap.karpenterInterruptionQueueName | string | `""` |  |
 | environmentConfig.bootstrap.karpenterRoleArn | string | `""` |  |
+| environmentConfig.bootstrap.managedBy | string | `""` |  |
 | environmentConfig.bootstrap.oidcProvider | string | `""` |  |
 | environmentConfig.bootstrap.oidcProviderArn | string | `""` |  |
+| environmentConfig.bootstrap.owner | string | `""` |  |
 | environmentConfig.bootstrap.resourcePrefix | string | `""` |  |
+| environmentConfig.managedBy | string | `""` |  |
+| environmentConfig.owner | string | `""` |  |
 | environmentConfig.sharedServicesAccountId | string | `""` |  |
 | features.descheduler.enabled | bool | `true` |  |
 | features.gatewayApi.enabled | bool | `true` |  |

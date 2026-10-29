@@ -62,10 +62,16 @@ features:
 environmentConfig:
   # Top-level config
   sharedServicesAccountId: ""
+  # Ownership metadata used by chart-managed workloads to satisfy the
+  # require-owner-label Kyverno policy.
+  owner: ""
+  managedBy: ""
   
   bootstrap:
     # Core identifiers
     resourcePrefix: ""
+    owner: ""
+    managedBy: ""
     awsAccountId: ""
     awsPartition: "aws"
     awsRegion: ""

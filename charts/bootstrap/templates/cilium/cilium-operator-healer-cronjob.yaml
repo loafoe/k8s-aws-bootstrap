@@ -141,6 +141,8 @@ kind: CronJob
 metadata:
   name: cilium-operator-healer
   namespace: kube-system
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -157,6 +159,7 @@ spec:
       template:
         metadata:
           labels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
             app.kubernetes.io/name: cilium-operator-healer
         spec:
           serviceAccountName: cilium-operator-healer

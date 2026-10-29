@@ -1,4 +1,16 @@
 {{/*
+Owner label rendered from the Pulumi-managed EnvironmentConfig. Child charts use
+this to label their workloads so they satisfy the require-owner-label Kyverno
+policy. Falls back to the legacy bootstrap-scoped value when needed.
+*/}}
+{{- define "bootstrap.ownerLabels" -}}
+{{- $owner := .Values.environmentConfig.owner | default .Values.environmentConfig.bootstrap.owner -}}
+{{- if $owner }}
+owner: {{ $owner | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
 Validate that required values are not empty
 */}}
 {{- define "bootstrap.validateRequiredValues" -}}

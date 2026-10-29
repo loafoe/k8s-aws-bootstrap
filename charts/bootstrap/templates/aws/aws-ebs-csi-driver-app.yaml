@@ -17,10 +17,17 @@ spec:
     helm:
       valuesObject:
         aws-ebs-csi-driver:
+          customLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           controller:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
             serviceAccount:
               annotations:
                 eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsEbsCsiDriverRoleArn }}
+          node:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: aws-ebs-csi-driver

@@ -17,6 +17,14 @@ spec:
       valuesObject:
         argo-cd:
           global:
+            additionalLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+            deploymentLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+            statefulsetLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
             domain: "argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
           configs:
             cm:

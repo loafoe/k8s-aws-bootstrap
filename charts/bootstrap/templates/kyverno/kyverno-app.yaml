@@ -15,6 +15,23 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kyverno
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        kyverno:
+          customLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          admissionController:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          backgroundController:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          cleanupController:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          reportsController:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
   ignoreDifferences:
     - group: apiextensions.k8s.io
       kind: CustomResourceDefinition

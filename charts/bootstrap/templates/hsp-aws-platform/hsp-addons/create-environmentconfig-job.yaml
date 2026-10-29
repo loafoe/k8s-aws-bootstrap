@@ -36,6 +36,8 @@ kind: Job
 metadata:
   name: create-environmentconfig
   namespace: hsp-addons
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "18"
     argocd.argoproj.io/hook: Sync
@@ -52,6 +54,7 @@ spec:
   template:
     metadata:
       labels:
+        {{- include "bootstrap.ownerLabels" . | nindent 8 }}
         app: environmentconfig-creator
     spec:
       serviceAccountName: environmentconfig-creator

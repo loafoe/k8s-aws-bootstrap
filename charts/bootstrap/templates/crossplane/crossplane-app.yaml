@@ -16,6 +16,11 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/crossplane
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        crossplane:
+          customLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: crossplane-system

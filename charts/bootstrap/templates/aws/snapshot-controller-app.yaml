@@ -14,6 +14,15 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/snapshot-controller
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        snapshot-controller:
+          controller:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          webhook:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system

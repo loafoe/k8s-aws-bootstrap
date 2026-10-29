@@ -14,6 +14,14 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cloudnative-pg
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        cloudnative-pg:
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+        plugin-barman-cloud:
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system

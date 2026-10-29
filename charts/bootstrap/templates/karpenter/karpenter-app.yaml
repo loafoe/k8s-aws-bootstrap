@@ -15,6 +15,10 @@ spec:
     helm:
       valuesObject:
         karpenter:
+          additionalLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           settings:
             clusterName: {{ .Values.environmentConfig.bootstrap.clusterName }}
             clusterEndpoint: {{ .Values.environmentConfig.bootstrap.clusterEndpoint }}

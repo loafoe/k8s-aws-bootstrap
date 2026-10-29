@@ -20,6 +20,10 @@ spec:
           clusterName: {{ .Values.environmentConfig.bootstrap.clusterName }}
           region: {{ .Values.environmentConfig.bootstrap.awsRegion }}
           vpcId: {{ .Values.environmentConfig.bootstrap.awsVpcId }}
+          additionalLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           serviceAccount:
             annotations:
               eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.awsLbcRoleArn }}  

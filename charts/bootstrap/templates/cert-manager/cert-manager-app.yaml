@@ -15,6 +15,20 @@ spec:
     helm:
       valuesObject:
         cert-manager:
+          global:
+            commonLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          cainjector:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          webhook:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          startupapicheck:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
           serviceAccount:
             annotations:
               eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.certManagerRoleArn }}

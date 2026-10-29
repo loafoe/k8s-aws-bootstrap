@@ -53,6 +53,8 @@ kind: Job
 metadata:
   name: cluster-cleanup
   namespace: argocd
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/hook: PostSync
 spec:
@@ -61,6 +63,8 @@ spec:
   template:
     metadata:
       name: cluster-cleanup
+      labels:
+        {{- include "bootstrap.ownerLabels" . | nindent 8 }}
     spec:
       serviceAccountName: cluster-cleanup
       restartPolicy: OnFailure

@@ -15,6 +15,13 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/descheduler
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        descheduler:
+          commonLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: descheduler

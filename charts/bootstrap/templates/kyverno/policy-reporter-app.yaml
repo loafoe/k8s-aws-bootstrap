@@ -15,6 +15,11 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/policy-reporter
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        policy-reporter:
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
   syncPolicy:
     automated:
       prune: true

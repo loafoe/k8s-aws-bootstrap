@@ -15,6 +15,20 @@ spec:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/vertical-pod-autoscaler
     targetRevision: HEAD
+    helm:
+      valuesObject:
+        vertical-pod-autoscaler:
+          commonLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          admissionController:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          recommender:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
+          updater:
+            podLabels:
+              {{- include "bootstrap.ownerLabels" . | nindent 14 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: vpa-system
