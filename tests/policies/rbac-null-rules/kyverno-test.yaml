@@ -43,7 +43,9 @@ results:
     resources:
       - wildcard-clusterrole
     kind: ClusterRole
-    result: pass
+    # A wildcard verb includes bind/escalate/impersonate, so it is treated as
+    # escalation too. This used to be a blind spot.
+    result: fail
   - policy: restrict-wildcard-rbac
     isValidatingPolicy: true
     resources:

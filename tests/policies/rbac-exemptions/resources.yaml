@@ -1,0 +1,99 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-application-controller
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # Argo CD's aggregate role for Crossplane; matches the crossplane carve-out
+  # in both policies.
+  name: argocd:aggregate-to-crossplane
+rules:
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # Crossplane's aggregate roles also use wildcard verbs, not just resources.
+  name: crossplane:aggregate-to-admin
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # Genuine privileged RBAC manager - bind/escalate is its designed purpose.
+  name: k8s-monitoring-alloy-operator
+rules:
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterroles", "clusterrolebindings"]
+  verbs: ["bind", "escalate"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  # k3s's embedded Addon uses wildcard verbs on non-RBAC resources.
+  name: k3s-cloud-controller-manager
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:controller:clusterrole-aggregation-controller
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+rules:
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterroles"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rogue-wildcard-clusterrole
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  # Not an Argo CD component, despite the namespace - must not inherit any
+  # exemption from the argocd namespace.
+  name: rogue-tenant-role
+  namespace: argocd
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wildcard-verbs-on-pods
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bind-clusterrole
+rules:
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterroles"]
+  verbs: ["bind"]
