@@ -21,6 +21,8 @@ spec:
           resourcePrefix: {{ .Values.environmentConfig.bootstrap.resourcePrefix | quote }}
           oidcProviderArn: {{ .Values.environmentConfig.bootstrap.oidcProviderArn | quote }}
           oidcProvider: {{ .Values.environmentConfig.bootstrap.oidcProvider | quote }}
+          owner: {{ (.Values.environmentConfig.owner | default .Values.environmentConfig.bootstrap.owner) | quote }}
+          managedBy: {{ (.Values.environmentConfig.managedBy | default .Values.environmentConfig.bootstrap.managedBy) | quote }}
         providers:
           - name: provider-family-aws
             enabled: true
