@@ -1,0 +1,122 @@
+[
+  {
+    "name": "disallow-default-serviceaccount",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "disallow-latest-tag",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "govern-policy-exceptions",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "helmapplication-forbid-argocd-finalizer",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "require-owner-label",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "require-restricted-pod-security",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "restrict-cluster-admin-binding",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "restrict-escalation-verbs",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "restrict-wildcard-rbac",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "unique-grpcroute-hostnames",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "unique-httproute-hostnames",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "unique-tlsroute-hostnames",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-aws-lbc-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-cert-manager-serviceaccount-pod-identity",
+    "validationActions": [
+      "Audit"
+    ]
+  },
+  {
+    "name": "validate-ebs-csi-controller-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-ebs-csi-controller-serviceaccount-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-external-dns-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-external-dns-serviceaccount-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-karpenter-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  },
+  {
+    "name": "validate-karpenter-serviceaccount-pod-identity",
+    "validationActions": [
+      "Deny"
+    ]
+  }
+]
