@@ -18,6 +18,9 @@ spec:
     path: .
     helm:
       valuesObject:
+        environmentConfig:
+          owner: {{ (.Values.environmentConfig.owner | default .Values.environmentConfig.bootstrap.owner) | quote }}
+          managedBy: {{ (.Values.environmentConfig.managedBy | default .Values.environmentConfig.bootstrap.managedBy) | quote }}
         resources:
           limits:
             memory: 64Mi
