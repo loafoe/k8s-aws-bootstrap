@@ -27,16 +27,23 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["roles", "clusterroles"]
-  # crossplane-rbac-manager grants ServiceAccounts it creates for providers
-  # the permissions those providers declare via RBAC manifests they ship
-  # themselves - bind/escalate is how Crossplane's RBAC manager controller is
-  # designed to work, not an over-grant to fix.
+  # A wildcard verb necessarily includes bind/escalate/impersonate, so the
+  # validation below treats '*' as escalation too. The same known-legit
+  # wildcard grants excluded by restrict-wildcard-rbac therefore have to be
+  # excluded here as well:
   #
-  # k8s-monitoring-alloy-operator (upstream grafana/k8s-monitoring chart, via
-  # our k8s-observability-monitoring chart) needs bind/escalate on
-  # clusterroles/clusterrolebindings/roles/rolebindings to provision RBAC for
-  # the Alloy CRs it manages - same pattern as crossplane-rbac-manager, just
-  # not something we author.
+  # - Crossplane's own ClusterRoles (crossplane-rbac-manager and the
+  #   aggregate-to-* roles) grant wildcard verbs to manage arbitrary CRDs
+  #   and provider-declared RBAC.
+  # - argocd-server/argocd-application-controller need broad access to
+  #   manage arbitrary Applications' target resources.
+  # - k3s-cloud-controller-manager is k3s's own embedded Addon, using
+  #   wildcard verbs on nodes/daemonsets.
+  # - k8s-monitoring-alloy-operator (upstream grafana/k8s-monitoring chart,
+  #   via our k8s-observability-monitoring chart) needs bind/escalate on
+  #   clusterroles/clusterrolebindings/roles/rolebindings to provision RBAC
+  #   for the Alloy CRs it manages - same pattern as
+  #   crossplane-rbac-manager, just not something we author.
   #
   # The `kubernetes.io/bootstrapping: rbac-defaults` label marks the
   # kube-apiserver's own built-in ClusterRoles (admin, edit,
@@ -50,13 +57,17 @@ spec:
   matchConditions:
   - name: exclude-known-legit-escalation-verbs
     expression: >-
-      !(object.metadata.name in ['crossplane-rbac-manager', 'k8s-monitoring-alloy-operator'] ||
+      !(object.metadata.name.contains('crossplane') ||
+        object.metadata.name in ['argocd-server', 'argocd-application-controller', 'k8s-monitoring-alloy-operator', 'k3s-cloud-controller-manager'] ||
         (has(object.metadata.labels) &&
          'kubernetes.io/bootstrapping' in object.metadata.labels &&
          object.metadata.labels['kubernetes.io/bootstrapping'] == 'rbac-defaults'))
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
-        !(has(r.verbs) && r.verbs.exists(v, v in ['bind', 'escalate', 'impersonate']))
+        !(has(r.verbs) && r.verbs.exists(v, v in ['bind', 'escalate', 'impersonate', '*']))
       )
-    message: "RBAC rules must not grant the 'bind', 'escalate', or 'impersonate' verbs."
+    message: >-
+      RBAC rules must not grant the 'bind', 'escalate', or 'impersonate'
+      verbs. A wildcard '*' verb is treated as granting escalation too,
+      since it necessarily includes all three.

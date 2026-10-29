@@ -1,0 +1,85 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: rbac-exemptions
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-restrict-escalation-verbs-policy.yaml
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-restrict-wildcard-rbac-policy.yaml
+resources:
+  - resources.yaml
+results:
+  # Known-legit platform RBAC: skipped by both policies.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - argocd-application-controller
+      - argocd:aggregate-to-crossplane
+      - crossplane:aggregate-to-admin
+      - k3s-cloud-controller-manager
+      - system:controller:clusterrole-aggregation-controller
+    kind: ClusterRole
+    result: skip
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - argocd-application-controller
+      - argocd:aggregate-to-crossplane
+      - crossplane:aggregate-to-admin
+      - k3s-cloud-controller-manager
+      - system:controller:clusterrole-aggregation-controller
+    kind: ClusterRole
+    result: skip
+
+  # These only need the escalation exemption: no wildcard resource/verb grant
+  # for restrict-wildcard-rbac to flag, but bind/escalate is by design.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - k8s-monitoring-alloy-operator
+    kind: ClusterRole
+    result: pass
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - k8s-monitoring-alloy-operator
+    kind: ClusterRole
+    result: skip
+
+  # Non-exempt resources must still be caught by both policies.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - rogue-wildcard-clusterrole
+      - wildcard-verbs-on-pods
+    kind: ClusterRole
+    result: fail
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - rogue-wildcard-clusterrole
+      - wildcard-verbs-on-pods
+      - bind-clusterrole
+    kind: ClusterRole
+    result: fail
+
+  # The rogue Role needs kind: Role, not ClusterRole.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - rogue-tenant-role
+    kind: Role
+    result: fail
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - rogue-tenant-role
+    kind: Role
+    result: fail
+
+  # bind is not a wildcard, so restrict-wildcard-rbac must not flag it.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - bind-clusterrole
+    kind: ClusterRole
+    result: pass
