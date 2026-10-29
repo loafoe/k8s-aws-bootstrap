@@ -36,6 +36,21 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["pods"]
+  # CSI node plugins (aws-ebs-csi-driver/ebs-csi-node, spire-system/spire-spiffe-csi-driver)
+  # must run privileged to mount volumes/sockets into other pods' namespaces.
+  # spire-system/spire-agent needs the host PID namespace to attest workloads
+  # by process, and host network to reach the node's SPIRE server endpoint.
+  # prometheus/kps-prometheus-node-exporter needs host network/PID to read
+  # host-level metrics. All four are inherent to what these DaemonSets do.
+  matchConditions:
+  - name: exclude-known-legit-pod-security
+    expression: >-
+      !(
+        (object.metadata.namespace == 'aws-ebs-csi-driver' && object.metadata.name.startsWith('ebs-csi-node')) ||
+        (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-spiffe-csi-driver')) ||
+        (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-agent')) ||
+        (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter'))
+      )
   validations:
   - expression: >-
       (!has(object.spec.hostNetwork) || !object.spec.hostNetwork) &&

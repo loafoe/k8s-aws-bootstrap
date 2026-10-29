@@ -27,6 +27,13 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["roles", "clusterroles"]
+  # crossplane-rbac-manager grants ServiceAccounts it creates for providers
+  # the permissions those providers declare via RBAC manifests they ship
+  # themselves - bind/escalate is how Crossplane's RBAC manager controller is
+  # designed to work, not an over-grant to fix.
+  matchConditions:
+  - name: exclude-known-legit-escalation-verbs
+    expression: "object.metadata.name != 'crossplane-rbac-manager'"
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
