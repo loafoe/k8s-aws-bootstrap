@@ -24,6 +24,15 @@ spec:
   evaluation:
     background:
       enabled: true
+  # No autogen: this matches the live cert-manager controller Pod, same
+  # intent as the other pod-identity policies. In practice the
+  # objectSelector below already keeps Kyverno from generating a
+  # controller-level copy (CHAR-35 audit), but that is incidental to this
+  # objectSelector's purpose, not a documented autogen-suppression
+  # mechanism - so it is disabled explicitly here too rather than relied on.
+  autogen:
+    podControllers:
+      controllers: []
   matchConstraints:
     resourceRules:
     - apiGroups: [""]

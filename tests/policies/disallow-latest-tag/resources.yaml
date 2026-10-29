@@ -27,3 +27,44 @@ spec:
   containers:
   - name: app
     image: nginx
+---
+# No spec.template.metadata.name set - the default shape for every real
+# Deployment manifest, and exactly what triggered CHAR-35's autogen bug
+# ("no such key: name") on policies that dereferenced it. This exercises
+# the autogen-generated controller-level rule, not just v1/Pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: good-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: good-deployment
+  template:
+    metadata:
+      labels:
+        app: good-deployment
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.27.2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: latest-tag-daemonset
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: latest-tag-daemonset
+  template:
+    metadata:
+      labels:
+        app: latest-tag-daemonset
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest

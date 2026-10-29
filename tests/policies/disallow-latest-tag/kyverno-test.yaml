@@ -25,3 +25,15 @@ results:
       - no-tag-pod
     kind: Pod
     result: fail
+  - policy: disallow-latest-tag
+    isValidatingPolicy: true
+    resources:
+      - good-deployment
+    kind: Deployment
+    result: pass
+  - policy: disallow-latest-tag
+    isValidatingPolicy: true
+    resources:
+      - latest-tag-daemonset
+    kind: DaemonSet
+    result: fail
