@@ -51,6 +51,13 @@ change to them has to move the chart's own `version:`.
 - `./scripts/check-chart-version-bump.sh [base-ref]` runs the same check
   locally, and by default diffs against `origin/main`.
 
+## Optional Policies
+
+Some Kyverno guardrails are opt-in, off by default, and can be enabled per
+cluster from the Argo CD bootstrap application without a Git change. See
+[`docs/optional-policies.md`](docs/optional-policies.md) for the full list
+and the enablement runbook.
+
 ## Notes
 
 - **Order matters**: Follow the steps sequentially to avoid resource leaks
