@@ -192,9 +192,81 @@ kubectl get policyreports -A -o json > /tmp/pr.json
 
 ## Known baseline (owned by the follow-on evaluation-error issue)
 
-`69` `error` results exist today: `65` from `failed to load context: no
-such key: name` across the 7 pod-identity policies, `4` from `got
-'types.Null', expected iterable type` on `restrict-escalation-verbs` and
-`restrict-wildcard-rbac`. This runbook and
+`69` `error` results existed at baseline capture time: `65` from `failed to
+load context: no such key: name` across the 7 pod-identity policies, `4`
+from `got 'types.Null', expected iterable type` on
+`restrict-escalation-verbs` and `restrict-wildcard-rbac`. This runbook and
 [`baseline-2026-10-29/`](baseline-2026-10-29/) capture them as the
-reference point; fixing them is out of scope here.
+reference point. Both root causes are fixed as of CHAR-35 (PR #307,
+`f41b84a`) and CHAR-37 below; **the cluster carries 0 `error` results as of
+the [post-fix-2026-10-29](post-fix-2026-10-29/) snapshot.**
+
+## Phase 2.2: stale PolicyReport pruning (CHAR-37)
+
+CHAR-35's fix stopped new `error` results from being produced, but 37
+`PolicyReport` objects created *before* the fix kept their stale `error`
+entries forever: the fix narrowed the `validate-*-pod-identity` policies'
+autogen scope to `v1/pods` only, so the `ReplicaSet`/`Deployment`-level rule
+that used to produce (buggy) results for controller objects stopped firing
+on them entirely — nothing ever overwrites the old `error` entry on an
+object that no longer gets evaluated.
+
+**Enumeration (32 reports carrying 55 stale `error` results at the time of
+pruning — down from the issue's originally-cited 37/65 due to ordinary
+`ReplicaSet`-history garbage collection in the hours between filing and
+pruning):**
+
+| Namespace | Stale reports | Owner kind |
+| :--- | ---: | :--- |
+| `aws-ebs-csi-driver` | 8 | `ReplicaSet` (scaled to 0) |
+| `aws-load-balancer-controller` | 8 `ReplicaSet` + 1 `Deployment` | mixed |
+| `external-dns` | 4 `ReplicaSet` + 1 `Deployment` | mixed |
+| `karpenter` | 9 `ReplicaSet` + 1 `Deployment` | mixed |
+
+- **29 `ReplicaSet`-owned reports** (28 still present at delete time; 1 had
+  already been garbage-collected when its owning `ReplicaSet` was reaped)
+  had **only** stale `error` results — every result on the object predated
+  the 12:46Z CHAR-35 sync. These were deleted outright:
+  `kubectl delete policyreport -n <ns> <name>`.
+- **3 `Deployment`-owned reports** (`karpenter`, `external-dns`,
+  `aws-load-balancer-controller`) are live — actively rescanned by every
+  other policy, carrying current `pass`/`skip` results alongside the stale
+  `error` entries. Deleting them would have discarded that live data, so
+  only the stale `error` entries were removed from each report's
+  `.results` array (and `.summary.error` zeroed), via `kubectl get -o json
+  | jq '...' | kubectl replace -f -`. Everything else on those 3 reports is
+  untouched.
+
+No workload, policy, RBAC object, or chart value was touched — only
+`wgpolicyk8s.io/v1alpha2` `PolicyReport` objects, scoped to the enumerated
+names above. See [`post-fix-2026-10-29/`](post-fix-2026-10-29/) for the
+full before/after data and the resulting `error: 0`,
+`fail: 138` (vs. baseline's `276` — see that directory's README for why
+the two aren't 1:1 comparable; five more fix PRs synced in between).
+
+### Recurrence-prevention decision
+
+This bug class — a policy's autogen/match scope narrowing so that
+previously-evaluated controller objects stop being evaluated, stranding
+their last (possibly `error`) result forever — will recur on any future
+autogen or `matchConstraints` change. Evaluated options:
+
+- **Kyverno `CleanupPolicy`** (`cleanup.kyverno.io`) garbage-collecting
+  `PolicyReport`s with no recent result: possible, but it is a new
+  cluster-scoped object and a chart/manifest addition, which this issue's
+  guardrails explicitly put out of scope (no policy manifest or chart value
+  changes here). Left for a maintainer to pick up as a follow-on if wanted.
+- **Manual runbook step (chosen):** documented below. It needs no new
+  in-cluster object and is immediately actionable by whoever makes the next
+  autogen/scope change.
+
+**Added to the re-validation runbook:** after any change that narrows a
+policy's `autogen.podControllers` or `matchConstraints` scope, re-run the
+[error inventory check](#reproducing-this-snapshot)
+(`kubectl get policyreports,clusterpolicyreports -A -o json | jq '[.items[].results[]? | select(.result=="error")]'`)
+once the sync has gone out. Any `error` result whose timestamp predates the
+sync is a stranded result from the narrowed scope, not a new regression —
+cross-check its owner still exists and hasn't produced a fresh result
+since. Prune per the pattern above: delete the whole `PolicyReport` only if
+*every* result on it is stale; otherwise patch out just the stale `error`
+entries and leave the rest of the report alone.
