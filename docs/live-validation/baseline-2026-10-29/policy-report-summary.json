@@ -1,0 +1,354 @@
+{
+  "captured_at": "2026-10-29T12:00:00Z",
+  "cluster": "dip-ce-k3s-eu",
+  "report_object_count": 764,
+  "result_entry_count": 2160,
+  "counts_by_result": {
+    "pass": 1608,
+    "fail": 276,
+    "error": 69,
+    "skip": 207
+  },
+  "fail_and_error_by_policy": [
+    {
+      "result": "fail",
+      "policy": "require-owner-label",
+      "count": 133
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-wildcard-rbac",
+      "count": 61
+    },
+    {
+      "result": "fail",
+      "policy": "require-restricted-pod-security",
+      "count": 51
+    },
+    {
+      "result": "fail",
+      "policy": "disallow-default-serviceaccount",
+      "count": 24
+    },
+    {
+      "result": "error",
+      "policy": "validate-karpenter-pod-identity",
+      "count": 12
+    },
+    {
+      "result": "error",
+      "policy": "validate-karpenter-serviceaccount-pod-identity",
+      "count": 12
+    },
+    {
+      "result": "error",
+      "policy": "validate-ebs-csi-controller-pod-identity",
+      "count": 11
+    },
+    {
+      "result": "error",
+      "policy": "validate-ebs-csi-controller-serviceaccount-pod-identity",
+      "count": 11
+    },
+    {
+      "result": "error",
+      "policy": "validate-aws-lbc-pod-identity",
+      "count": 9
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-escalation-verbs",
+      "count": 6
+    },
+    {
+      "result": "error",
+      "policy": "validate-external-dns-pod-identity",
+      "count": 5
+    },
+    {
+      "result": "error",
+      "policy": "validate-external-dns-serviceaccount-pod-identity",
+      "count": 5
+    },
+    {
+      "result": "error",
+      "policy": "restrict-escalation-verbs",
+      "count": 2
+    },
+    {
+      "result": "error",
+      "policy": "restrict-wildcard-rbac",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-cluster-admin-binding",
+      "count": 1
+    }
+  ],
+  "fail_and_error_by_namespace": [
+    {
+      "result": "fail",
+      "namespace": "(cluster-scoped)",
+      "count": 67
+    },
+    {
+      "result": "fail",
+      "namespace": "kube-system",
+      "count": 52
+    },
+    {
+      "result": "fail",
+      "namespace": "spire-system",
+      "count": 32
+    },
+    {
+      "result": "error",
+      "namespace": "karpenter",
+      "count": 24
+    },
+    {
+      "result": "fail",
+      "namespace": "langfuse-system",
+      "count": 24
+    },
+    {
+      "result": "error",
+      "namespace": "aws-ebs-csi-driver",
+      "count": 22
+    },
+    {
+      "result": "fail",
+      "namespace": "crossplane-system",
+      "count": 20
+    },
+    {
+      "result": "fail",
+      "namespace": "mt-mcp-proxy-grafana",
+      "count": 14
+    },
+    {
+      "result": "error",
+      "namespace": "external-dns",
+      "count": 10
+    },
+    {
+      "result": "fail",
+      "namespace": "k8s-observability-monitoring",
+      "count": 10
+    },
+    {
+      "result": "error",
+      "namespace": "aws-load-balancer-controller",
+      "count": 9
+    },
+    {
+      "result": "fail",
+      "namespace": "aws-ebs-csi-driver",
+      "count": 8
+    },
+    {
+      "result": "fail",
+      "namespace": "prometheus",
+      "count": 8
+    },
+    {
+      "result": "fail",
+      "namespace": "atlassian-mcp",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "dex-system",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "github-mcp",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "mcp-notifier",
+      "count": 4
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom",
+      "count": 3
+    },
+    {
+      "result": "fail",
+      "namespace": "vpa-system",
+      "count": 3
+    },
+    {
+      "result": "error",
+      "namespace": "(cluster-scoped)",
+      "count": 2
+    },
+    {
+      "result": "error",
+      "namespace": "argocd",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "argocd",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "aws-load-balancer-controller",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom-satellite-src-co-dev",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "centcom-satellite",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "cnpg-system",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "hermes-agent",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "langfuse-mcp",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "namespace": "agentgateway",
+      "count": 1
+    },
+    {
+      "result": "fail",
+      "namespace": "descheduler",
+      "count": 1
+    },
+    {
+      "result": "fail",
+      "namespace": "external-dns",
+      "count": 1
+    },
+    {
+      "result": "fail",
+      "namespace": "karpenter",
+      "count": 1
+    },
+    {
+      "result": "fail",
+      "namespace": "kyverno",
+      "count": 1
+    }
+  ],
+  "distinct_fail_and_error_messages": [
+    {
+      "result": "fail",
+      "policy": "require-owner-label",
+      "message": "The label `app.kubernetes.io/managed-by` or `owner` is required.",
+      "count": 133
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-wildcard-rbac",
+      "message": "Wildcard '*' is not allowed in verbs or resources for Roles/ClusterRoles.",
+      "count": 61
+    },
+    {
+      "result": "fail",
+      "policy": "require-restricted-pod-security",
+      "message": "Pods must not share the host network, PID, or IPC namespace.",
+      "count": 35
+    },
+    {
+      "result": "fail",
+      "policy": "disallow-default-serviceaccount",
+      "message": "Pods must not use the default ServiceAccount; set `serviceAccountName` to a dedicated service account.",
+      "count": 24
+    },
+    {
+      "result": "fail",
+      "policy": "require-restricted-pod-security",
+      "message": "Containers must not run as privileged or allow privilege escalation.",
+      "count": 16
+    },
+    {
+      "result": "error",
+      "policy": "validate-karpenter-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 12
+    },
+    {
+      "result": "error",
+      "policy": "validate-karpenter-serviceaccount-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 12
+    },
+    {
+      "result": "error",
+      "policy": "validate-ebs-csi-controller-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 11
+    },
+    {
+      "result": "error",
+      "policy": "validate-ebs-csi-controller-serviceaccount-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 11
+    },
+    {
+      "result": "error",
+      "policy": "validate-aws-lbc-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 9
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-escalation-verbs",
+      "message": "RBAC rules must not grant the 'bind', 'escalate', or 'impersonate' verbs.",
+      "count": 6
+    },
+    {
+      "result": "error",
+      "policy": "validate-external-dns-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 5
+    },
+    {
+      "result": "error",
+      "policy": "validate-external-dns-serviceaccount-pod-identity",
+      "message": "failed to load context: no such key: name",
+      "count": 5
+    },
+    {
+      "result": "error",
+      "policy": "restrict-escalation-verbs",
+      "message": "error: got 'types.Null', expected iterable type",
+      "count": 2
+    },
+    {
+      "result": "error",
+      "policy": "restrict-wildcard-rbac",
+      "message": "error: got 'types.Null', expected iterable type",
+      "count": 2
+    },
+    {
+      "result": "fail",
+      "policy": "restrict-cluster-admin-binding",
+      "message": "Binding the cluster-admin ClusterRole is only allowed for subjects in administrative groups.",
+      "count": 1
+    }
+  ]
+}
