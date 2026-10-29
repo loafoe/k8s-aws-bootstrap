@@ -1,0 +1,77 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: rbac-argocd-exemption
+# Policies are tested from rendered-policies/, not from
+# charts/bootstrap/templates/kyverno/ directly: both policies now read their
+# Argo CD exemption lists from charts/bootstrap/values.yaml via Helm
+# templating, so the committed chart source is not valid standalone YAML.
+# See scripts/render-rbac-exemption-test-fixtures.sh.
+policies:
+  - rendered-policies/kyverno-restrict-escalation-verbs-policy.yaml
+  - rendered-policies/kyverno-restrict-wildcard-rbac-policy.yaml
+resources:
+  - resources.yaml
+results:
+  # Argo CD's own objects: exempt from both policies regardless of how bad
+  # their rules are - the risk accepted in docs/argocd-rbac-exemption.md.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - argocd-application-controller
+      - argocd:aggregate-to-crossplane
+    kind: ClusterRole
+    result: skip
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - argocd-repo-server
+    kind: Role
+    result: skip
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - argocd-application-controller
+      - argocd:aggregate-to-crossplane
+    kind: ClusterRole
+    result: skip
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - argocd-repo-server
+    kind: Role
+    result: skip
+
+  # Non-Argo CD wildcard ClusterRoles: must still fail both policies -
+  # proves the exemption didn't widen into a general wildcard carve-out.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - rogue-wildcard-clusterrole
+      - crossplane-rbac-manager
+      - k8s-monitoring-alloy-operator
+    kind: ClusterRole
+    result: fail
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - rogue-wildcard-clusterrole
+      - crossplane-rbac-manager
+      - k8s-monitoring-alloy-operator
+    kind: ClusterRole
+    result: fail
+
+  # A non-Argo CD Role in the argocd namespace: proves the exemption is
+  # name-prefix-gated, not a blanket exemption for the argocd namespace.
+  - policy: restrict-wildcard-rbac
+    isValidatingPolicy: true
+    resources:
+      - rogue-tenant-role
+    kind: Role
+    result: fail
+  - policy: restrict-escalation-verbs
+    isValidatingPolicy: true
+    resources:
+      - rogue-tenant-role
+    kind: Role
+    result: fail

@@ -27,6 +27,7 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["roles", "clusterroles"]
+  {{- include "bootstrap.argoCDRbacExemptionMatchCondition" . | nindent 2 }}
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,

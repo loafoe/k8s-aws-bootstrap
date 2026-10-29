@@ -27,9 +27,13 @@ spec:
       apiVersions: ["v1"]
       operations: ["CREATE", "UPDATE"]
       resources: ["roles", "clusterroles"]
+  {{- include "bootstrap.argoCDRbacExemptionMatchCondition" . | nindent 2 }}
   validations:
   - expression: >-
       !has(object.rules) || object.rules == null || object.rules.all(r,
-        !(has(r.verbs) && r.verbs.exists(v, v in ['bind', 'escalate', 'impersonate']))
+        !(has(r.verbs) && r.verbs.exists(v, v in ['bind', 'escalate', 'impersonate', '*']))
       )
-    message: "RBAC rules must not grant the 'bind', 'escalate', or 'impersonate' verbs."
+    message: >-
+      RBAC rules must not grant the 'bind', 'escalate', or 'impersonate'
+      verbs. A wildcard '*' verb is treated as granting escalation too,
+      since it necessarily includes all three.

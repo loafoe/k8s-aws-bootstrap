@@ -67,3 +67,24 @@ Validate K3S values for Karpenter EC2NodeClass
   {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Argo CD RBAC exemption matchConditions, shared by restrict-wildcard-rbac and
+restrict-escalation-verbs. Exempts only Argo CD's own Role/ClusterRole
+objects: a cluster-scoped ClusterRole is exempt purely by name prefix (it
+has no namespace); a namespaced Role must match BOTH the namespace AND the
+name prefix, so a non-Argo CD Role placed in the argocd namespace is still
+held to the policy. Emits nothing (no matchConditions override) when the
+exemption is disabled.
+*/}}
+{{- define "bootstrap.argoCDRbacExemptionMatchCondition" -}}
+{{- if .Values.features.kyverno.rbacExemptions.argoCD.enabled -}}
+matchConditions:
+- name: not-argocd-rbac-exemption
+  expression: >-
+    !(
+      {{ .Values.features.kyverno.rbacExemptions.argoCD.clusterRolePrefixes | toJson }}.exists(p, object.metadata.name.startsWith(p)) &&
+      (!has(object.metadata.namespace) || object.metadata.namespace in {{ .Values.features.kyverno.rbacExemptions.argoCD.namespaces | toJson }})
+    )
+{{- end }}
+{{- end -}}

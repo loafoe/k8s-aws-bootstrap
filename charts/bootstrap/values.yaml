@@ -53,6 +53,20 @@ features:
   kyverno:
     requireImageDigest:
       enabled: false
+    # Explicit, reviewable carve-outs from the Zero Trust RBAC policies
+    # (restrict-wildcard-rbac, restrict-escalation-verbs) for platform
+    # infrastructure that legitimately needs cluster-wide reconcile rights.
+    # See docs/argocd-rbac-exemption.md for the recorded risk acceptance.
+    rbacExemptions:
+      argoCD:
+        enabled: true
+        # Namespaces Argo CD's own namespaced Roles live in. A Role here is
+        # exempt only if its name ALSO matches clusterRolePrefixes below —
+        # this namespace is not a blanket exemption for every Role in it.
+        namespaces: ["argocd"]
+        # Name prefixes of Argo CD's own ClusterRoles/Roles. ClusterRoles
+        # have no namespace, so this prefix match is their only gate.
+        clusterRolePrefixes: ["argocd-", "argocd:"]
 
   # Shutdown mode
   shutdown:
