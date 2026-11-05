@@ -16,12 +16,11 @@ spec:
       service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
       service.beta.kubernetes.io/aws-load-balancer-alpn-policy: HTTP2Preferred
       service.beta.kubernetes.io/aws-load-balancer-name: {{ printf "%s-gateway" .Values.environmentConfig.bootstrap.resourcePrefix }}
-      # Note: Dualstack NLB with instance target groups requires Cilium to bind
-      # NodePort to global IPv6 addresses, which is not currently supported.
-      # Using IPv4-only NLB until Cilium adds support.
-      # {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
-      # service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
-      # {{- end }}
+      {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
+      # IPv6 instance targets need a node IPv6 that Cilium serves NodePorts on: the
+      # EC2NodeClass registers workers with --node-ip=<IPv4>,<IPv6> on dual-stack clusters
+      service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
+      {{- end }}
   listeners:
     - name: http
       protocol: HTTP

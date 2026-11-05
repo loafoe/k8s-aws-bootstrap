@@ -161,6 +161,39 @@ spec:
         --enable-primary-ipv6 \
         --region "$REGION" || echo "Warning: Failed to enable primary IPv6 (may not be supported or already enabled)"
     fi
+{{- if .Values.environmentConfig.bootstrap.enableDualStack }}
+
+    # Dual-stack: register the node with its IPv4 and its IPv6 address (--node-ip below).
+    # With only an IPv4 InternalIP, Cilium's kube-proxy replacement has no global IPv6
+    # node address to serve NodePorts on, so a dualstack NLB's IPv6 health checks fail.
+    # When the ENI came up without an IPv6 address, assign one (the node role has
+    # ec2:AssignIpv6Addresses through the CNI policy) and make it the primary.
+    PRIVATE_IP=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
+    eni_ipv6() {
+      curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/ipv6s" | head -n1 || true
+    }
+    IPV6_ADDRESS=$(eni_ipv6)
+    if [ -z "$IPV6_ADDRESS" ] && [ -n "$ENI_ID" ]; then
+      echo "ENI $ENI_ID has no IPv6 address, assigning one..."
+      if aws ec2 assign-ipv6-addresses --network-interface-id "$ENI_ID" \
+          --ipv6-address-count 1 --region "$REGION" >/dev/null; then
+        aws ec2 modify-network-interface-attribute --network-interface-id "$ENI_ID" \
+          --enable-primary-ipv6 --region "$REGION" || true
+        for _ in $(seq 1 30); do
+          IPV6_ADDRESS=$(eni_ipv6)
+          [ -n "$IPV6_ADDRESS" ] && break
+          sleep 2
+        done
+      else
+        echo "Warning: failed to assign an IPv6 address to $ENI_ID"
+      fi
+    fi
+    case "$IPV6_ADDRESS" in
+      *:*) NODE_IP="$PRIVATE_IP,$IPV6_ADDRESS" ;;
+      *)   NODE_IP="$PRIVATE_IP"; echo "Warning: no IPv6 address, registering IPv4 only" ;;
+    esac
+    echo "Node IPs: $NODE_IP"
+{{- end }}
 
     # Retrieve K3s token securely from AWS Systems Manager Parameter Store
     K3S_TOKEN=$(aws ssm get-parameter \
@@ -235,7 +268,8 @@ spec:
         --kubelet-arg="image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml" \
         --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
         --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
-        --node-label="topology.kubernetes.io/zone=$AZ"; then
+        --node-label="topology.kubernetes.io/zone=$AZ"{{ if .Values.environmentConfig.bootstrap.enableDualStack }} \
+        --node-ip="$NODE_IP"{{ end }}; then
         echo "K3s agent install succeeded (attempt $attempt/$k3s_install_attempts)"
         break
       fi
