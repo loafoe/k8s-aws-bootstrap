@@ -18,7 +18,10 @@ spec:
       service.beta.kubernetes.io/aws-load-balancer-name: {{ printf "%s-gateway" .Values.environmentConfig.bootstrap.resourcePrefix }}
       {{- if .Values.environmentConfig.bootstrap.enableDualStack }}
       # IPv6 instance targets need a node IPv6 that Cilium serves NodePorts on: the
-      # EC2NodeClass registers workers with --node-ip=<IPv4>,<IPv6> on dual-stack clusters
+      # EC2NodeClass registers workers with --node-ip=<IPv4>,<IPv6> on dual-stack clusters.
+      # Every node also needs a primary IPv6, or RegisterTargets fails for all of them:
+      # workers set it in their user data, k3s-on-ec2 sets it on the master (5f95dc6).
+      # Verified on a live dual-stack cluster 2026-11-05.
       service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
       {{- end }}
   listeners:
