@@ -1,4 +1,4 @@
-# Gateway API CRDs v1.6.1 (Standard Channel Bundle)
+# Gateway API CRDs v1.6.3 (Standard Channel Bundle)
 #
 # These CRDs are installed when .Values.features.gatewayApi.enabled is true.
 #
@@ -32,11 +32,24 @@
 # https://github.com/kubernetes-sigs/external-dns/issues/6247 for the
 # external-dns-specific fallout of this exact migration.
 #
-# Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.1
+# Source: https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.3
 #
 # To update these CRDs, download from:
-# Standard: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.1/standard-install.yaml
-# (Cilium's own go.mod pins sigs.k8s.io/gateway-api to the same v1.6.1 as of
-# Cilium v1.20.1 — keep this bundle version in step with Cilium's pinned
-# gateway-api module version on every Cilium bump.)
+# Standard: https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/standard-install.yaml
+# Experimental (the x-*.yaml files only): .../download/v1.6.3/experimental-install.yaml
+# Each file is one document of those bundles: the license header (except the
+# x-*.yaml files), then the document, with
+# `argocd.argoproj.io/sync-options: ServerSideApply=true` added to each CRD's
+# annotations; safe-upgrades-vap.yaml is the policy and its binding.
+#
+# Two owners, keep them in step. Since k3s v1.37.0, k3s itself installs the
+# Standard-channel CRDs as a bundled chart (HelmChart kube-system/gateway-api-crd,
+# Helm release "gateway-api-crd"; it was not a manual install), and ArgoCD applies
+# these files over them with server-side apply. Whichever wrote last wins the
+# bundle-version annotation, so this bundle version must match what the
+# cluster's k3s version ships: k3s v1.37.2+k3s1 ships v1.6.3 (chart 1.6.301),
+# and the CRD specs here are identical to it. Check on every k3s bump.
+#
+# Cilium's own go.mod pins sigs.k8s.io/gateway-api (v1.6.3 as of Cilium v1.20.4):
+# keep this bundle in step with that on every Cilium bump as well.
 
