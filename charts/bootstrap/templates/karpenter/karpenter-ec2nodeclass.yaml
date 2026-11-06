@@ -1,3 +1,6 @@
+{{- $nodeOs := include "bootstrap.nodeOs" . -}}
+{{- $selinuxMode := include "bootstrap.selinuxMode" . -}}
+{{- $bootSELinuxMode := include "bootstrap.bootSELinuxMode" . -}}
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
@@ -9,18 +12,23 @@ metadata:
     # Injected from EnvironmentConfig for drift detection
     k8s-aws-bootstrap.io/k3s-version: "{{ .Values.environmentConfig.bootstrap.k3sVersion }}"
 spec:
-  # Amazon Linux 2023 AMI family
-  # Using Custom AMI family with AL2023 AMI selection
+  # Amazon Linux (nodeOs): AL2023, or AL2027 (preview AMI names until its GA)
+  # Using the Custom AMI family with name-based AMI selection
   amiFamily: Custom
   
-  # Select Amazon Linux 2023 AMIs for K3s (both x86_64 and ARM64)
+  # Full (not minimal) Amazon Linux AMIs for K3s, both x86_64 and ARM64
   amiSelectorTerms:
-    # Amazon Linux 2023 x86_64
+    {{- if eq $nodeOs "al2027" }}
+    - name: "al2027-preview-ami-2027.*-kernel-*-x86_64"
+      owner: "137112412989" # Amazon
+    - name: "al2027-preview-ami-2027.*-kernel-*-arm64"
+      owner: "137112412989" # Amazon
+    {{- else }}
     - name: "al2023-ami-2023.*-kernel-*-x86_64"
       owner: "137112412989" # Amazon
-    # Amazon Linux 2023 ARM64
     - name: "al2023-ami-2023.*-kernel-*-arm64"
       owner: "137112412989" # Amazon
+    {{- end }}
         
   # Instance profile (pre-created for K3s)
   instanceProfile: {{ .Values.environmentConfig.bootstrap.karpenterInstanceProfile }}
@@ -71,6 +79,16 @@ spec:
     # Required for K3s networking (kubelet, VXLAN, etc.)
     systemctl stop firewalld || true
     systemctl disable firewalld || true
+{{- if ne $selinuxMode $bootSELinuxMode }}
+
+    # SELinux mode (selinuxMode: {{ $selinuxMode }}): this AMI boots in the other one. Switched
+    # before the K3s installer runs, which installs the k3s-selinux policy.
+    if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then
+      setenforce {{ if eq $selinuxMode "enforcing" }}1{{ else }}0{{ end }}
+      sed -i 's/^SELINUX=.*/SELINUX={{ $selinuxMode }}/' /etc/selinux/config
+    fi
+    echo "SELinux: $(getenforce 2>/dev/null || echo unavailable)"
+{{- end }}
     
     # Install required packages (curl and awscli are pre-installed on AL2023)
     wait_for_rpm_lock
@@ -269,7 +287,8 @@ spec:
         --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
         --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
         --node-label="topology.kubernetes.io/zone=$AZ"{{ if .Values.environmentConfig.bootstrap.enableDualStack }} \
-        --node-ip="$NODE_IP"{{ end }}; then
+        --node-ip="$NODE_IP"{{ end }}{{ if eq $selinuxMode "enforcing" }} \
+        --selinux{{ end }}; then
         echo "K3s agent install succeeded (attempt $attempt/$k3s_install_attempts)"
         break
       fi

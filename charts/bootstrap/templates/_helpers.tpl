@@ -68,6 +68,21 @@ Validate HSP AWS Platform required values when enabled
 {{/*
 Validate K3S values for Karpenter EC2NodeClass
 */}}
+{{/*
+The Amazon Linux release (nodeOs) and SELinux mode of the Karpenter workers, from k3s-on-ec2's
+nodeOs and selinuxMode. Defaults: al2023 and permissive, what clusters ran before either existed.
+bootSELinuxMode is the mode that release's AMI boots in; the user data switches only from that.
+*/}}
+{{- define "bootstrap.nodeOs" -}}
+{{- .Values.environmentConfig.bootstrap.nodeOs | default "al2023" -}}
+{{- end -}}
+{{- define "bootstrap.selinuxMode" -}}
+{{- .Values.environmentConfig.bootstrap.selinuxMode | default "permissive" -}}
+{{- end -}}
+{{- define "bootstrap.bootSELinuxMode" -}}
+{{- ternary "enforcing" "permissive" (eq (include "bootstrap.nodeOs" .) "al2027") -}}
+{{- end -}}
+
 {{- define "bootstrap.validateK3sValues" -}}
 {{- $requiredValues := list
   (dict "path" "environmentConfig.bootstrap.k3sTokenParameterName" "value" .Values.environmentConfig.bootstrap.k3sTokenParameterName)
@@ -77,5 +92,11 @@ Validate K3S values for Karpenter EC2NodeClass
   {{- if not .value -}}
     {{- fail (printf "Value '%s' is required for K3S node provisioning" .path) -}}
   {{- end -}}
+{{- end -}}
+{{- if not (has (include "bootstrap.nodeOs" .) (list "al2023" "al2027")) -}}
+  {{- fail (printf "environmentConfig.bootstrap.nodeOs must be al2023 or al2027, got %q" (include "bootstrap.nodeOs" .)) -}}
+{{- end -}}
+{{- if not (has (include "bootstrap.selinuxMode" .) (list "permissive" "enforcing")) -}}
+  {{- fail (printf "environmentConfig.bootstrap.selinuxMode must be permissive or enforcing, got %q" (include "bootstrap.selinuxMode" .)) -}}
 {{- end -}}
 {{- end -}}
