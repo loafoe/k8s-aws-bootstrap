@@ -419,6 +419,20 @@ cilium:
   # annotation, and a ConfigMap patch produced no pod recreation.
   rollOutCiliumPods: true
 
+  # API rate limit for endpoint-create (the CNI's PUT /endpoint/{id}, one per new pod).
+  # Cilium's default auto-adjusts the rate to the agent's processing time. On a fresh
+  # 2-vCPU node the first endpoint builds wait for the BPF template compile, competing
+  # with image pulls, and the agent builds only one endpoint per CPU at a time; so the
+  # limiter read ~44s per request and dropped to one request per ~44s, turning the rest
+  # of the node's pods away with 429 until kubelet's backoff retried them (seen on every
+  # Karpenter drift roll). Measured on dip-ops-tools-k3s-eu, 40 pods onto a fresh
+  # m6g.large: by default 84 rejections and 239s until all ran; with this, none and 71s.
+  # The burst now queues on the build permits inside the agent instead; 120s of admission
+  # wait plus the build stays within kubelet's 4-minute pod sandbox timeout, and 40 in
+  # flight covers a node's worth of pods (max-pods 100) within that.
+  # Keep in step with the bootstrap copy in k3s-on-ec2 (resources/kustomize/cilium-values*.yaml).
+  apiRateLimit: "endpoint-create=auto-adjust:false,rate-limit:10/s,rate-burst:40,parallel-requests:40,max-wait-duration:120s"
+
   tolerations:
     - operator: Exists
       effect: NoSchedule
