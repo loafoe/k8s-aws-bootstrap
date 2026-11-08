@@ -1,0 +1,58 @@
+name: Images Lock
+
+# images.lock is the pre-cache list of every OCI reference these charts pull,
+# Crossplane package artifacts included. It is generated from the vendored
+# charts, so it silently rots whenever Renovate bumps a chart dependency — the
+# symptom only appears on the first cluster bootstrapped from a mirror.
+#
+# See scripts/generate-images.sh for the method and scripts/check-images-lock.sh
+# for the failure message.
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - 'images.lock'
+      - 'scripts/generate-images.sh'
+      - 'scripts/check-images-lock.sh'
+      - '.github/workflows/images-lock.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'charts/**'
+      - 'images.lock'
+      - 'scripts/generate-images.sh'
+      - 'scripts/check-images-lock.sh'
+      - '.github/workflows/images-lock.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: images-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  images-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned: the list is only reproducible against a known helm renderer, and
+      # a silent minor bump would otherwise show up as a lock diff instead.
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          # renovate: datasource=github-releases depName=helm/helm
+          version: v4.3.0
+
+      - name: Set up yq
+        env:
+          # renovate: datasource=github-releases depName=mikefarah/yq
+          YQ_VERSION: v4.53.6
+        run: |
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" \
+            -o /tmp/yq
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
+          yq --version
+
+      - name: Check images.lock is up to date
+        run: ./scripts/check-images-lock.sh

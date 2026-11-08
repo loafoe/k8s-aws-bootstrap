@@ -51,6 +51,18 @@ change to them has to move the chart's own `version:`.
 - `./scripts/check-chart-version-bump.sh [base-ref]` runs the same check
   locally, and by default diffs against `origin/main`.
 
+## Image Pre-cache List
+
+`images.lock` lists every image these charts pull, so a cluster can be
+bootstrapped against a mirror or a warmed registry cache. It is generated from
+the vendored charts — see [`docs/image-precache.md`](docs/image-precache.md) —
+and the `Images Lock` workflow fails a pull request that changes the charts
+without regenerating it:
+
+```bash
+./scripts/generate-images.sh > images.lock
+```
+
 ## Optional Policies
 
 Some Kyverno guardrails are opt-in, off by default, and can be enabled per
