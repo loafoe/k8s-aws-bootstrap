@@ -118,6 +118,14 @@ mapfile -t BOOTSTRAP_ARGS < <(
     # the argo-cd subchart dies on deepCopy, so give them a value.
     printf '%s\n' --set-string environmentConfig.owner=preload \
         --set-string environmentConfig.managedBy=preload
+    # Values spliced unquoted into the hsp-addons JSON are JSON themselves (subnet ID lists,
+    # security group lists): stub them with a JSON string, or the hsp-addons EnvironmentConfig's
+    # JSON check fails the render. Read from the template, like the list above
+    grep -oE '": \{\{ \.Values\.[A-Za-z.]+ \}\}' charts/bootstrap/templates/hsp-aws-platform/hsp-addons/_hsp-addons.tpl |
+        sed -E 's/.*\.Values\.([A-Za-z.]+) .*/\1/' | sort -u |
+        while read -r path; do
+            printf '%s\n%s\n' "--set-string" "${path}=\"preload\""
+        done
 )
 
 bootstrap_manifest() { # bootstrap_manifest [extra args...]
