@@ -1,7 +1,7 @@
 # Image pre-cache list (`images.lock`)
 
 `images.lock` is the generated list of every OCI reference these charts pull —
-72 references at the time of writing. It exists so a cluster can be bootstrapped
+70 references at the time of writing. It exists so a cluster can be bootstrapped
 against a mirror, a warmed ECR pull-through cache, or a registry allow-list
 without discovering the images it needs one `ImagePullBackOff` at a time.
 

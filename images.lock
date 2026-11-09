@@ -3,7 +3,6 @@
 # Read it back with: grep -v '^#' images.lock | sort -u
 
 # --- charts/bootstrap (jobs + shutdown)
-alpine:3.21
 alpine/k8s:1.35.0
 alpine/k8s:1.37.2
 # --- charts/amazon-eks-pod-identity-webhook

@@ -45,4 +45,4 @@ EOF
     exit 1
 fi
 
-echo "✓ images.lock matches the pinned charts ($(grep -vc '^#' images.lock) references)"
+echo "✓ images.lock matches the pinned charts ($(grep -v '^#' images.lock | grep -c .) references)"

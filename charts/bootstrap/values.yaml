@@ -82,6 +82,13 @@ environmentConfig:
     additionalClusterFqdns: []
     clusterHost: ""
     clusterEndpoint: ""
+
+    # Public certificates (k3s-on-ec2 certificateIssuer): letsencrypt (default when empty) or
+    # acm, with the cluster's ACM ACME endpoint and external account binding key ID. The
+    # binding's MAC key is not a value: the master writes Secret cert-manager/acm-acme-eab
+    certificateIssuer: ""
+    acmeDirectoryUrl: ""
+    acmeEabKeyId: ""
     
     # OIDC
     oidcProvider: ""

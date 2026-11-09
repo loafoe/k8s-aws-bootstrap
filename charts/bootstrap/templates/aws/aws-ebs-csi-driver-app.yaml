@@ -20,6 +20,10 @@ spec:
           customLabels:
             {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           controller:
+            # Every volume and snapshot the driver creates gets kubernetes.io/cluster/<cluster>=owned
+            # (and KubernetesCluster=<cluster>): k3s-on-ec2's destroy cleanup finds PVC volumes by
+            # that tag, including ones no instance has attached any more
+            k8sTagClusterId: {{ .Values.environmentConfig.bootstrap.clusterName }}
             podLabels:
               {{- include "bootstrap.ownerLabels" . | nindent 14 }}
             serviceAccount:
