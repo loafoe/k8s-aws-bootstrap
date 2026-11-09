@@ -1,9 +1,9 @@
 apiVersion: v2
 name: argocd
-version: 0.1.11
+version: 0.1.12
 description: Thin wrapper for Argo CD
 dependencies:
   - name: argo-cd
     # renovate: datasource=docker depName=ghcr.io/argoproj/argo-helm/argo-cd
-    version: "10.15.0"
+    version: "10.17.0"
     repository: "oci://ghcr.io/argoproj/argo-helm"
