@@ -10,7 +10,7 @@ metadata:
 spec:
   secretName: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
   issuerRef:
-    name: letsencrypt-prod
+    name: {{ include "bootstrap.publicIssuer" . }}
     kind: ClusterIssuer
   dnsNames:
     - "*.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
@@ -28,7 +28,7 @@ metadata:
 spec:
   secretName: {{ $.Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-{{ $i }}-tls
   issuerRef:
-    name: letsencrypt-prod
+    name: {{ include "bootstrap.publicIssuer" $ }}
     kind: ClusterIssuer
   dnsNames:
     - "*.{{ $fqdn }}"

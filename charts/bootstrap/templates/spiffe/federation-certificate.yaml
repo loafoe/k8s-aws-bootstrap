@@ -10,7 +10,7 @@ metadata:
 spec:
   secretName: spire-federation-tls
   issuerRef:
-    name: letsencrypt-prod
+    name: {{ include "bootstrap.publicIssuer" . }}
     kind: ClusterIssuer
   dnsNames:
     - spiffe.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}

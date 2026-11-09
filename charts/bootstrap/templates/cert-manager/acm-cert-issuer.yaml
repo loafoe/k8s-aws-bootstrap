@@ -1,0 +1,31 @@
+{{- if eq (include "bootstrap.certificateIssuer" .) "acm" }}
+# Public certificates from AWS Certificate Manager (k3s-on-ec2 certificateIssuer=acm), through
+# the cluster's ACM ACME endpoint (k3s-on-ec2 pkg/acme). cert-manager stays the ACME client and
+# keeps the private keys; certificates are publicly trusted (Amazon Trust Services), valid 45
+# days and renewed by cert-manager like Let's Encrypt ones. The endpoint's domains are
+# pre-approved, so no challenge is ever solved.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: acm
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  acme:
+    server: {{ .Values.environmentConfig.bootstrap.acmeDirectoryUrl | quote }}
+    # Account registration only; afterwards the account (privateKeySecretRef) stands alone
+    externalAccountBinding:
+      keyID: {{ .Values.environmentConfig.bootstrap.acmeEabKeyId | quote }}
+      # Written by the k3s master from SSM (k3s-acme-eab-sync), not by Argo CD
+      keySecretRef:
+        name: acm-acme-eab
+        key: mac-key
+    privateKeySecretRef:
+      name: acm-acme-account
+    # Never used (the endpoint's domains are pre-approved); a solver is still required
+    solvers:
+    - dns01:
+        route53:
+          region: {{ .Values.environmentConfig.bootstrap.awsRegion }}
+{{- end }}

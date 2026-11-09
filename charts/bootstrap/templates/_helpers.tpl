@@ -83,6 +83,31 @@ bootSELinuxMode is the mode that release's AMI boots in; the user data switches 
 {{- ternary "enforcing" "permissive" (eq (include "bootstrap.nodeOs" .) "al2027") -}}
 {{- end -}}
 
+{{/*
+Who issues the cluster's public certificates, from k3s-on-ec2's certificateIssuer: letsencrypt
+(default, also when unset) or acm, AWS Certificate Manager through the cluster's ACME endpoint.
+publicIssuer is the ClusterIssuer the Certificates reference.
+*/}}
+{{- define "bootstrap.certificateIssuer" -}}
+{{- .Values.environmentConfig.bootstrap.certificateIssuer | default "letsencrypt" -}}
+{{- end -}}
+{{- define "bootstrap.publicIssuer" -}}
+{{- ternary "acm" "letsencrypt-prod" (eq (include "bootstrap.certificateIssuer" .) "acm") -}}
+{{- end -}}
+{{- define "bootstrap.validateCertificateValues" -}}
+{{- $issuer := include "bootstrap.certificateIssuer" . -}}
+{{- if not (has $issuer (list "letsencrypt" "acm")) -}}
+  {{- fail (printf "environmentConfig.bootstrap.certificateIssuer must be letsencrypt or acm, got %q" $issuer) -}}
+{{- end -}}
+{{- if eq $issuer "acm" -}}
+  {{- range $k := list "acmeDirectoryUrl" "acmeEabKeyId" -}}
+    {{- if not (get $.Values.environmentConfig.bootstrap $k) -}}
+      {{- fail (printf "environmentConfig.bootstrap.%s is required with certificateIssuer=acm" $k) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "bootstrap.validateK3sValues" -}}
 {{- $requiredValues := list
   (dict "path" "environmentConfig.bootstrap.k3sTokenParameterName" "value" .Values.environmentConfig.bootstrap.k3sTokenParameterName)
