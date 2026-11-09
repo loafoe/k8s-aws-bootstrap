@@ -39,6 +39,10 @@ apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
   name: hsp-addons
+  labels:
+    # Compositions select config=hsp-addons as well as referencing the name; k3s-on-ec2's
+    # first-boot copy (resources/bootstrap-app.yaml) carries the same label
+    config: hsp-addons
 data:
   accountId: {{ .Values.environmentConfig.bootstrap.awsAccountId | toString | trim | quote }}
   sharedServicesAccountId: {{ .Values.environmentConfig.sharedServicesAccountId | toString | trim | quote }}
