@@ -41,7 +41,7 @@ registry.k8s.io/descheduler/descheduler:v0.37.0
 # --- charts/external-dns
 registry.k8s.io/external-dns/external-dns:v0.23.0
 # --- charts/external-secrets
-ghcr.io/external-secrets/external-secrets:v2.14.0
+ghcr.io/external-secrets/external-secrets:v2.15.0
 # --- charts/karpenter
 public.ecr.aws/karpenter/controller:1.15.1@sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8
 # --- charts/kube-prometheus-stack
