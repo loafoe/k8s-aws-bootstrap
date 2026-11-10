@@ -33,7 +33,7 @@ quay.io/cilium/hubble-ui:v0.13.6@sha256:049a80a03585c043d0c3121bdc518c72b0fd42ba
 quay.io/cilium/operator-generic:v1.20.4@sha256:7a7a3489dc66ad67e420d285c8a8d2e169b0957ad15e120f593d27081bf38d82
 # --- charts/cloudnative-pg
 ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1
-ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.15.1
+ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.16.0
 # --- charts/crossplane
 ghcr.io/crossplane/crossplane:v2.4.3
 # --- charts/descheduler
