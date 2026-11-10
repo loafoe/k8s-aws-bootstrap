@@ -37,5 +37,13 @@ module.exports = {
     {
       matchDatasources: ["helm", "docker", "github-releases"],
     },
+    {
+      // prometheus-operator v0.95.1 published an amd64-only image index, so
+      // arm64 nodes cannot pull the operator. 92.x is the last chart line on
+      // v0.94.2, which is multi-arch; allow 93+ again once this is fixed:
+      // https://github.com/prometheus-operator/prometheus-operator/issues/8953
+      matchDepNames: ["kube-prometheus-stack"],
+      allowedVersions: "< 93.0.0",
+    },
   ],
 };

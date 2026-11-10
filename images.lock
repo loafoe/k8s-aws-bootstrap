@@ -48,7 +48,7 @@ public.ecr.aws/karpenter/controller:1.15.1@sha256:8314ff9c6bca66372031e80532c180
 docker.io/grafana/grafana:13.3.0-distroless
 ghcr.io/jkroepke/kube-webhook-certgen:1.11.1
 quay.io/kiwigrid/k8s-sidecar:2.14.3
-quay.io/prometheus-operator/prometheus-operator:v0.95.1
+quay.io/prometheus-operator/prometheus-operator:v0.94.2
 quay.io/prometheus/alertmanager:v0.34.2
 quay.io/prometheus/node-exporter:v1.12.1-distroless
 quay.io/prometheus/prometheus:v3.16.0-distroless
