@@ -11,12 +11,12 @@ public.ecr.aws/eks/amazon-eks-pod-identity-webhook:v0.6.19
 ecr-public.aws.com/docker/library/redis:8.6.4-alpine
 quay.io/argoproj/argocd:v3.6.1
 # --- charts/aws-ebs-csi-driver
-public.ecr.aws/csi-components/csi-attacher:v4.13.0-eksbuild.3
-public.ecr.aws/csi-components/csi-node-driver-registrar:v2.18.0-eksbuild.3
-public.ecr.aws/csi-components/csi-provisioner:v6.4.0-eksbuild.3
-public.ecr.aws/csi-components/csi-resizer:v2.3.0-eksbuild.3
-public.ecr.aws/csi-components/livenessprobe:v2.20.0-eksbuild.3
-public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.67.2
+public.ecr.aws/csi-components/csi-attacher:v4.13.0-eksbuild.5
+public.ecr.aws/csi-components/csi-node-driver-registrar:v2.18.0-eksbuild.5
+public.ecr.aws/csi-components/csi-provisioner:v6.4.0-eksbuild.5
+public.ecr.aws/csi-components/csi-resizer:v2.3.0-eksbuild.5
+public.ecr.aws/csi-components/livenessprobe:v2.20.0-eksbuild.5
+public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.68.0
 # --- charts/aws-load-balancer-controller
 public.ecr.aws/eks/aws-load-balancer-controller:v3.6.2
 # --- charts/cert-manager
