@@ -1,6 +1,6 @@
 apiVersion: v2
 name: descheduler
-version: 0.1.2
+version: 0.1.3
 description: Thin wrapper for Kubernetes Descheduler
 dependencies:
   - name: descheduler

@@ -46,21 +46,6 @@ descheduler:
               podRestartThreshold: 5
               includingInitContainers: true
 
-          - name: LowNodeUtilization
-            args:
-              thresholds:
-                cpu: 30
-                memory: 30
-              targetThresholds:
-                cpu: 70
-                memory: 70
-              evictableNamespaces:
-                exclude:
-                  - kube-system
-                  - karpenter
-                  - argocd
-                  - cert-manager
-
           - name: RemovePodsViolatingTopologySpreadConstraint
             args:
               constraints:
@@ -73,8 +58,15 @@ descheduler:
 
         plugins:
           balance:
+            # LowNodeUtilization removed (2026-11-12): it fought Karpenter's
+            # own consolidation - moving pods off nodes above 70% onto nodes
+            # below 30% while Karpenter removes underutilized nodes - and
+            # caused 99 of 101 evictions on dip-ce-k3s-eu (about 100 pods a
+            # day: centcom, satellites, MCP proxies, ClickHouse), each
+            # eviction a short outage for single-path services. Karpenter
+            # already handles bin-packing; don't re-add it on Karpenter
+            # clusters.
             enabled:
-              - LowNodeUtilization
               - RemovePodsViolatingTopologySpreadConstraint
           deschedule:
             enabled:
