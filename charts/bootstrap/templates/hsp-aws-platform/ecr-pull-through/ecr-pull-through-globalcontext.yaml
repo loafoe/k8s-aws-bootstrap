@@ -1,0 +1,27 @@
+{{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.ecrPullThrough }}
+# CEL mutate policies can't do a configMap context lookup inline (unlike the
+# legacy `context: - configMap:` this replaces) -- GlobalContextEntry is the
+# CEL-era equivalent: it caches the hsp-addons ConfigMap and the
+# "data" projection below exposes its .data map to the MutatingPolicy via
+# globalContext.get("ecr-pull-through-hsp-addons", "data"). Kyverno 1.19.2's
+# GlobalContextEntry CRD (kyverno.io/v2) only supports a jmesPath projection,
+# not the newer CEL `expression` projection (that's main-branch-only, not yet
+# in this chart's pinned appVersion) -- confirmed against the live CRD
+# schema, not assumed from docs.
+apiVersion: kyverno.io/v2
+kind: GlobalContextEntry
+metadata:
+  name: ecr-pull-through-hsp-addons
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
+spec:
+  kubernetesResource:
+    group: ""
+    version: v1
+    resource: configmaps
+    namespace: hsp-addons
+  projections:
+    - name: data
+      jmesPath: "[?metadata.name=='hsp-addons'].data | [0]"
+{{- end }}
