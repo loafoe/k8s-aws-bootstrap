@@ -24,8 +24,17 @@
 # a watch on all three regardless of each policy's own
 # evaluation.background.enabled: false - logging a continuous
 # "missing RBAC to list/watch this resource" error every scan cycle
-# otherwise. Confirmed live: these 3 are the only reports-controller RBAC
-# errors still present after this file's first revision closed the 4 above.
+# otherwise.
+#
+# Also grants postgresql.cnpg.io clusters: the cnpg-force-imagecatalog
+# MutatingPolicy (migrated to CEL in the cloudnative-pg-operator chart,
+# philips-software/helm-charts, not this repo) matches Cluster resources.
+# Same gap, same symptom -- confirmed live on dip-ce-k3s-eu right after the
+# kyverno 1.20.0 upgrade this file's RBAC grant unblocked: reports-controller
+# logged a continuous "missing RBAC to list/watch this resource" error for
+# clusters.postgresql.cnpg.io until this rule was added. Unconditional, not
+# gated on a values flag: CNPG is a standing component of every cluster this
+# chart bootstraps, same as the two unconditional rules above.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -50,6 +59,14 @@ rules:
   - dip.io
   resources:
   - helmapplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - clusters
   verbs:
   - get
   - list
