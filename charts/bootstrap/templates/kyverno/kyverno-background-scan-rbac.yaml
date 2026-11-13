@@ -35,6 +35,17 @@
 # clusters.postgresql.cnpg.io until this rule was added. Unconditional, not
 # gated on a values flag: CNPG is a standing component of every cluster this
 # chart bootstraps, same as the two unconditional rules above.
+#
+# Also grants namespaces patch/update (on top of the get/list/watch every
+# built-in Kyverno RBAC bundle already carries): the default-psa-audit-warn
+# MutatingPolicy's `evaluation.mutateExisting.enabled: true` has to backfill
+# namespaces that already existed before the policy was created, which means
+# issuing a real PATCH against the live Namespace object directly - unlike a
+# live admission-time mutation, where the apiserver applies the webhook's
+# returned patch itself and no extra RBAC on the target object is needed.
+# Granted to both background-controller (which runs the scan) and
+# admission-controller (the mutateExisting apply path reuses its client in
+# this Kyverno version), rather than guessing which one issues the write.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -42,6 +53,7 @@ metadata:
   labels:
     rbac.kyverno.io/aggregate-to-background-controller: "true"
     rbac.kyverno.io/aggregate-to-reports-controller: "true"
+    rbac.kyverno.io/aggregate-to-admission-controller: "true"
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 rules:
@@ -71,6 +83,16 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - update
 {{- if .Values.features.gatewayApi.enabled }}
 - apiGroups:
   - gateway.networking.k8s.io
