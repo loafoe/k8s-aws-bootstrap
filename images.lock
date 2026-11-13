@@ -43,7 +43,7 @@ registry.k8s.io/external-dns/external-dns:v0.23.0
 # --- charts/external-secrets
 ghcr.io/external-secrets/external-secrets:v2.15.0
 # --- charts/karpenter
-public.ecr.aws/karpenter/controller:1.15.1@sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8
+public.ecr.aws/karpenter/controller:1.15.2@sha256:4a7dc37f85ad8987ece1cf5df55e607aa17a879a6faa76f5258c5bf182fbdfff
 # --- charts/kube-prometheus-stack
 docker.io/grafana/grafana:13.3.0-distroless
 ghcr.io/jkroepke/kube-webhook-certgen:1.11.1
