@@ -1,0 +1,86 @@
+# Most namespaces on this cluster carry no pod-security.kubernetes.io/*
+# label at all, so the built-in PodSecurity admission plugin imposes no
+# restriction whatsoever in them - only a hand-picked set of platform
+# namespaces (crossplane-system, karpenter, descheduler, kyverno,
+# kyverno-exceptions, aws-load-balancer-controller, external-secrets) are
+# explicitly labeled `enforce: restricted` by this chart's own
+# templates/*/namespace.yaml files, and spire-system is explicitly
+# `enforce: privileged`. Confirmed live on dip-ce-k3s-eu 2026-11-13: 22 of
+# ~34 namespaces have no pod-security label, and roughly 15 of those
+# (hermes-agent, langfuse-system, atlassian-mcp, github-mcp,
+# k8s-observability-monitoring, and more) currently run pods that would
+# fail a blocking "restricted" check outright (missing seccompProfile,
+# capabilities.drop, runAsNonRoot, etc.) - so defaulting straight to
+# `enforce` cluster-wide would break pod admission in most of the fleet.
+#
+# This policy instead defaults every namespace that has *no* existing
+# pod-security.kubernetes.io/{enforce,audit,warn} label to
+# `audit: restricted` + `warn: restricted` only - never `enforce`. This is
+# non-blocking: audit annotates the resulting PodSecurity audit annotation
+# on the Pod, warn surfaces a kubectl-visible warning, neither rejects
+# anything. It gives real violation data (and restores `kubectl apply`
+# warnings) everywhere, without the enforce rollout risk above. Once a
+# given namespace's workloads are confirmed restricted-clean, add an
+# explicit `enforce: restricted` label the same way the 7 namespaces above
+# already do - this policy backs off automatically the moment any
+# pod-security label is set, so it never fights that follow-up change.
+#
+# A namespace that already has any pod-security label (enforce, audit, or
+# warn) - including spire-system's deliberate `enforce: privileged` - is
+# left alone entirely; this only fills in namespaces with none at all.
+# kube-system/kube-public/kube-node-lease are excluded outright: they are
+# the kube-apiserver's own reserved namespaces, not something this chart
+# manages the lifecycle of.
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: default-psa-audit-warn
+  annotations:
+    policies.kyverno.io/title: Default Pod Security Audit/Warn Labels
+    policies.kyverno.io/category: Zero Trust, Pod Security Standards (Restricted)
+    policies.kyverno.io/minversion: 1.20.0
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Namespace
+    policies.kyverno.io/description: >-
+      Namespaces with no pod-security.kubernetes.io label at all get the
+      PodSecurity admission plugin's `audit: restricted` and
+      `warn: restricted` labels, so that non-compliant pods are reported
+      (audit annotation + kubectl warning) without being blocked. Namespaces
+      that already carry any pod-security label (including an explicit
+      `enforce: privileged` opt-out) are left untouched.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  evaluation:
+    background:
+      enabled: true
+    mutateExisting:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["namespaces"]
+  matchConditions:
+  - name: no-existing-psa-label-and-not-reserved
+    expression: >-
+      !(
+        object.metadata.name in ['kube-system', 'kube-public', 'kube-node-lease'] ||
+        (has(object.metadata.labels) &&
+         ('pod-security.kubernetes.io/enforce' in object.metadata.labels ||
+          'pod-security.kubernetes.io/audit' in object.metadata.labels ||
+          'pod-security.kubernetes.io/warn' in object.metadata.labels))
+      )
+  mutations:
+  - patchType: ApplyConfiguration
+    applyConfiguration:
+      expression: >-
+        Object{
+          metadata: Object.metadata{
+            labels: {
+              "pod-security.kubernetes.io/audit": "restricted",
+              "pod-security.kubernetes.io/warn": "restricted"
+            }
+          }
+        }

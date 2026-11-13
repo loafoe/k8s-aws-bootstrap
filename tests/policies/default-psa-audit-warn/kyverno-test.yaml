@@ -1,0 +1,27 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: default-psa-audit-warn
+policies:
+  - ../../../charts/bootstrap/templates/kyverno/kyverno-default-psa-audit-warn-policy.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: default-psa-audit-warn
+    isMutatingPolicy: true
+    resources:
+      - unlabeled-ns
+      - other-labeled-ns
+    kind: Namespace
+    patchedResources: patched.yaml
+    result: pass
+  - policy: default-psa-audit-warn
+    isMutatingPolicy: true
+    resources:
+      - already-enforced-ns
+      - already-privileged-ns
+      - kube-system
+      - kube-public
+      - kube-node-lease
+    kind: Namespace
+    result: skip
