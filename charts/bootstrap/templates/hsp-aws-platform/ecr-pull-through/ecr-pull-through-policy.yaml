@@ -1,252 +1,153 @@
 {{- if and .Values.features.hspAwsPlatform.enabled .Values.features.hspAwsPlatform.ecrPullThrough }}
-# NOT MIGRATED to a CEL-based MutatingPolicy (CHAR-22): every mutate rule here
-# rewrites container images with regex_replace_all capture groups (e.g.
-# '^(?:docker\.io/)?([^:\W/]*)(:.*)?$' -> 'library/$1$2') driven by values read
-# from the hsp-addons ConfigMap. Kyverno's CEL mutate libraries (as of
-# kyverno 1.19 / the policies.kyverno.io CEL API) have no regex
-# substitution-with-capture-groups function - only boolean '.matches()' and a
-# plain, non-regex '.replace()' - so there is no non-lossy CEL expression that
-# reproduces this registry-rewrite logic. Forcing a conversion would either
-# silently drop the capture-group rewrite (breaking every pulled-through
-# image) or require bespoke regex parsing in CEL that can't be validated
-# without a cluster. Revisit once Kyverno ships a CEL regex-capture library.
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+# Migrated to CEL (policies.kyverno.io) -- CHAR-22 originally kept this as a
+# legacy ClusterPolicy because Kyverno's CEL mutate libraries had no regex
+# substitution-with-capture-groups function at the time. That's no longer
+# true: Kyverno 1.19 wires cel-go's `ext.Regex()` extension into every CEL
+# policy compiler, which provides `regex.replace(target, pattern,
+# replacement)` with \1/\2 backreferences (Go regexp.ReplaceAll semantics,
+# the same regex engine the legacy JMESPath regex_replace_all used) --
+# confirmed by reading google/cel-go's ext/regex.go and a real
+# MutatingPolicy conformance fixture
+# (test/conformance/chainsaw/mutate/mutating-policy/standard/cel-regex-replace)
+# in the kyverno/kyverno source. The five rules below are a literal,
+# sequential port of the five legacy rules (same patterns, same
+# replacement templates, same mutual-exclusivity-by-prefix, same quirks --
+# including the dockerhub rule's `[^\.\.W]*` character class, which looks
+# like a typo for `[^:\W/]*` but is left exactly as-is: this is a migration,
+# not a behavior change).
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
 metadata:
   name: ecr-pull-through
   annotations:
-    pod-policies.kyverno.io/autogen-controllers: none
+    policies.kyverno.io/title: ECR Pull-Through Cache Registry Rewrite
+    policies.kyverno.io/category: AWS
     policies.kyverno.io/severity: medium
     policies.kyverno.io/subject: Pod
-    argocd.argoproj.io/sync-wave: "21"
+    policies.kyverno.io/minversion: 1.19.0
+    policies.kyverno.io/description: >-
+      Rewrites container/initContainer/ephemeralContainer image references
+      from docker.io, quay.io, ghcr.io, registry.k8s.io and public.ecr.aws
+      to this account's ECR pull-through cache, per registry alias enabled
+      in the hsp-addons ConfigMap's enabledPullThroughRegistries list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
+    argocd.argoproj.io/sync-wave: "21"
 spec:
-  background: false
-  mutateExistingOnPolicyUpdate: false
-  rules:
-    - name: mutate-dockerhub-images
-      context:
-        - name: aws
-          configMap:
-            name: hsp-addons
-            namespace: hsp-addons
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      preconditions:
-        all:
-          - key: "{{ `{{ request.operation || 'BACKGROUND' }}` }}"
-            operator: AnyIn
-            value:
-              - CREATE
-              - UPDATE
-          - key: "{{ `{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}` }}"
-            operator: NotEqual
-            value: ""
-          - key: docker-hub
-            operator: AnyIn
-            value: "{{ `{{ aws.data.enabledPullThroughRegistries }}` }}"
-      mutate:
-        foreach:
-          - list: "request.object.spec.initContainers[]"
-            patchStrategicMerge:
-              spec:
-                initContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$', regex_replace_all('^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$', '{{element.image}}', 'library/$1$2' ), '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/docker-hub/$1/$2' ) }}` }}"
-          - list: "request.object.spec.containers[]"
-            patchStrategicMerge:
-              spec:
-                containers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$', regex_replace_all('^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$', '{{element.image}}', 'library/$1$2' ), '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/docker-hub/$1/$2' ) }}` }}"
-          - list: "request.object.spec.ephemeralContainers[]"
-            patchStrategicMerge:
-              spec:
-                ephemeralContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$', regex_replace_all('^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$', '{{element.image}}', 'library/$1$2' ), '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/docker-hub/$1/$2' ) }}` }}"
-    - name: mutate-quay-images
-      context:
-        - name: aws
-          configMap:
-            name: hsp-addons
-            namespace: hsp-addons
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      preconditions:
-        all:
-          - key: "{{ `{{request.operation || 'BACKGROUND'}}` }}"
-            operator: AnyIn
-            value:
-              - CREATE
-              - UPDATE
-          - key: "{{ `{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}` }}"
-            operator: NotEqual
-            value: ""
-          - key: quay
-            operator: AnyIn
-            value: "{{ `{{ aws.data.enabledPullThroughRegistries }}` }}"
-      mutate:
-        foreach:
-          - list: "request.object.spec.containers[]"
-            patchStrategicMerge:
-              spec:
-                containers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(quay\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/quay/$2' ) }}` }}"
-          - list: "request.object.spec.initContainers[]"
-            patchStrategicMerge:
-              spec:
-                initContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(quay\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/quay/$2' ) }}` }}"
-          - list: "request.object.spec.ephemeralContainers[]"
-            patchStrategicMerge:
-              spec:
-                ephemeralContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(quay\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/quay/$2' ) }}` }}"
-    - name: mutate-github-images
-      context:
-        - name: aws
-          configMap:
-            name: hsp-addons
-            namespace: hsp-addons
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      preconditions:
-        all:
-          - key: "{{ `{{request.operation || 'BACKGROUND'}}` }}"
-            operator: AnyIn
-            value:
-              - CREATE
-              - UPDATE
-          - key: "{{ `{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}` }}"
-            operator: NotEqual
-            value: ""
-          - key: github
-            operator: AnyIn
-            value: "{{ `{{ aws.data.enabledPullThroughRegistries }}` }}"
-      mutate:
-        foreach:
-          - list: "request.object.spec.containers[]"
-            patchStrategicMerge:
-              spec:
-                containers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_match('^ghcr\\.io/cloudnative-pg', '{{element.image}}') && '{{element.image}}' || regex_replace_all('^(ghcr\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/github/$2' ) }}` }}"
-          - list: "request.object.spec.initContainers[]"
-            patchStrategicMerge:
-              spec:
-                initContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_match('^ghcr\\.io/cloudnative-pg', '{{element.image}}') && '{{element.image}}' || regex_replace_all('^(ghcr\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/github/$2' ) }}` }}"
-          - list: "request.object.spec.ephemeralContainers[]"
-            patchStrategicMerge:
-              spec:
-                ephemeralContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_match('^ghcr\\.io/cloudnative-pg', '{{element.image}}') && '{{element.image}}' || regex_replace_all('^(ghcr\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/github/$2' ) }}` }}"
-    - name: mutate-k8s-images
-      context:
-        - name: aws
-          configMap:
-            name: hsp-addons
-            namespace: hsp-addons
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      preconditions:
-        all:
-          - key: "{{ `{{request.operation || 'BACKGROUND'}}` }}"
-            operator: AnyIn
-            value:
-              - CREATE
-              - UPDATE
-          - key: "{{ `{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}` }}"
-            operator: NotEqual
-            value: ""
-          - key: k8s
-            operator: AnyIn
-            value: "{{ `{{ aws.data.enabledPullThroughRegistries }}` }}"
-      mutate:
-        foreach:
-          - list: "request.object.spec.containers[]"
-            patchStrategicMerge:
-              spec:
-                containers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(registry\\.k8s\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/k8s/$2' ) }}` }}"
-          - list: "request.object.spec.initContainers[]"
-            patchStrategicMerge:
-              spec:
-                initContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(registry\\.k8s\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/k8s/$2' ) }}` }}"
-          - list: "request.object.spec.ephemeralContainers[]"
-            patchStrategicMerge:
-              spec:
-                ephemeralContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(registry\\.k8s\\.io/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/k8s/$2' ) }}` }}"
-    - name: mutate-ecr-public-images
-      context:
-        - name: aws
-          configMap:
-            name: hsp-addons
-            namespace: hsp-addons
-      match:
-        any:
-          - resources:
-              kinds:
-                - Pod
-
-      preconditions:
-        all:
-          - key: "{{ `{{request.operation || 'BACKGROUND'}}` }}"
-            operator: AnyIn
-            value:
-              - CREATE
-              - UPDATE
-          - key: "{{ `{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}` }}"
-            operator: NotEqual
-            value: ""
-          - key: ecr-public
-            operator: AnyIn
-            value: "{{ `{{ aws.data.enabledPullThroughRegistries }}` }}"
-      mutate:
-        foreach:
-          - list: "request.object.spec.containers[]"
-            patchStrategicMerge:
-              spec:
-                containers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(public\\.ecr\\.aws/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/ecr-public/$2' ) }}` }}"
-          - list: "request.object.spec.initContainers[]"
-            patchStrategicMerge:
-              spec:
-                initContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(public\\.ecr\\.aws/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/ecr-public/$2' ) }}` }}"
-          - list: "request.object.spec.ephemeralContainers[]"
-            patchStrategicMerge:
-              spec:
-                ephemeralContainers:
-                  - name: "{{ `{{ element.name }}` }}"
-                    image: "{{ `{{ regex_replace_all('^(public\\.ecr\\.aws/)(.*)$', '{{element.image}}', '{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.sharedServicesAccountId }}', '') }}.dkr.ecr.{{ regex_replace_all('^\\s+|\\s+$', '{{ aws.data.region }}', '') }}.amazonaws.com/ecr-public/$2' ) }}` }}"
+  failurePolicy: Ignore
+  # Legacy annotation `pod-policies.kyverno.io/autogen-controllers: none` --
+  # the live Pod spec is what actually gets pulled through, so a Deployment/
+  # DaemonSet/StatefulSet/ReplicaSet/CronJob/Job-level autogenerated copy of
+  # this mutation (CEL's default behavior, unlike legacy's opt-out default)
+  # would be redundant and would show as a perpetual GitOps diff on every
+  # pod-controller spec. Matched exactly, not a new restriction.
+  autogen:
+    podControllers:
+      controllers: []
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["pods"]
+  variables:
+    - name: aws
+      expression: globalContext.get("ecr-pull-through-hsp-addons", "data")
+    - name: sharedServicesAccountId
+      expression: variables.aws.sharedServicesAccountId.trim()
+    - name: region
+      expression: variables.aws.region.trim()
+    - name: ecrEnabled
+      expression: variables.sharedServicesAccountId != ""
+    - name: registryBase
+      expression: >-
+        variables.sharedServicesAccountId + ".dkr.ecr." + variables.region + ".amazonaws.com"
+    - name: enabledPullThroughRegistries
+      expression: json.unmarshal(variables.aws.enabledPullThroughRegistries)
+  mutations:
+  - patchType: ApplyConfiguration
+    applyConfiguration:
+      expression: >-
+        Object{
+          spec: Object.spec{
+            containers: object.spec.containers.map(c, Object.spec.containers{
+              name: c.name,
+              image: cel.bind(dockerhubApplies, variables.ecrEnabled && ("docker-hub" in variables.enabledPullThroughRegistries),
+                cel.bind(stage1, dockerhubApplies
+                    ? regex.replace(regex.replace(c.image, "^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$", "library/\\1\\2"), "^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$", variables.registryBase + "/docker-hub/\\1/\\2")
+                    : c.image,
+                cel.bind(quayApplies, variables.ecrEnabled && ("quay" in variables.enabledPullThroughRegistries),
+                cel.bind(stage2, quayApplies
+                    ? regex.replace(stage1, "^(quay\\.io/)(.*)$", variables.registryBase + "/quay/\\2")
+                    : stage1,
+                cel.bind(githubApplies, variables.ecrEnabled && ("github" in variables.enabledPullThroughRegistries),
+                cel.bind(stage3, githubApplies
+                    ? (stage2.matches("^ghcr\\.io/cloudnative-pg") ? stage2 : regex.replace(stage2, "^(ghcr\\.io/)(.*)$", variables.registryBase + "/github/\\2"))
+                    : stage2,
+                cel.bind(k8sApplies, variables.ecrEnabled && ("k8s" in variables.enabledPullThroughRegistries),
+                cel.bind(stage4, k8sApplies
+                    ? regex.replace(stage3, "^(registry\\.k8s\\.io/)(.*)$", variables.registryBase + "/k8s/\\2")
+                    : stage3,
+                cel.bind(ecrPublicApplies, variables.ecrEnabled && ("ecr-public" in variables.enabledPullThroughRegistries),
+                  ecrPublicApplies
+                    ? regex.replace(stage4, "^(public\\.ecr\\.aws/)(.*)$", variables.registryBase + "/ecr-public/\\2")
+                    : stage4
+                )))))))))
+            }),
+            ?initContainers: object.spec.?initContainers.hasValue()
+              ? optional.of(object.spec.initContainers.map(c, Object.spec.initContainers{
+                  name: c.name,
+                  image: cel.bind(dockerhubApplies, variables.ecrEnabled && ("docker-hub" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage1, dockerhubApplies
+                        ? regex.replace(regex.replace(c.image, "^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$", "library/\\1\\2"), "^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$", variables.registryBase + "/docker-hub/\\1/\\2")
+                        : c.image,
+                    cel.bind(quayApplies, variables.ecrEnabled && ("quay" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage2, quayApplies
+                        ? regex.replace(stage1, "^(quay\\.io/)(.*)$", variables.registryBase + "/quay/\\2")
+                        : stage1,
+                    cel.bind(githubApplies, variables.ecrEnabled && ("github" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage3, githubApplies
+                        ? (stage2.matches("^ghcr\\.io/cloudnative-pg") ? stage2 : regex.replace(stage2, "^(ghcr\\.io/)(.*)$", variables.registryBase + "/github/\\2"))
+                        : stage2,
+                    cel.bind(k8sApplies, variables.ecrEnabled && ("k8s" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage4, k8sApplies
+                        ? regex.replace(stage3, "^(registry\\.k8s\\.io/)(.*)$", variables.registryBase + "/k8s/\\2")
+                        : stage3,
+                    cel.bind(ecrPublicApplies, variables.ecrEnabled && ("ecr-public" in variables.enabledPullThroughRegistries),
+                      ecrPublicApplies
+                        ? regex.replace(stage4, "^(public\\.ecr\\.aws/)(.*)$", variables.registryBase + "/ecr-public/\\2")
+                        : stage4
+                    )))))))))
+                }))
+              : optional.none(),
+            ?ephemeralContainers: object.spec.?ephemeralContainers.hasValue()
+              ? optional.of(object.spec.ephemeralContainers.map(c, Object.spec.ephemeralContainers{
+                  name: c.name,
+                  image: cel.bind(dockerhubApplies, variables.ecrEnabled && ("docker-hub" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage1, dockerhubApplies
+                        ? regex.replace(regex.replace(c.image, "^(?:docker\\.io/)?([^:\\W/]*)(:.*)?$", "library/\\1\\2"), "^(?:docker\\.io/)?([^\\.\\.W]*)/(.*)$", variables.registryBase + "/docker-hub/\\1/\\2")
+                        : c.image,
+                    cel.bind(quayApplies, variables.ecrEnabled && ("quay" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage2, quayApplies
+                        ? regex.replace(stage1, "^(quay\\.io/)(.*)$", variables.registryBase + "/quay/\\2")
+                        : stage1,
+                    cel.bind(githubApplies, variables.ecrEnabled && ("github" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage3, githubApplies
+                        ? (stage2.matches("^ghcr\\.io/cloudnative-pg") ? stage2 : regex.replace(stage2, "^(ghcr\\.io/)(.*)$", variables.registryBase + "/github/\\2"))
+                        : stage2,
+                    cel.bind(k8sApplies, variables.ecrEnabled && ("k8s" in variables.enabledPullThroughRegistries),
+                    cel.bind(stage4, k8sApplies
+                        ? regex.replace(stage3, "^(registry\\.k8s\\.io/)(.*)$", variables.registryBase + "/k8s/\\2")
+                        : stage3,
+                    cel.bind(ecrPublicApplies, variables.ecrEnabled && ("ecr-public" in variables.enabledPullThroughRegistries),
+                      ecrPublicApplies
+                        ? regex.replace(stage4, "^(public\\.ecr\\.aws/)(.*)$", variables.registryBase + "/ecr-public/\\2")
+                        : stage4
+                    )))))))))
+                }))
+              : optional.none()
+          }
+        }
 {{- end }}

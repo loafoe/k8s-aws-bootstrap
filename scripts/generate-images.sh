@@ -65,9 +65,13 @@ extract_refs() {
         function emit(v) {
             gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
             gsub(/^["\047]|["\047]$/, "", v)
-            # {{ ... }}: CEL/Go templates rather than literal references. The ECR
-            # pull-through rewrite policy in charts/bootstrap looks like this.
-            if (v == "" || v ~ /{{/) return
+            # Go templates ({{ ... }}) and CEL expressions are not literal
+            # references -- the ECR pull-through rewrite policy in
+            # charts/bootstrap puts an image through either, depending on
+            # policy API version. A real image reference is just
+            # [registry/]repo[:tag][@digest]: never {{, (, or whitespace,
+            # which a CEL expression (e.g. cel.bind(...)) always has.
+            if (v == "" || v ~ /{{/ || v ~ /\(/ || v ~ /[[:space:]]/) return
             print v
         }
         function flush(   i, n, lines, v) {
