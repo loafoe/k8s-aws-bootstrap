@@ -82,6 +82,9 @@ environmentConfig:
     additionalClusterFqdns: []
     clusterHost: ""
     clusterEndpoint: ""
+    # The control plane's kind (k3s-on-ec2's controlPlane output): k3s (default when empty), the
+    # only one this chart bootstraps so far. The k3s-only parts render only for k3s
+    controlPlane: ""
 
     # Public certificates (k3s-on-ec2 certificateIssuer): letsencrypt (default when empty) or
     # acm, with the cluster's ACM ACME endpoint and external account binding key ID. The

@@ -1,4 +1,7 @@
 {{- include "bootstrap.validateRequiredValues" . -}}
 {{- include "bootstrap.validateHspAwsPlatformValues" . -}}
+{{- include "bootstrap.validateControlPlane" . -}}
+{{- if include "bootstrap.isK3s" . }}
 {{- include "bootstrap.validateK3sValues" . -}}
+{{- end }}
 {{- include "bootstrap.validateCertificateValues" . -}}

@@ -1,3 +1,5 @@
+{{- /* k3s only: EKS runs this webhook in its control plane */ -}}
+{{- if include "bootstrap.isK3s" . -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -44,3 +46,4 @@ spec:
         factor: 2
         maxDuration: 3m
   revisionHistoryLimit: 3
+{{- end }}

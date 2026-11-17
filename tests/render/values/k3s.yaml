@@ -1,0 +1,65 @@
+# The values the HelmApplication composition passes charts/bootstrap on a k3s-on-ec2 cluster:
+# environmentConfig is the EnvironmentConfig k3s-on-ec2 renders (its golden fixture "dip-ce",
+# pkg/cluster/testdata/golden), features the bootstrap HelmApplication's valuesObject.
+# The mocks there leave ARNs empty; those are filled in with what a real stack has.
+# scripts/check-bootstrap-render.sh renders the chart with it.
+features:
+  gatewayApi:
+    enabled: true
+  hspAwsPlatform:
+    enabled: true
+environmentConfig:
+  resourcePrefix: "acme-k3s"
+  region: "eu-west-2"
+  clusterFqdn: "acme-k3s.example.com"
+  accountId: "123456789012"
+  partition: "aws"
+  sharedServicesAccountId: "124355645143"
+  owner: "team"
+  managedBy: "api"
+  bootstrap:
+    clusterName: "acme-k3s-cluster"
+    owner: "team"
+    managedBy: "api"
+    awsRegion: "eu-west-2"
+    awsAccountId: "123456789012"
+    resourcePrefix: "acme-k3s"
+    awsPartition: "aws"
+    awsLbcRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-aws-load-balancer-controller-role"
+    clusterFqdn: "acme-k3s.example.com"
+    additionalClusterFqdns: []
+    awsVpcId: "acme-k3s-vpc-id"
+    awsExternalDnsRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-external-dns-role"
+    oidcProvider: "k3s-issuer.acme-k3s.example.com"
+    awsEbsCsiDriverRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-ebs-csi-driver-role"
+    karpenterRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-karpenter-role"
+    karpenterInstanceProfile: "KarpenterNodeInstanceProfile-acme-k3s-cluster"
+    karpenterInterruptionQueueName: "acme-k3s-cluster"
+    sshKeyPairName: "acme-k3s-ssh-keypair"
+    certManagerRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-cert-manager-role"
+    crossplaneProviderAwsIamRoleArn: "arn:aws:iam::123456789012:role/acme-k3s-crossplane-provider-aws-iam-role"
+    oidcProviderArn: "arn:aws:iam::123456789012:oidc-provider/k3s-issuer.acme-k3s.example.com"
+    k3sTokenParameterName: "/acme-k3s/acme-k3s-cluster/node-token"
+    k3sVersionParameterName: "/acme-k3s/acme-k3s-cluster/k3s-version"
+    clusterEndpoint: "https://k3s.acme-k3s.example.com:6443"
+    clusterHost: "k3s.acme-k3s.example.com"
+    k3sChannel: ""
+    k3sVersion: "v1.37.2+k3s1"
+    ecrPullThroughCachePolicyArn: "arn:aws:iam::123456789012:policy/acme-k3s-ecr-pull-through-cache-policy"
+    ecrPullThroughCachePolicyName: "acme-k3s-ecr-pull-through-cache-policy"
+    awsPrivateSubnetIds: '["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]'
+    awsRdsSubnetGroup: '{"arn":"","id":"acme-k3s-rds-subnet-group","name":"acme-k3s-rds-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsRdsSecurityGroups: '{"arn":"","id":"acme-k3s-rds-sg-id","name":""}'
+    awsElasticacheSubnetGroup: '{"arn":"","id":"acme-k3s-elasticache-subnet-group","name":"acme-k3s-elasticache-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsElasticacheSecurityGroups: '{"arn":"","id":"acme-k3s-elasticache-sg-id","name":""}'
+    awsActivemqSecurityGroups: '{"arn":"","id":"acme-k3s-activemq-sg-id","name":""}'
+    awsRedshiftSubnetGroup: '{"arn":"","id":"acme-k3s-redshift-subnet-group","name":"acme-k3s-redshift-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsRedshiftSecurityGroups: '{"arn":"","id":"acme-k3s-redshift-sg-id","name":""}'
+    enableDualStack: false
+    ipv4ClusterCIDR: "10.42.0.0/16"
+    ipv6ClusterCIDR: "fd00::/48"
+    nodeOs: "al2023"
+    selinuxMode: "permissive"
+    certificateIssuer: "letsencrypt"
+    acmeDirectoryUrl: ""
+    acmeEabKeyId: ""

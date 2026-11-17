@@ -1,0 +1,42 @@
+name: Bootstrap Render
+
+# tests/render/golden is what charts/bootstrap renders for a k3s-on-ec2 cluster (single- and
+# dual-stack fixtures in tests/render/values). A change that should not alter what clusters
+# get must leave it identical; one that should regenerates it with
+# scripts/check-bootstrap-render.sh --update, and the diff is the review.
+
+on:
+  pull_request:
+    paths:
+      - 'charts/bootstrap/**'
+      - 'tests/render/**'
+      - 'scripts/check-bootstrap-render.sh'
+      - '.github/workflows/bootstrap-render.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'charts/bootstrap/**'
+      - 'tests/render/**'
+      - 'scripts/check-bootstrap-render.sh'
+      - '.github/workflows/bootstrap-render.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: bootstrap-render-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bootstrap-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned like images-lock: the golden files are only reproducible against a known renderer
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          # renovate: datasource=github-releases depName=helm/helm
+          version: v4.3.0
+
+      - name: Check the rendered manifests
+        run: scripts/check-bootstrap-render.sh
