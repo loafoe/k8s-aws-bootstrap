@@ -21,7 +21,9 @@ spec:
             {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           settings:
             clusterName: {{ .Values.environmentConfig.bootstrap.clusterName }}
+            {{- if include "bootstrap.isK3s" . }}{{/* EKS: Karpenter looks the endpoint up itself */}}
             clusterEndpoint: {{ .Values.environmentConfig.bootstrap.clusterEndpoint }}
+            {{- end }}
             interruptionQueue: {{ .Values.environmentConfig.bootstrap.karpenterInterruptionQueueName }}
           serviceAccount:
             annotations:

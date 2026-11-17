@@ -69,6 +69,25 @@ Validate HSP AWS Platform required values when enabled
 Validate K3S values for Karpenter EC2NodeClass
 */}}
 {{/*
+The kind of control plane the cluster has, from k3s-on-ec2's controlPlane output: k3s (default,
+also when unset), the only kind this chart bootstraps so far. The k3s-only parts (the Karpenter
+workers' k3s join, the pod identity webhook EKS has built in, aws-iam-authenticator's
+IAMIdentityMapping CRD, Karpenter's explicit API endpoint) render only for k3s; isK3s is "true"
+for it, empty otherwise.
+*/}}
+{{- define "bootstrap.controlPlane" -}}
+{{- .Values.environmentConfig.bootstrap.controlPlane | default "k3s" -}}
+{{- end -}}
+{{- define "bootstrap.isK3s" -}}
+{{- if eq (include "bootstrap.controlPlane" .) "k3s" }}true{{ end -}}
+{{- end -}}
+{{- define "bootstrap.validateControlPlane" -}}
+{{- if not (include "bootstrap.isK3s" .) -}}
+  {{- fail (printf "environmentConfig.bootstrap.controlPlane %q: this chart version only bootstraps k3s clusters" (include "bootstrap.controlPlane" .)) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 The Amazon Linux release (nodeOs) and SELinux mode of the Karpenter workers, from k3s-on-ec2's
 nodeOs and selinuxMode. Defaults: al2023 and permissive, what clusters ran before either existed.
 bootSELinuxMode is the mode that release's AMI boots in; the user data switches only from that.

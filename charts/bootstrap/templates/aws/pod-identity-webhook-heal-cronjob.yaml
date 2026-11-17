@@ -1,3 +1,5 @@
+{{- /* k3s only: heals around the in-cluster webhook, which EKS does not have */ -}}
+{{- if include "bootstrap.isK3s" . -}}
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: restart IRSA-dependent workloads that were admitted
 # before the amazon-eks-pod-identity-webhook was ready.
@@ -303,3 +305,4 @@ spec:
             operator: Exists
           - key: node.cilium.io/agent-not-ready
             operator: Exists
+{{- end }}

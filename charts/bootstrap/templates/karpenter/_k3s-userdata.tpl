@@ -1,0 +1,281 @@
+{{/*
+The user data of the k3s Karpenter workers (the k3s EC2NodeClass): installs and starts the k3s
+agent against the master, with the node's kubelet, credential provider, SELinux and dual-stack
+settings. Rendered as the userData block scalar's content, already indented four spaces, with a
+leading newline: the EC2NodeClass writes `userData: |` straight before it. An EKS EC2NodeClass
+would bring its own (nodeadm) next to this one.
+*/}}
+{{- define "bootstrap.karpenter.k3sUserData" }}
+{{- $selinuxMode := include "bootstrap.selinuxMode" . }}
+{{- $bootSELinuxMode := include "bootstrap.bootSELinuxMode" . }}
+    #!/bin/bash
+    set -e
+
+    # Avoid RPM/dnf transaction-lock races during boot. cloud-init's package
+    # module and dnf-makecache.timer can hold /var/lib/rpm/.rpm.lock while this
+    # script runs, which makes the `dnf install k3s-selinux` step inside the K3s
+    # installer fail with "can't create transaction lock on /var/lib/rpm/.rpm.lock"
+    # and "GPG check FAILED" (observed on node replacement). Stop the timer and
+    # wait for the lock before any dnf/rpm work.
+    systemctl stop dnf-makecache.timer dnf-makecache.service 2>/dev/null || true
+    systemctl disable dnf-makecache.timer 2>/dev/null || true
+
+    wait_for_rpm_lock() {
+      local timeout="${1:-120}" waited=0
+      while fuser /var/lib/rpm/.rpm.lock >/dev/null 2>&1 || \
+            fuser /var/lib/dnf/rpmdb_lock.pid >/dev/null 2>&1; do
+        if [ "$waited" -ge "$timeout" ]; then
+          echo "WARNING: RPM/dnf lock still held after ${timeout}s, proceeding anyway"
+          return 0
+        fi
+        echo "Waiting for RPM/dnf lock to be released..."
+        sleep 2
+        waited=$((waited + 2))
+      done
+    }
+
+    # ECR Credential Provider version (renovate-friendly)
+    ECR_CREDENTIAL_PROVIDER_VERSION="v1.37.0"
+    
+    # Disable firewalld (AL2023 has it enabled by default)
+    # Required for K3s networking (kubelet, VXLAN, etc.)
+    systemctl stop firewalld || true
+    systemctl disable firewalld || true
+{{- if ne $selinuxMode $bootSELinuxMode }}
+
+    # SELinux mode (selinuxMode: {{ $selinuxMode }}): this AMI boots in the other one. Switched
+    # before the K3s installer runs, which installs the k3s-selinux policy.
+    if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" != "Disabled" ]; then
+      setenforce {{ if eq $selinuxMode "enforcing" }}1{{ else }}0{{ end }}
+      sed -i 's/^SELINUX=.*/SELINUX={{ $selinuxMode }}/' /etc/selinux/config
+    fi
+    echo "SELinux: $(getenforce 2>/dev/null || echo unavailable)"
+{{- end }}
+    
+    # Install required packages (curl and awscli are pre-installed on AL2023)
+    wait_for_rpm_lock
+    dnf install -y jq git
+    
+    # Get IMDSv2 token for architecture detection
+    TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+    
+    # Detect architecture from system
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ]; then
+      ARCH="arm64"
+    elif [ "$ARCH" = "x86_64" ]; then
+      ARCH="amd64"
+    fi
+    
+    # Install ECR Credential Provider
+    mkdir -p /var/lib/rancher/credentialprovider/bin
+    curl -L "https://github.com/loafoe/cloud-provider-aws/releases/download/${ECR_CREDENTIAL_PROVIDER_VERSION}/ecr-credential-provider-linux-${ARCH}" \
+      -o /var/lib/rancher/credentialprovider/bin/ecr-credential-provider
+    chmod +x /var/lib/rancher/credentialprovider/bin/ecr-credential-provider
+    
+    # Create credential provider configuration
+    mkdir -p /var/lib/rancher/credentialprovider
+    cat > /var/lib/rancher/credentialprovider/config.yaml << 'EOF'
+    apiVersion: kubelet.config.k8s.io/v1
+    kind: CredentialProviderConfig
+    providers:
+      - name: ecr-credential-provider
+        matchImages:
+          - "*.dkr.ecr.*.amazonaws.com"
+          - "*.dkr.ecr.*.amazonaws.com.cn"
+          - "*.dkr.ecr-fips.*.amazonaws.com"
+          - "*.dkr.ecr.us-iso-east-1.c2s.ic.gov"
+          - "*.dkr.ecr.us-isob-east-1.sc2s.sgov.gov"
+        # Shorter than ECR's own 12h token lifetime on purpose: a bad/stale cached token
+        # (e.g. a transient IMDS/STS hiccup right at node boot) otherwise self-heals only
+        # once every 12h, which reads as a full node-wide pull outage for that whole window.
+        defaultCacheDuration: "1h"
+        apiVersion: credentialprovider.kubelet.k8s.io/v1
+    EOF
+    
+    # Increase file descriptor limits to handle many containers
+    # Using 100000 to account for container runtime overhead (some containers inherit ~64512 instead of 65536)
+    echo "# File descriptor limits for high container density" >> /etc/security/limits.conf
+    echo "* soft nofile 100000" >> /etc/security/limits.conf
+    echo "* hard nofile 100000" >> /etc/security/limits.conf
+    echo "root soft nofile 100000" >> /etc/security/limits.conf
+    echo "root hard nofile 100000" >> /etc/security/limits.conf
+    
+    # Set system-wide limits for systemd services
+    mkdir -p /etc/systemd/system.conf.d
+    cat > /etc/systemd/system.conf.d/limits.conf << 'EOF'
+    [Manager]
+    DefaultLimitNOFILE=100000
+    DefaultLimitNPROC=32768
+    EOF
+    
+    # Set limits for current session
+    ulimit -n 100000
+    ulimit -u 32768
+    
+    # Reload systemd to pick up new limits
+    systemctl daemon-reload
+    
+    # Create K3s service override to ensure it gets higher limits
+    mkdir -p /etc/systemd/system/k3s-agent.service.d
+    cat > /etc/systemd/system/k3s-agent.service.d/limits.conf << 'EOF'
+    [Service]
+    LimitNOFILE=100000
+    LimitNPROC=32768
+    EOF
+    
+    # Get instance metadata for provider-id using IMDSv2 (reuse TOKEN from earlier)
+    INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
+    AZ=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+    REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/region)
+    INSTANCE_TYPE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-type)
+
+    # Get the primary ENI ID and enable primary IPv6 for dualstack NLB support
+    MAC=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/mac)
+    ENI_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/interface-id)
+
+    if [ -n "$ENI_ID" ]; then
+      echo "Enabling primary IPv6 on ENI $ENI_ID for dualstack NLB support..."
+      aws ec2 modify-network-interface-attribute \
+        --network-interface-id "$ENI_ID" \
+        --enable-primary-ipv6 \
+        --region "$REGION" || echo "Warning: Failed to enable primary IPv6 (may not be supported or already enabled)"
+    fi
+{{- if .Values.environmentConfig.bootstrap.enableDualStack }}
+
+    # Dual-stack: register the node with its IPv4 and its IPv6 address (--node-ip below).
+    # With only an IPv4 InternalIP, Cilium's kube-proxy replacement has no global IPv6
+    # node address to serve NodePorts on, so a dualstack NLB's IPv6 health checks fail.
+    # When the ENI came up without an IPv6 address, assign one (the node role has
+    # ec2:AssignIpv6Addresses through the CNI policy) and make it the primary.
+    PRIVATE_IP=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
+    eni_ipv6() {
+      curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC/ipv6s" | head -n1 || true
+    }
+    IPV6_ADDRESS=$(eni_ipv6)
+    if [ -z "$IPV6_ADDRESS" ] && [ -n "$ENI_ID" ]; then
+      echo "ENI $ENI_ID has no IPv6 address, assigning one..."
+      if aws ec2 assign-ipv6-addresses --network-interface-id "$ENI_ID" \
+          --ipv6-address-count 1 --region "$REGION" >/dev/null; then
+        aws ec2 modify-network-interface-attribute --network-interface-id "$ENI_ID" \
+          --enable-primary-ipv6 --region "$REGION" || true
+        for _ in $(seq 1 30); do
+          IPV6_ADDRESS=$(eni_ipv6)
+          [ -n "$IPV6_ADDRESS" ] && break
+          sleep 2
+        done
+      else
+        echo "Warning: failed to assign an IPv6 address to $ENI_ID"
+      fi
+    fi
+    case "$IPV6_ADDRESS" in
+      *:*) NODE_IP="$PRIVATE_IP,$IPV6_ADDRESS" ;;
+      *)   NODE_IP="$PRIVATE_IP"; echo "Warning: no IPv6 address, registering IPv4 only" ;;
+    esac
+    echo "Node IPs: $NODE_IP"
+{{- end }}
+
+    # Retrieve K3s token securely from AWS Systems Manager Parameter Store
+    K3S_TOKEN=$(aws ssm get-parameter \
+      --name "{{ .Values.environmentConfig.bootstrap.k3sTokenParameterName }}" \
+      --with-decryption \
+      --region "$REGION" \
+      --query "Parameter.Value" \
+      --output text)
+    
+    if [ -z "$K3S_TOKEN" ]; then
+      echo "Failed to retrieve K3s token from Parameter Store"
+      exit 1
+    fi
+    
+    # K3s version injected from EnvironmentConfig (used for drift detection)
+    INJECTED_K3S_VERSION="{{ .Values.environmentConfig.bootstrap.k3sVersion }}"
+
+    # Retrieve K3s version from AWS Systems Manager Parameter Store (authoritative)
+    DETECTED_K3S_VERSION=$(aws ssm get-parameter \
+      --name "{{ .Values.environmentConfig.bootstrap.k3sVersionParameterName }}" \
+      --region "$REGION" \
+      --query "Parameter.Value" \
+      --output text || echo "")
+
+    if [ -n "$DETECTED_K3S_VERSION" ] && [ "$DETECTED_K3S_VERSION" != "null" ]; then
+      echo "Using K3s version from SSM Parameter Store: $DETECTED_K3S_VERSION"
+
+      # Check for drift between EnvironmentConfig and Parameter Store
+      if [ -n "$INJECTED_K3S_VERSION" ] && [ "$INJECTED_K3S_VERSION" != "$DETECTED_K3S_VERSION" ]; then
+        echo "WARNING: K3s version drift detected!"
+        echo "  - EnvironmentConfig (bootstrap.k3sVersion): $INJECTED_K3S_VERSION"
+        echo "  - Parameter Store (authoritative): $DETECTED_K3S_VERSION"
+        echo "  Using Parameter Store value as the authoritative source."
+        echo "  Consider updating EnvironmentConfig to match Parameter Store."
+      fi
+
+      export INSTALL_K3S_VERSION="$DETECTED_K3S_VERSION"
+    else
+      echo "Failed to retrieve K3s version from SSM, falling back to channel: {{ .Values.environmentConfig.bootstrap.k3sChannel }}"
+      export INSTALL_K3S_CHANNEL="{{ .Values.environmentConfig.bootstrap.k3sChannel }}"
+    fi
+
+    # Export K3s environment variables for agent installation
+    export K3S_TOKEN="$K3S_TOKEN"
+    export K3S_URL="{{ .Values.environmentConfig.bootstrap.clusterEndpoint }}"
+
+    # Install K3s agent. Retry because the installer runs
+    # `dnf install k3s-selinux`, which can transiently fail on a held RPM lock
+    # (see wait_for_rpm_lock above).
+    #
+    # register-with-taints carries two taints:
+    #   - karpenter.sh/unregistered: lifted by Karpenter once the node is Ready.
+    #   - node.cilium.io/agent-not-ready: lifted by cilium-operator (removeNodeTaints)
+    #     once this node's cilium-agent is Running/Ready. Without it, kubelet marks
+    #     the node Ready and the scheduler can place pods here before Cilium's
+    #     datapath (incl. WireGuard peering) has converged, causing apiserver<->kubelet
+    #     proxy 502s and broken pod egress on the node until it catches up. Mirrors the
+    #     same taint already registered for the master in master-userdata.sh.tmpl.
+    k3s_install_attempts=3
+    for attempt in $(seq 1 "$k3s_install_attempts"); do
+      wait_for_rpm_lock
+      if curl -sfL https://get.k3s.io | sh -s - \
+        --node-name kworker-$INSTANCE_ID \
+        --kubelet-arg="feature-gates=InPlacePodVerticalScaling=true" \
+        --kubelet-arg="provider-id=aws:///$AZ/$INSTANCE_ID" \
+        --kubelet-arg="cloud-provider=external" \
+        --kubelet-arg="register-with-taints=karpenter.sh/unregistered=true:NoExecute,node.cilium.io/agent-not-ready=true:NoSchedule" \
+        --kubelet-arg="kube-reserved=cpu=250m,memory=512Mi,ephemeral-storage=1Gi" \
+        --kubelet-arg="system-reserved=cpu=250m,memory=384Mi,ephemeral-storage=1Gi" \
+        --kubelet-arg="enforce-node-allocatable=pods" \
+        --kubelet-arg="max-pods=100" \
+        --kubelet-arg="image-credential-provider-config=/var/lib/rancher/credentialprovider/config.yaml" \
+        --kubelet-arg="image-credential-provider-bin-dir=/var/lib/rancher/credentialprovider/bin" \
+        --node-label="node.kubernetes.io/instance-type=$INSTANCE_TYPE" \
+        --node-label="topology.kubernetes.io/zone=$AZ"{{ if .Values.environmentConfig.bootstrap.enableDualStack }} \
+        --node-ip="$NODE_IP"{{ end }}{{ if eq $selinuxMode "enforcing" }} \
+        --selinux{{ end }}; then
+        echo "K3s agent install succeeded (attempt $attempt/$k3s_install_attempts)"
+        break
+      fi
+      if [ "$attempt" -ge "$k3s_install_attempts" ]; then
+        echo "ERROR: K3s agent install failed after $k3s_install_attempts attempts"
+        exit 1
+      fi
+      echo "K3s agent install failed (attempt $attempt/$k3s_install_attempts); retrying in 15s..."
+      sleep 15
+    done
+    
+    # Verify K3s agent is running
+    systemctl daemon-reload  # Reload again to pick up K3s service overrides
+    systemctl enable k3s-agent
+    systemctl start k3s-agent
+    
+    # Wait for kubelet to be ready and node to register
+    while ! systemctl is-active --quiet k3s-agent; do
+      echo "Waiting for k3s-agent to be active..."
+      sleep 5
+    done
+    
+    # Wait for node to appear in cluster (the taint removal will be handled by Karpenter)
+    echo "K3s agent started successfully. Node should be registering with cluster..."
+    
+    # Log successful completion
+    echo "Node $(hostname) has completed K3s agent setup"
+{{- end }}
