@@ -25,6 +25,20 @@ spec:
             clusterEndpoint: {{ .Values.environmentConfig.bootstrap.clusterEndpoint }}
             {{- end }}
             interruptionQueue: {{ .Values.environmentConfig.bootstrap.karpenterInterruptionQueueName }}
+            # Upstream default is 1m (the minimum allowed). Each refresh tick drives the
+            # EC2NodeClass controller's status-validation reconcile, which creates a
+            # throwaway EC2 Launch Template to confirm the AMI/subnet/SG selectors still
+            # resolve, then deletes it ~1min later via an internal cache TTL - independent
+            # of any actual node launch. At 1m this produced ~50 create+delete cycles/day
+            # with zero node churn, and every deletion leaves a permanent, never-archived
+            # NOT_APPLICABLE finding in the OrgConfigRule-ec2-launch*-ebs-*encrypted*
+            # Security Hub checks (7,688 such ghost findings as of 2026-11-14, 0 of them
+            # actually non-compliant - this account's root EBS volume has been
+            # encrypted: true since this EC2NodeClass template was created). 10m is still
+            # far more responsive than real AMI/subnet/SG change cadence.
+            amiRefreshInterval: 10m
+            subnetRefreshInterval: 10m
+            securityGroupRefreshInterval: 10m
           serviceAccount:
             annotations:
               eks.amazonaws.com/role-arn: {{ .Values.environmentConfig.bootstrap.karpenterRoleArn }}
