@@ -32,7 +32,7 @@ quay.io/cilium/hubble-ui-backend:v0.13.6@sha256:83b3fc763f3d49948c306bf49b082773
 quay.io/cilium/hubble-ui:v0.13.6@sha256:049a80a03585c043d0c3121bdc518c72b0fd42bae07e4bcce0fdb8f1e88041d0
 quay.io/cilium/operator-generic:v1.20.5@sha256:c6e7de6665aa9701db86c4fe46828a75a0d167afe084a9ffb5bce34b2c4fa8c4
 # --- charts/cloudnative-pg
-ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1
+ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2
 ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.16.0
 # --- charts/crossplane
 ghcr.io/crossplane/crossplane:v2.4.3
