@@ -1,9 +1,9 @@
 apiVersion: v2
 name: karpenter
-version: 0.1.7
+version: 0.1.8
 description: Thin wrapper for Karpenter
 dependencies:
   - name: karpenter
     # renovate: datasource=github-releases depName=aws/karpenter-provider-aws
-    version: "1.15.2"
+    version: "1.15.3"
     repository: "oci://public.ecr.aws/karpenter"
