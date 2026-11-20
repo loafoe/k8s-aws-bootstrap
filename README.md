@@ -43,7 +43,8 @@ change to them has to move the chart's own `version:`.
 - **Dependency changes** (`Chart.yaml` dependency version, `Chart.lock`,
   vendored tarballs) bump the version for you. The `helm-deps-sync.sh`
   pre-commit hook and the `Update Helm Dependencies` workflow both re-vendor
-  and bump in the same commit.
+  and bump in the same commit (the workflow also regenerates `images.lock`
+  on `renovate/*` branches and `main`).
 - **Hand-written changes** to `values.yaml` or `templates/` need a manual
   bump: `./scripts/bump-chart-version.sh charts/<name>`. The `Chart Version
   Check` workflow fails a pull request that changes either without raising
@@ -57,7 +58,10 @@ change to them has to move the chart's own `version:`.
 bootstrapped against a mirror or a warmed registry cache. It is generated from
 the vendored charts — see [`docs/image-precache.md`](docs/image-precache.md) —
 and the `Images Lock` workflow fails a pull request that changes the charts
-without regenerating it:
+without regenerating it. On repository-local `renovate/*` branches the
+`Update Helm Dependencies` workflow regenerates it in the same commit as the
+re-vendored tarballs and the version bump; forks and human-authored branches
+are never pushed to, so refresh it by hand there:
 
 ```bash
 ./scripts/generate-images.sh > images.lock

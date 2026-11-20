@@ -33,7 +33,10 @@ if ! diff -u images.lock "$tmp"; then
 
 images.lock no longer matches what the pinned charts render.
 
-Refresh it and commit the result:
+On a repository-local renovate/* branch (and on main) the `Update Helm
+Dependencies` workflow regenerates it for you and pushes the result; wait for
+it and re-run this check. Fork and human-authored branches are never pushed to
+by the bot, so refresh it by hand and commit the result:
 
     ./scripts/generate-images.sh > images.lock
 

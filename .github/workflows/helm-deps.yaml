@@ -21,8 +21,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # helm and yq are pinned to the versions the Images Lock workflow checks
+      # with (.github/workflows/images-lock.yaml). The generator here and the
+      # check there must render with the same tools, or every regenerated
+      # images.lock shows up as a diff in the check. Keep the two in lockstep.
       - name: Set up Helm
         uses: azure/setup-helm@v4
+        with:
+          # renovate: datasource=github-releases depName=helm/helm
+          version: v4.3.0
+
+      - name: Set up yq
+        env:
+          # renovate: datasource=github-releases depName=mikefarah/yq
+          YQ_VERSION: v4.53.6
+        run: |
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" \
+            -o /tmp/yq
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
+          yq --version
 
       - name: Update chart dependencies on Renovate branches
         env:
@@ -46,10 +63,33 @@ jobs:
             return 1
           }
 
+          # Same retry for the images.lock render: `oci://` Applications are
+          # pulled while rendering, so it can hit the same throttling.
+          regenerate_images_lock() {
+            local attempt out
+            out=$(mktemp)
+            for attempt in 1 2 3; do
+              if "$GITHUB_WORKSPACE/scripts/generate-images.sh" >"$out"; then
+                mv "$out" images.lock
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "  generate-images.sh failed (attempt $attempt), retrying in $((attempt * 30))s"
+                sleep $((attempt * 30))
+              fi
+            done
+            rm -f "$out"
+            return 1
+          }
+
           # branch:chart pairs that could not be re-vendored, reported at the end
           failures=""
 
-          branches=$(gh pr list --repo ${{ github.repository }} --state open --json headRefName --jq '.[] | select(.headRefName | startswith("renovate/")) | .headRefName')
+          # Only repository-local renovate/* branches are ever pushed to. A fork
+          # PR can carry a head branch with the same name, so isCrossRepository
+          # is filtered out: forks and human-authored branches are never
+          # modified and keep failing their checks with the manual instructions.
+          branches=$(gh pr list --repo ${{ github.repository }} --state open --json headRefName,isCrossRepository --jq '.[] | select((.isCrossRepository | not) and (.headRefName | startswith("renovate/"))) | .headRefName')
           # main is checked too: a version bump can land on main without anyone
           # re-vendoring, and no renovate PR exists to trigger the check above.
           branches="$branches
@@ -90,6 +130,24 @@ jobs:
                 fi
               fi
             done
+
+            # images.lock follows the vendored charts, so regenerate it after
+            # the re-vendor and ship it in the same commit. It runs on every
+            # branch, not only re-vendored ones: the tarballs may already have
+            # been pushed (or hand-edited) while the lock is still stale. A
+            # failed render leaves the existing images.lock untouched.
+            if [ -f images.lock ]; then
+              if regenerate_images_lock; then
+                if ! git diff --quiet -- images.lock; then
+                  echo "  Regenerated images.lock"
+                  updated=true
+                fi
+              else
+                echo "::error::Could not regenerate images.lock on $branch"
+                git checkout -- images.lock
+                failures="$failures $branch:images.lock"
+              fi
+            fi
 
             if [ "$updated" = true ]; then
               git config user.name "github-actions[bot]"
