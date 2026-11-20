@@ -6,7 +6,7 @@
 #
 # For each fixture in tests/render/values (and the optional features on top of each), it
 # renders charts/bootstrap, then every child Application the way Argo CD does (its chart
-# with its valuesObject; OCI charts are pulled), and fails on:
+# with its Helm values; OCI charts are pulled), and fails on:
 #   - an Application outside the project, or with a source/destination the project lacks
 #   - a resource in a namespace the project lacks (child charts write outside their
 #     Application's namespace too, e.g. cilium-secrets, kube-system)
@@ -76,7 +76,12 @@ for values in tests/render/values/*.yaml; do
             grep -qxF "$url" <<<"$allowed_repos" || fail "$label: Application $app's source $url is not permitted in project $project"
             [ -z "$dest_ns" ] || ns_ok "$dest_ns" || fail "$label: Application $app's destination namespace $dest_ns is not permitted in project $project"
 
-            jq '.spec.source.helm.valuesObject // {}' "$work/app.json" >"$work/values.json"
+            # Argo CD's rule: valuesObject when set, else the values string
+            if jq -e '.spec.source.helm.valuesObject != null' "$work/app.json" >/dev/null; then
+                jq '.spec.source.helm.valuesObject' "$work/app.json" >"$work/values.json"
+            else
+                jq -r '.spec.source.helm.values // ""' "$work/app.json" >"$work/values.json"
+            fi
             if [[ "$url" == oci://* ]]; then
                 chart=("$url" --version "$rev")
             elif [ "$url" = https://github.com/loafoe/k8s-aws-bootstrap ]; then

@@ -24121,7 +24121,11 @@ spec:
     path: charts/descheduler
     targetRevision: HEAD
     helm:
-      valuesObject:
+      # values, not valuesObject: the Application CRD drops nulls from valuesObject (a permanent
+      # diff, and Helm never sees the null). The null deletes the upstream chart's 500m CPU
+      # limit; Helm honours it only from a values overlay, not from charts/descheduler's own
+      # values.yaml.
+      values: |
         descheduler:
           commonLabels:
             
@@ -24129,10 +24133,6 @@ spec:
           podLabels:
             
             owner: "team"
-          # Upstream chart defaults resources.limits.cpu to 500m; null here is required
-          # to actually delete the inherited key (overriding it in charts/descheduler's
-          # own values.yaml has no effect, since Helm only honors null-deletion for an
-          # externally supplied values overlay, not a chart's own bundled defaults).
           resources:
             limits:
               cpu: null
