@@ -39,7 +39,7 @@ ghcr.io/crossplane/crossplane:v2.4.3
 # --- charts/descheduler
 registry.k8s.io/descheduler/descheduler:v0.37.0
 # --- charts/external-dns
-registry.k8s.io/external-dns/external-dns:v0.23.0
+registry.k8s.io/external-dns/external-dns:v0.24.0
 # --- charts/external-secrets
 ghcr.io/external-secrets/external-secrets:v2.15.0
 # --- charts/karpenter
