@@ -74,6 +74,10 @@ spec:
     spec:
       serviceAccountName: bootstrap-project-migration
       restartPolicy: OnFailure
+      # Wave -9 runs before Karpenter exists: on a new cluster the tainted master is the only node
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
