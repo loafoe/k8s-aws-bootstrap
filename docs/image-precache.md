@@ -14,6 +14,13 @@ It is generated from the vendored charts, so it never needs a cluster:
 `./scripts/check-images-lock.sh` (run by the `Images Lock` workflow) fails when
 the two disagree, which is what happens on every Renovate chart bump.
 
+On repository-local `renovate/*` branches (and `main`) the `Update Helm
+Dependencies` workflow regenerates the lock in the same commit as the
+re-vendored tarballs, `Chart.lock` and wrapper version bump, so no manual step
+is needed. It uses the same pinned `helm` and `yq` as the check; change them in
+both workflows together. Fork PRs and human-authored branches are never pushed
+to — run the command above and commit the result.
+
 ## What it contains
 
 For each chart, `helm template` is run the way ArgoCD runs it — with the values
