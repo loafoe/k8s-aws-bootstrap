@@ -23921,6 +23921,13 @@ spec:
           podLabels:
             
             owner: "team"
+          # Upstream chart defaults resources.limits.cpu to 500m; null here is required
+          # to actually delete the inherited key (overriding it in charts/descheduler's
+          # own values.yaml has no effect, since Helm only honors null-deletion for an
+          # externally supplied values overlay, not a chart's own bundled defaults).
+          resources:
+            limits:
+              cpu: null
   destination:
     server: https://kubernetes.default.svc
     namespace: descheduler
