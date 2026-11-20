@@ -10,7 +10,7 @@ spec:
   destination:
     namespace: kyverno
     server: https://kubernetes.default.svc
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kyverno

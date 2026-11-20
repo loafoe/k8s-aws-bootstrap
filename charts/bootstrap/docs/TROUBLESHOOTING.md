@@ -73,3 +73,25 @@ Best practices:
 - When upgrading crossplane core, also sync/restart functions
 - Monitor function health status
 - If automating crossplane upgrades, include a rolling restart of the crossplane deployment after function upgrades
+
+# Argo CD Project Troubleshooting
+
+## The root app no longer syncs: "is not permitted in project"
+
+### Symptoms
+
+`bootstrap` (or a child Application) fails to sync with `namespace X is not permitted in project 'k8s-aws-bootstrap'`, `resource G:K is not permitted in project ...` or `application repo ... is not permitted in project ...`.
+
+### Root Cause
+
+Every bootstrap Application, the root included, runs in the `k8s-aws-bootstrap` AppProject that `templates/argo-cd/appproject.yaml` renders. Argo CD checks a whole sync against the project before applying anything, so once the live project lacks a namespace or source that the root still deploys, the root cannot sync the commit that adds it back. `scripts/check-appproject.sh` (run in CI) is meant to catch this before merge.
+
+### Fix
+
+Sync only the AppProject. A selective sync checks only the selected resources:
+
+```bash
+argocd app sync bootstrap --resource argoproj.io:AppProject:k8s-aws-bootstrap
+```
+
+Without the CLI, add the missing entry to the live project with `kubectl edit appproject k8s-aws-bootstrap -n argocd`. The next root sync overwrites it with the rendered spec.

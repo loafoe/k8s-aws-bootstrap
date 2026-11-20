@@ -1,0 +1,40 @@
+{{- if ne .Values.project "default" }}
+{{- /*
+The project every bootstrap Application, the root included, runs in. k3s-on-ec2 seeds it
+broad (this repo as the only source, any in-cluster namespace, any cluster-scoped kind)
+because Argo CD checks a whole sync against the project before applying anything: the
+root's first sync is checked against the seed and replaces it with this spec.
+
+The root is a member of the project it renders, so dropping a source or namespace it still
+uses blocks its next sync. scripts/check-appproject.sh renders every child chart and fails
+on anything not listed here. Recovery if it happens anyway:
+  argocd app sync bootstrap --resource argoproj.io:AppProject:<project>
+*/}}
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.project }}
+  namespace: argocd
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Cluster add-ons deployed by k8s-aws-bootstrap
+  sourceRepos:
+    - https://github.com/loafoe/k8s-aws-bootstrap
+    - oci://ghcr.io/philips-software/helm-charts/common-bootstrap
+    - oci://ghcr.io/philips-software/helm-charts/crossplane-functions
+    - oci://ghcr.io/philips-software/helm-charts/crossplane-providers
+  destinations:
+    {{- range .Values.projectNamespaces }}
+    - server: https://kubernetes.default.svc
+      namespace: {{ . }}
+    {{- end }}
+  # CRDs, cluster RBAC, webhooks, Kyverno policies, StorageClasses, NodePools, ...: the
+  # union over every add-on is effectively everything
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+{{- end }}

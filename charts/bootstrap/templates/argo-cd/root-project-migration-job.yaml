@@ -1,0 +1,128 @@
+{{- if ne .Values.project "default" }}
+# Moves the root Application into .Values.project on clusters bootstrapped before
+# k3s-on-ec2 seeded the project (their root was created in "default" and k3s-on-ec2 never
+# re-applies it). Runs right after the AppProject is synced; a no-op once the root is in it.
+# The root comes from a HelmApplication (patched there, Crossplane would revert the
+# Application) or, without one, from a plain Application nothing owns.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+- apiGroups: ["dip.io"]
+  resources: ["helmapplications"]
+  resourceNames: [{{ .Release.Name | quote }}]
+  verbs: ["get", "patch"]
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  resourceNames: [{{ .Release.Name | quote }}]
+  verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bootstrap-project-migration
+subjects:
+- kind: ServiceAccount
+  name: bootstrap-project-migration
+  namespace: argocd
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      name: bootstrap-project-migration
+      labels:
+        {{- include "bootstrap.ownerLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: bootstrap-project-migration
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: migrate
+        # renovate: datasource=docker depName=alpine/k8s
+        image: alpine/k8s:1.37.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop:
+              - ALL
+        env:
+        - name: HOME
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        - name: ROOT
+          value: {{ .Release.Name | quote }}
+        - name: PROJECT
+          value: {{ .Values.project | quote }}
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        command:
+        - sh
+        - -c
+        - |
+          set -eu
+          if kubectl get helmapplications.dip.io "$ROOT" -n argocd >/dev/null 2>&1; then
+            kind=helmapplications.dip.io
+          elif [ -z "$(kubectl get applications.argoproj.io "$ROOT" -n argocd -o jsonpath='{.metadata.ownerReferences}')" ]; then
+            kind=applications.argoproj.io
+          else
+            echo "Application $ROOT is owned by something other than a HelmApplication, leaving its project alone"
+            exit 0
+          fi
+          current="$(kubectl get "$kind" "$ROOT" -n argocd -o jsonpath='{.spec.project}')"
+          if [ "$current" = "$PROJECT" ]; then
+            echo "$kind/$ROOT is already in project $PROJECT"
+            exit 0
+          fi
+          kubectl patch "$kind" "$ROOT" -n argocd --type merge -p "{\"spec\":{\"project\":\"$PROJECT\"}}"
+          echo "moved $kind/$ROOT from project ${current:-default} to $PROJECT"
+{{- end }}

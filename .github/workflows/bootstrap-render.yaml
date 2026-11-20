@@ -4,20 +4,25 @@ name: Bootstrap Render
 # dual-stack fixtures in tests/render/values). A change that should not alter what clusters
 # get must leave it identical; one that should regenerates it with
 # scripts/check-bootstrap-render.sh --update, and the diff is the review.
+#
+# scripts/check-appproject.sh renders every child chart too and checks the bootstrap
+# AppProject permits all of it, so it also runs when a child chart (e.g. a Renovate bump) changes.
 
 on:
   pull_request:
     paths:
-      - 'charts/bootstrap/**'
       - 'tests/render/**'
+      - 'charts/**'
       - 'scripts/check-bootstrap-render.sh'
+      - 'scripts/check-appproject.sh'
       - '.github/workflows/bootstrap-render.yaml'
   push:
     branches: [main]
     paths:
-      - 'charts/bootstrap/**'
       - 'tests/render/**'
+      - 'charts/**'
       - 'scripts/check-bootstrap-render.sh'
+      - 'scripts/check-appproject.sh'
       - '.github/workflows/bootstrap-render.yaml'
   workflow_dispatch:
 
@@ -40,3 +45,6 @@ jobs:
 
       - name: Check the rendered manifests
         run: scripts/check-bootstrap-render.sh
+
+      - name: Check the AppProject permits everything the apps deploy
+        run: scripts/check-appproject.sh

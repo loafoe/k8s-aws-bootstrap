@@ -11,7 +11,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/crossplane
 spec:
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/crossplane

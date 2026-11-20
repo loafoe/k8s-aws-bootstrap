@@ -1,4 +1,28 @@
-project: "default"
+# Argo CD project of the root and every child Application (templates/argo-cd/appproject.yaml)
+project: "k8s-aws-bootstrap"
+
+# The project's destinations: every namespace the root or a child chart writes to, for any
+# combination of the features below. scripts/check-appproject.sh keeps it complete.
+projectNamespaces:
+  - argocd
+  - aws-ebs-csi-driver
+  - aws-load-balancer-controller
+  - cert-manager
+  - cilium-secrets
+  - cnpg-system
+  - common-bootstrap
+  - crossplane-system
+  - descheduler
+  - external-dns
+  - external-secrets
+  - hsp-addons
+  - karpenter
+  - kube-system
+  - kyverno
+  - kyverno-exceptions
+  - prometheus
+  - spire-system
+  - vpa-system
 
 # Feature flags for optional components
 features:

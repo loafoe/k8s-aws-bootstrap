@@ -9,7 +9,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/amazon-eks-pod-identity-webhook
 spec:
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/amazon-eks-pod-identity-webhook

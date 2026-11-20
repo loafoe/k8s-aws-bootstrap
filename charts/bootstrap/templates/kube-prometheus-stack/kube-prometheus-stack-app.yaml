@@ -10,7 +10,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kube-prometheus-stack

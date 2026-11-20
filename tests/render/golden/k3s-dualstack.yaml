@@ -98,6 +98,18 @@ metadata:
     pod-security.kubernetes.io/enforce: privileged
 
 ---
+# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+
+---
 # Source: bootstrap/templates/aws/pod-identity-webhook-heal-cronjob.yaml
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: restart IRSA-dependent workloads that were admitted
@@ -22330,6 +22342,27 @@ subjects:
   namespace: kube-system
 
 ---
+# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+- apiGroups: ["dip.io"]
+  resources: ["helmapplications"]
+  resourceNames: ["bootstrap"]
+  verbs: ["get", "patch"]
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  resourceNames: ["bootstrap"]
+  verbs: ["get", "patch"]
+
+---
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -22433,6 +22466,26 @@ spec:
     maxSessionDuration: 3600
 
 ---
+# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bootstrap-project-migration
+subjects:
+- kind: ServiceAccount
+  name: bootstrap-project-migration
+  namespace: argocd
+
+---
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -22531,6 +22584,84 @@ spec:
       port: 8443
       targetPort: federation
       protocol: TCP
+
+---
+# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-project-migration
+  namespace: argocd
+  labels:
+    
+    owner: "team"
+  annotations:
+    argocd.argoproj.io/sync-wave: "-9"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      name: bootstrap-project-migration
+      labels:
+        
+        owner: "team"
+    spec:
+      serviceAccountName: bootstrap-project-migration
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: migrate
+        # renovate: datasource=docker depName=alpine/k8s
+        image: alpine/k8s:1.37.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop:
+              - ALL
+        env:
+        - name: HOME
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        - name: ROOT
+          value: "bootstrap"
+        - name: PROJECT
+          value: "k8s-aws-bootstrap"
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        command:
+        - sh
+        - -c
+        - |
+          set -eu
+          if kubectl get helmapplications.dip.io "$ROOT" -n argocd >/dev/null 2>&1; then
+            kind=helmapplications.dip.io
+          elif [ -z "$(kubectl get applications.argoproj.io "$ROOT" -n argocd -o jsonpath='{.metadata.ownerReferences}')" ]; then
+            kind=applications.argoproj.io
+          else
+            echo "Application $ROOT is owned by something other than a HelmApplication, leaving its project alone"
+            exit 0
+          fi
+          current="$(kubectl get "$kind" "$ROOT" -n argocd -o jsonpath='{.spec.project}')"
+          if [ "$current" = "$PROJECT" ]; then
+            echo "$kind/$ROOT is already in project $PROJECT"
+            exit 0
+          fi
+          kubectl patch "$kind" "$ROOT" -n argocd --type merge -p "{\"spec\":{\"project\":\"$PROJECT\"}}"
+          echo "moved $kind/$ROOT from project ${current:-default} to $PROJECT"
 
 ---
 # Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
@@ -23018,6 +23149,14 @@ spec:
             operator: Exists
 
 ---
+# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
+# Moves the root Application into .Values.project on clusters bootstrapped before
+# k3s-on-ec2 seeded the project (their root was created in "default" and k3s-on-ec2 never
+# re-applies it). Runs right after the AppProject is synced; a no-op once the root is in it.
+# The root comes from a HelmApplication (patched there, Crossplane would revert the
+# Application) or, without one, from a plain Application nothing owns.
+
+---
 # Source: bootstrap/templates/crds/gateway-api/README.txt
 # Gateway API CRDs v1.6.3 (Standard Channel Bundle)
 #
@@ -23119,6 +23258,71 @@ spec:
 # so the CA exists in `crossplane-root-ca` before `core init` executes.
 
 ---
+# Source: bootstrap/templates/argo-cd/appproject.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: k8s-aws-bootstrap
+  namespace: argocd
+  labels:
+    
+    owner: "team"
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Cluster add-ons deployed by k8s-aws-bootstrap
+  sourceRepos:
+    - https://github.com/loafoe/k8s-aws-bootstrap
+    - oci://ghcr.io/philips-software/helm-charts/common-bootstrap
+    - oci://ghcr.io/philips-software/helm-charts/crossplane-functions
+    - oci://ghcr.io/philips-software/helm-charts/crossplane-providers
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: aws-ebs-csi-driver
+    - server: https://kubernetes.default.svc
+      namespace: aws-load-balancer-controller
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
+    - server: https://kubernetes.default.svc
+      namespace: cilium-secrets
+    - server: https://kubernetes.default.svc
+      namespace: cnpg-system
+    - server: https://kubernetes.default.svc
+      namespace: common-bootstrap
+    - server: https://kubernetes.default.svc
+      namespace: crossplane-system
+    - server: https://kubernetes.default.svc
+      namespace: descheduler
+    - server: https://kubernetes.default.svc
+      namespace: external-dns
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
+    - server: https://kubernetes.default.svc
+      namespace: hsp-addons
+    - server: https://kubernetes.default.svc
+      namespace: karpenter
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: kyverno
+    - server: https://kubernetes.default.svc
+      namespace: kyverno-exceptions
+    - server: https://kubernetes.default.svc
+      namespace: prometheus
+    - server: https://kubernetes.default.svc
+      namespace: spire-system
+    - server: https://kubernetes.default.svc
+      namespace: vpa-system
+  # CRDs, cluster RBAC, webhooks, Kyverno policies, StorageClasses, NodePools, ...: the
+  # union over every add-on is effectively everything
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+---
 # Source: bootstrap/templates/argo-cd/argocd-app.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -23130,7 +23334,7 @@ metadata:
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false,Delete=false
     argocd.argoproj.io/manifest-generate-paths: /charts/argocd
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/argocd
@@ -23196,7 +23400,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/amazon-eks-pod-identity-webhook
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/amazon-eks-pod-identity-webhook
@@ -23248,7 +23452,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/aws-ebs-csi-driver
@@ -23308,7 +23512,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/aws-load-balancer-controller
@@ -23379,7 +23583,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/external-dns
@@ -23433,7 +23637,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/snapshot-controller
@@ -23491,7 +23695,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/manifest-generate-paths: /charts/cert-manager
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cert-manager
@@ -23558,7 +23762,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
     argocd.argoproj.io/manifest-generate-paths: /charts/cilium
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cilium
@@ -23645,7 +23849,7 @@ spec:
   destination:
     name: in-cluster
     namespace: common-bootstrap
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/common-bootstrap
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/common-bootstrap
@@ -23694,7 +23898,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/crossplane
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/crossplane
@@ -23740,7 +23944,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-functions
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-functions
@@ -23789,7 +23993,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "18"
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-providers
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-providers
@@ -23913,7 +24117,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/descheduler
@@ -23969,7 +24173,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/external-secrets
@@ -24029,7 +24233,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/vertical-pod-autoscaler
@@ -24085,7 +24289,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
     argocd.argoproj.io/manifest-generate-paths: /charts/karpenter
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/karpenter
@@ -24154,7 +24358,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kube-prometheus-stack
@@ -24206,7 +24410,7 @@ spec:
   destination:
     namespace: kyverno
     server: https://kubernetes.default.svc
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kyverno
@@ -24280,7 +24484,7 @@ spec:
   destination:
     namespace: kyverno
     server: https://kubernetes.default.svc
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/policy-reporter
@@ -24320,7 +24524,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "13"
     argocd.argoproj.io/manifest-generate-paths: /charts/spire
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/spire
@@ -24422,7 +24626,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: k8s-aws-bootstrap
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/spire-crds

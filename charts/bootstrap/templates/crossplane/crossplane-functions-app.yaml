@@ -10,7 +10,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-functions
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-functions

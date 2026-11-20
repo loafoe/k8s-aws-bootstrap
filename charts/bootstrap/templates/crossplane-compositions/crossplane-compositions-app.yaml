@@ -10,7 +10,7 @@ spec:
   destination:
     name: in-cluster
     namespace: common-bootstrap
-  project: default
+  project: {{ .Values.project }}
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/common-bootstrap
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/common-bootstrap
