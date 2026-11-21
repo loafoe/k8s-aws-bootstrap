@@ -131,6 +131,46 @@ jobs:
               fi
             done
 
+            # Renovate's custom regex managers can edit chart template/values
+            # content directly (e.g. crossplaneCompositions's targetRevision
+            # in charts/bootstrap/templates/crossplane-compositions/
+            # crossplane-compositions-app.yaml) without bumping that chart's
+            # own version -- the same class of problem
+            # check-chart-version-bump.sh catches for a human-authored PR,
+            # but nothing fixed it automatically for a Renovate-authored one
+            # the way re-vendoring is fixed above (PR #440).
+            # Explicit refspec: the clone above is single-branch (--branch
+            # "$branch" --depth 1), so a bare "git fetch origin main" fetches
+            # the commit but never creates/updates refs/remotes/origin/main --
+            # the remote's fetch refspec is still restricted to the branch
+            # that was originally cloned.
+            git fetch -q --depth 1 origin main:refs/remotes/origin/main
+            for chart in charts/*/Chart.yaml; do
+              [ -f "$chart" ] || continue
+              dir=$(dirname "$chart")
+              if ! git diff --quiet origin/main -- "$dir/values.yaml" "$dir/templates" 2>/dev/null; then
+                current=$(awk '/^version:[[:space:]]*/ { v=$0; sub(/^version:[[:space:]]*/,"",v); gsub(/["'"'"'[:space:]]/,"",v); print v; exit }' "$chart")
+                before=$(git show "origin/main:$chart" 2>/dev/null | awk '/^version:[[:space:]]*/ { v=$0; sub(/^version:[[:space:]]*/,"",v); gsub(/["'"'"'[:space:]]/,"",v); print v; exit }')
+                if [ "$current" = "$before" ]; then
+                  echo "  Bumping $dir (template/values changed without a version bump)"
+                  ./scripts/bump-chart-version.sh "$dir"
+                  updated=true
+                fi
+              fi
+            done
+
+            # The rendered golden fixtures follow any charts/** content
+            # change -- a dependency re-vendor above, or the hand-authored
+            # edit just caught -- so regenerate them in the same commit, on
+            # every branch, the same way images.lock already is below.
+            if [ -f scripts/check-bootstrap-render.sh ]; then
+              scripts/check-bootstrap-render.sh --update >/dev/null 2>&1 || true
+              if ! git diff --quiet -- tests/render/golden; then
+                echo "  Regenerated golden render fixtures"
+                updated=true
+              fi
+            fi
+
             # images.lock follows the vendored charts, so regenerate it after
             # the re-vendor and ship it in the same commit. It runs on every
             # branch, not only re-vendored ones: the tarballs may already have
