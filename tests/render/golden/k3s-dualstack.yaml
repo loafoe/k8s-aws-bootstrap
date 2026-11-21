@@ -23906,7 +23906,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/crossplane
-    targetRevision: crossplane-0.1.2
+    targetRevision: crossplane-v2.4.3-0.1.2
     helm:
       valuesObject:
         crossplane:
