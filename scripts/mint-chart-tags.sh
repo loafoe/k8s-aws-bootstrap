@@ -21,9 +21,14 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 dry_run=false
-if [[ "${1:-}" == "--dry-run" ]]; then
-    dry_run=true
-fi
+case "${1:-}" in
+    "") ;;
+    --dry-run) dry_run=true ;;
+    *)
+        echo "usage: $0 [--dry-run]" >&2
+        exit 2
+        ;;
+esac
 
 # Emit "name<TAB>version" for every entry of the dependencies: block of a
 # Chart.yaml. Stops at the next top-level key. (Copied from
@@ -46,6 +51,7 @@ dump_deps() {
 
 minted=0
 failed=0
+minted_tags=()
 
 for chart_file in charts/*/Chart.yaml; do
     [[ -f "$chart_file" ]] || continue
@@ -73,10 +79,11 @@ for chart_file in charts/*/Chart.yaml; do
             continue
         fi
 
-        if ! ./scripts/check-chart-deps.sh "$dir" >/dev/null 2>&1; then
+        vendor_check="$(./scripts/check-chart-deps.sh "$dir" 2>&1)" || {
             echo "  ${dir}: not fully vendored yet, skipping"
+            echo "$vendor_check" | sed 's/^/    /'
             continue
-        fi
+        }
 
         sha="$(git log --first-parent -1 --format=%H -- "$dir")"
 
@@ -93,6 +100,7 @@ for chart_file in charts/*/Chart.yaml; do
         if git tag -a "$tag" -m "${chart_name} ${version}" "$sha" && git push origin "$tag"; then
             echo "  tagged ${tag} at ${sha}"
             minted=$((minted + 1))
+            minted_tags+=("$tag")
         else
             echo "  ${tag}: failed to tag/push, see above" >&2
             git tag -d "$tag" >/dev/null 2>&1 || true
@@ -107,7 +115,27 @@ else
     echo "No new tags."
 fi
 
-if [[ "$failed" -gt 0 ]]; then
-    echo "${failed} tag(s) failed to push; see errors above." >&2
+# Called directly here, after tagging is fully done, rather than relying on
+# bump-app-tag.yaml's own push:tags: trigger: GitHub does not start a new
+# workflow run for a ref pushed with the default GITHUB_TOKEN (its built-in
+# anti-recursion rule), confirmed experimentally -- a tag pushed by this
+# same credential at a brand new commit still didn't fire it. bump-app-tag.sh
+# switches branches as part of its own work, so it must run only after every
+# chart in the loop above has already been evaluated against a stable
+# checkout; calling it mid-loop would corrupt every later chart's
+# `git log --first-parent -- "$dir"` result.
+repoint_failed=0
+if [[ "$dry_run" != true ]]; then
+    for tag in "${minted_tags[@]:-}"; do
+        [[ -n "$tag" ]] || continue
+        if ! ./scripts/bump-app-tag.sh "$tag"; then
+            echo "  ${tag}: bump-app-tag.sh failed, see above" >&2
+            repoint_failed=$((repoint_failed + 1))
+        fi
+    done
+fi
+
+if [[ "$failed" -gt 0 || "$repoint_failed" -gt 0 ]]; then
+    echo "${failed} tag(s) failed to push, ${repoint_failed} repoint(s) failed; see errors above." >&2
     exit 1
 fi

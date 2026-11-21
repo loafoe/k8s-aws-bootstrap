@@ -9,6 +9,10 @@ on:
       tag:
         required: true
 
+concurrency:
+  group: bump-app-tag-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   bump-app-tag:
     runs-on: ubuntu-latest
@@ -26,4 +30,8 @@ jobs:
       - name: Open PR repointing targetRevision
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./scripts/bump-app-tag.sh "${{ github.event.inputs.tag || github.ref_name }}"
+          # Via env:, never interpolated directly into the run: shell line --
+          # a ref/tag name containing shell metacharacters must not be able
+          # to execute anything.
+          TARGET_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: ./scripts/bump-app-tag.sh "$TARGET_TAG"
