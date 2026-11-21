@@ -24125,7 +24125,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/descheduler
-    targetRevision: descheduler-0.37.0
+    targetRevision: descheduler-0.1.3
     helm:
       # values, not valuesObject: the Application CRD drops nulls from valuesObject (a permanent
       # diff, and Helm never sees the null). The null deletes the upstream chart's 500m CPU
