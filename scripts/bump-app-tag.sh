@@ -42,10 +42,12 @@ for chart_file in charts/*/Chart.yaml; do
     prefix="${name}-"
     [[ "$tag" == "${prefix}"* ]] || continue
 
+    # Versions may carry a leading "v" (e.g. cert-manager's v1.21.3), same
+    # as the v? stripping already done in check-chart-version-bump.sh.
     rest="${tag#"$prefix"}"
-    if [[ "$rest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [[ "$rest" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         : # single-dependency tag: "<chart>-<version>"
-    elif [[ "$rest" =~ ^[A-Za-z0-9._-]+-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    elif [[ "$rest" =~ ^[A-Za-z0-9._-]+-v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         : # multi-dependency tag: "<chart>-<depName>-<version>"
     else
         continue
