@@ -24628,7 +24628,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/spire-crds
-    targetRevision: spire-crds-0.1.1
+    targetRevision: spire-crds-0.6.1-0.1.1
   destination:
     server: https://kubernetes.default.svc
     namespace: spire-system
