@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/snapshot-controller
-    targetRevision: snapshot-controller-0.1.3
+    targetRevision: snapshot-controller-5.4.0-0.1.3
     helm:
       valuesObject:
         snapshot-controller:
