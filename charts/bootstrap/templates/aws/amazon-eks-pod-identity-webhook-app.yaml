@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/amazon-eks-pod-identity-webhook
-    targetRevision: amazon-eks-pod-identity-webhook-2.6.6
+    targetRevision: amazon-eks-pod-identity-webhook-2.6.6-0.1.2
     helm:
       valuesObject:
         amazon-eks-pod-identity-webhook:
