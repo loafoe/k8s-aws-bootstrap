@@ -24526,7 +24526,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/spire
-    targetRevision: spire-0.31.0
+    targetRevision: spire-0.1.4
     helm:
       valuesObject:
         spire:
