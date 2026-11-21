@@ -24366,7 +24366,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kube-prometheus-stack
-    targetRevision: kube-prometheus-stack-92.22.0
+    targetRevision: kube-prometheus-stack-0.1.24
     helm:
       releaseName: kps
       valuesObject:
