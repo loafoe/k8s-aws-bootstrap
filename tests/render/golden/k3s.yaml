@@ -23520,7 +23520,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/aws-load-balancer-controller
-    targetRevision: aws-load-balancer-controller-3.6.3
+    targetRevision: aws-load-balancer-controller-3.6.3-0.1.5
     helm:
       valuesObject:
         aws-load-balancer-controller:
