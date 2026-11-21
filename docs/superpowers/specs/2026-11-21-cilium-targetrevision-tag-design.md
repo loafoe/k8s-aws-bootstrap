@@ -1,7 +1,7 @@
 # Pin wrapper-chart `targetRevision` to a minted tag instead of `HEAD` (cilium pilot)
 
 **Date:** 2026-11-21
-**Status:** Proposed — not yet implemented
+**Status:** Implemented 2026-11-21 (PRs #370-#375). `cilium` migrated off `HEAD` to `cilium-1.20.5`; all 20 current `charts/*` wrapper-chart versions backfilled as tags. Both workflows run without `RENOVATE_TOKEN` (dropped in #374 — neither actually needs it; see Outcome below).
 **Author:** Project Architect & Planner
 
 ## Context
@@ -233,3 +233,37 @@ Application at a time, independently reviewable. **Cilium first**, as asked.
 - **Open:** whether the second ("adopt the tag") PR should eventually be allowed to auto-merge for
   apps that are low-risk enough, once the pattern has proven itself on cilium. Deliberately left
   as manual-merge-only in this design.
+
+## Outcome (2026-11-21)
+
+Real rollout surfaced three things this design didn't anticipate, all fixed in follow-up PRs:
+
+- **`git tag -a`/`git commit` in CI need an explicit identity** (`actions/checkout` doesn't set
+  one). Fixed in #371 by configuring `github-actions[bot]` before either script runs.
+- **Pushing any ref (tag or branch) to a commit whose `.github/workflows/**` content differs from
+  the current default branch requires more than `contents: write`** under the default
+  `GITHUB_TOKEN` — hit immediately by `argocd`'s tag, whose target commit predates later edits to
+  `bootstrap-render.yaml`. This is a one-time backfill problem, not a recurring one: a *future*
+  push's own commit always matches main's current workflow files, so it cannot recur once the
+  repo's chart history is caught up. After two wrong turns (an invalid `workflows:` permissions
+  key, which GitHub silently rejects the whole workflow file for — zero jobs scheduled, not a job
+  failure; then widening scope via `RENOVATE_TOKEN`, which the user rejected — no workflow should
+  need a shared secret's broader scope just to cover a one-time historical edge case), the actual
+  fix was to **not** solve it in CI at all: `set -e` was also wrapping the tag/push in a way that let one chart's
+  failure abort every chart sorted after it alphabetically (including `cilium` itself, sorted
+  after `argocd`) — fixed by isolating each chart's tag+push so one failure can't block the rest
+  — and the remaining old-history backfill was pushed directly with repo-owner `gh`/git
+  credentials from outside CI, a one-time operation, not a workflow concern.
+- **GitHub does not reliably fire `push: tags:`-triggered workflow runs for a tag pointing at a
+  commit already deeply embedded in existing history** (confirmed experimentally: three probe
+  tags at the current tip fired instantly; none of the 11 backfilled historical tags fired at
+  all). This only affects the one-time backfill — a real future chart bump always tags a
+  freshly-created commit, which behaves like the probes, not like the backfill. `bump-app-tag.sh
+  cilium-1.20.5` was run directly instead, for this one case.
+
+Net effect: the design's core claims held (tag-existence-driven detection worked correctly on
+real history on the first try, including the untested multi-dependency fallback for
+`cloudnative-pg`; the targetRevision-repoint PR bundled exactly the three expected file changes).
+What needed correcting was CI plumbing for a one-time backfill, not the detection/tagging logic
+itself — consistent with the portability argument above, since none of these three issues lived
+in `mint-chart-tags.sh` or `bump-app-tag.sh`.
