@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kyverno
-    targetRevision: kyverno-3.10.0
+    targetRevision: kyverno-3.10.0-0.1.4
     helm:
       valuesObject:
         kyverno:
