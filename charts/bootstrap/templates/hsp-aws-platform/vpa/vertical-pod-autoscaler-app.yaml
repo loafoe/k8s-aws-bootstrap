@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/vertical-pod-autoscaler
-    targetRevision: HEAD
+    targetRevision: vertical-pod-autoscaler-0.17.0
     helm:
       valuesObject:
         vertical-pod-autoscaler:
