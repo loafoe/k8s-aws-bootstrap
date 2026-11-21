@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cloudnative-pg
-    targetRevision: HEAD
+    targetRevision: cloudnative-pg-cloudnative-pg-0.29.2
     helm:
       valuesObject:
         cloudnative-pg:
