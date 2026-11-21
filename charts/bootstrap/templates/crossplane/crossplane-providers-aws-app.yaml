@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/crossplane-providers
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/crossplane-providers
-    targetRevision: 0.0.45
+    targetRevision: 0.0.46
     path: .
     helm:
       valuesObject:
@@ -28,30 +28,30 @@ spec:
             enabled: true
             resources:
               requests:
-                cpu: 20m
+                cpu: 100m
                 memory: 284Mi
               limits:
-                memory: 568Mi
+                memory: 768Mi
           - name: provider-aws-s3
             enabled: true
             managedPolicyArns:
               - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
             resources:
               requests:
-                cpu: 20m
+                cpu: 100m
                 memory: 284Mi
               limits:
-                memory: 568Mi
+                memory: 768Mi
           - name: provider-aws-rds
             enabled: true
             managedPolicyArns:
               - "arn:aws:iam::aws:policy/AmazonRDSFullAccess"
             resources:
               requests:
-                cpu: 20m
+                cpu: 100m
                 memory: 284Mi
               limits:
-                memory: 568Mi
+                memory: 768Mi
           - name: provider-aws-kms
             enabled: true
             policy: |
@@ -82,20 +82,20 @@ spec:
               }
             resources:
               requests:
-                cpu: 20m
+                cpu: 100m
                 memory: 284Mi
               limits:
-                memory: 568Mi
+                memory: 768Mi
         extraProviders:
           - name: provider-aws-iam
             enabled: true
             roleArn: {{ .Values.environmentConfig.bootstrap.crossplaneProviderAwsIamRoleArn }}
             resources:
               requests:
-                cpu: 20m
+                cpu: 100m
                 memory: 284Mi
               limits:
-                memory: 578Mi
+                memory: 768Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: crossplane-system
