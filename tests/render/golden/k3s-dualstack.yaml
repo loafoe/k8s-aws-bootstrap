@@ -24297,7 +24297,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/karpenter
-    targetRevision: karpenter-1.15.3
+    targetRevision: karpenter-1.15.3-0.1.8
     helm:
       valuesObject:
         karpenter:
