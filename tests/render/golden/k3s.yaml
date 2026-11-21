@@ -23702,7 +23702,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cert-manager
-    targetRevision: HEAD
+    targetRevision: cert-manager-v1.21.3
     helm:
       valuesObject:
         cert-manager:
