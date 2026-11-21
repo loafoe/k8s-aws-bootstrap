@@ -1,0 +1,25 @@
+name: Bump App Tag
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        required: true
+
+jobs:
+  bump-app-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Open PR repointing targetRevision
+        env:
+          GH_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+        run: ./scripts/bump-app-tag.sh "${{ github.event.inputs.tag || github.ref_name }}"
