@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # A tag's target commit can be old enough that its .github/workflows/**
+      # content differs from the current default branch (workflow files
+      # change over time); GitHub treats pushing any ref to such a commit as
+      # "updating a workflow" and rejects it without this permission.
+      workflows: write
     steps:
       - uses: actions/checkout@v4
         with:

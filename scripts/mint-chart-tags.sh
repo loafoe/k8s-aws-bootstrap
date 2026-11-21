@@ -45,6 +45,7 @@ dump_deps() {
 }
 
 minted=0
+failed=0
 
 for chart_file in charts/*/Chart.yaml; do
     [[ -f "$chart_file" ]] || continue
@@ -81,12 +82,22 @@ for chart_file in charts/*/Chart.yaml; do
 
         if [[ "$dry_run" == true ]]; then
             echo "  would tag ${tag} at ${sha}"
-        else
-            git tag -a "$tag" -m "${chart_name} ${version}" "$sha"
-            git push origin "$tag"
-            echo "  tagged ${tag} at ${sha}"
+            minted=$((minted + 1))
+            continue
         fi
-        minted=$((minted + 1))
+
+        # One chart's tag failing to push (e.g. a rejected push, a transient
+        # network error) must not stop every other chart from being tagged
+        # in this same run -- isolate the failure, keep going, and report it
+        # at the end instead of letting `set -e` abort the whole script.
+        if git tag -a "$tag" -m "${chart_name} ${version}" "$sha" && git push origin "$tag"; then
+            echo "  tagged ${tag} at ${sha}"
+            minted=$((minted + 1))
+        else
+            echo "  ${tag}: failed to tag/push, see above" >&2
+            git tag -d "$tag" >/dev/null 2>&1 || true
+            failed=$((failed + 1))
+        fi
     done
 done
 
@@ -94,4 +105,9 @@ if [[ "$minted" -gt 0 ]]; then
     echo "Minted ${minted} tag(s)."
 else
     echo "No new tags."
+fi
+
+if [[ "$failed" -gt 0 ]]; then
+    echo "${failed} tag(s) failed to push; see errors above." >&2
+    exit 1
 fi
