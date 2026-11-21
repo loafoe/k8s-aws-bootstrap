@@ -1,7 +1,7 @@
 # Pin wrapper-chart `targetRevision` to a minted tag instead of `HEAD` (cilium pilot)
 
 **Date:** 2026-11-21
-**Status:** Implemented 2026-11-21 (PRs #370-#375). `cilium` migrated off `HEAD` to `cilium-1.20.5`; all 20 current `charts/*` wrapper-chart versions backfilled as tags. Both workflows run without `RENOVATE_TOKEN` (dropped in #374 — neither actually needs it; see Outcome below).
+**Status:** Implemented and fully rolled out 2026-11-21 (PRs #370-#398). All 20 current `charts/*` Applications migrated off `HEAD` onto their chart-version tag. Neither workflow needs `RENOVATE_TOKEN` (dropped in #374). A final review caught a critical bug before it shipped silently broken — the two-workflow `push: tags:` handoff could never fire under the default `GITHUB_TOKEN` at all (GitHub's anti-recursion rule, not a backfill quirk as first thought) — fixed in #384 by chaining in-process. See Outcome below.
 **Author:** Project Architect & Planner
 
 ## Context
@@ -254,16 +254,37 @@ Real rollout surfaced three things this design didn't anticipate, all fixed in f
   after `argocd`) — fixed by isolating each chart's tag+push so one failure can't block the rest
   — and the remaining old-history backfill was pushed directly with repo-owner `gh`/git
   credentials from outside CI, a one-time operation, not a workflow concern.
-- **GitHub does not reliably fire `push: tags:`-triggered workflow runs for a tag pointing at a
-  commit already deeply embedded in existing history** (confirmed experimentally: three probe
-  tags at the current tip fired instantly; none of the 11 backfilled historical tags fired at
-  all). This only affects the one-time backfill — a real future chart bump always tags a
-  freshly-created commit, which behaves like the probes, not like the backfill. `bump-app-tag.sh
-  cilium-1.20.5` was run directly instead, for this one case.
+- **Correction (superseded by the finding below): the "old commits don't fire push:tags:"
+  explanation first written here was wrong.** Three probe tags at the current tip fired a
+  `bump-app-tag.yaml` run instantly, while 11 backfilled historical tags fired none, and that
+  pattern looked at the time like it was about commit age. A follow-up, more targeted probe
+  (a disposable temporary workflow pushing a tag at a brand-new commit, using the same
+  `GITHUB_TOKEN`-backed credentials `mint-chart-tags.yaml` itself uses) proved otherwise: that
+  tag, at a fresh commit, *also* did not fire `bump-app-tag.yaml`. **The real cause is GitHub's
+  documented anti-recursion rule — a ref pushed using the default `GITHUB_TOKEN` does not start
+  new workflow runs at all**, regardless of how old or new the target commit is. This is not a
+  one-time backfill quirk; it meant the automated chain could never have worked for any real
+  future chart bump either, since `mint-chart-tags.yaml`'s own tag pushes use that same token.
+  Caught by a fresh-context final review before it shipped silently broken.
+  **Fix:** `mint-chart-tags.sh` now calls `bump-app-tag.sh` directly, in-process, once its own
+  tagging loop is fully done (not mid-loop — `bump-app-tag.sh` switches branches, which would
+  corrupt the loop's own `git log --first-parent` results for every chart evaluated after it).
+  `bump-app-tag.yaml`'s own `push: tags:` trigger is left in place and still fires normally for a
+  human manually pushing a tag with personal credentials — confirmed by the same probe process.
 
-Net effect: the design's core claims held (tag-existence-driven detection worked correctly on
-real history on the first try, including the untested multi-dependency fallback for
-`cloudnative-pg`; the targetRevision-repoint PR bundled exactly the three expected file changes).
-What needed correcting was CI plumbing for a one-time backfill, not the detection/tagging logic
-itself — consistent with the portability argument above, since none of these three issues lived
-in `mint-chart-tags.sh` or `bump-app-tag.sh`.
+Net effect: the design's core detection/tagging logic held up on real history on the first try
+(including the untested multi-dependency fallback for `cloudnative-pg`, and the targetRevision
+PR's expected file bundle), but the cross-workflow trigger the two-workflow architecture depended
+on turned out not to exist under `GITHUB_TOKEN` at all — the single most important thing the
+final review caught. The fix collapses to one workflow doing both steps per chart, which is also
+simpler than the two-workflow handoff this design originally specified.
+
+**Full rollout (2026-11-21):** after the fix above, all 20 current `charts/*` Applications were
+migrated off `HEAD` in one session (cilium was the pilot; the other 19 followed once the user
+asked to pin everything rather than wait for each chart's next natural bump). `bump-app-tag.sh`
+also picked up two more fixes found while rolling out the remaining charts: it now resolves a
+tag's chart name against the real `charts/*` directory list (longest-prefix match) instead of a
+shape-guessing regex, so both the two-dependency case (`cloudnative-pg-cloudnative-pg-0.29.2`) and
+an otherwise-ambiguous case (`spire-crds-0.6.1` vs. chart `spire`) resolve correctly; and it
+allows a leading `v` in the version portion (`cert-manager-v1.21.3`), matching the `v?` handling
+`check-chart-version-bump.sh` already does elsewhere.
