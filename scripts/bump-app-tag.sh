@@ -81,6 +81,14 @@ if [[ "$current_target" == "$tag" ]]; then
 fi
 
 branch="bump-app-tag/${tag}"
+
+# A re-run (retry, workflow_dispatch) after a prior run already opened this
+# PR must be a no-op, not a failed push against an existing branch.
+if gh pr list --state open --head "$branch" --json number --jq 'length' 2>/dev/null | grep -qv '^0$'; then
+    echo "PR already open for $branch, skipping"
+    exit 0
+fi
+
 git fetch origin main
 git checkout -b "$branch" origin/main
 
