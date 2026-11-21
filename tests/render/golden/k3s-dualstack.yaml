@@ -24181,7 +24181,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/external-secrets
-    targetRevision: external-secrets-2.15.0
+    targetRevision: external-secrets-2.15.0-0.1.5
     helm:
       valuesObject:
         external-secrets:
