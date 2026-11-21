@@ -25,5 +25,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
       - name: Open PR repointing targetRevision
         env:
-          GH_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: ./scripts/bump-app-tag.sh "${{ github.event.inputs.tag || github.ref_name }}"
