@@ -1,7 +1,7 @@
 # Pin wrapper-chart `targetRevision` to a minted tag instead of `HEAD` (cilium pilot)
 
 **Date:** 2026-11-21
-**Status:** Implemented and fully rolled out 2026-11-21 (PRs #370-#398). All 20 current `charts/*` Applications migrated off `HEAD` onto their chart-version tag. Neither workflow needs `RENOVATE_TOKEN` (dropped in #374). A final review caught a critical bug before it shipped silently broken — the two-workflow `push: tags:` handoff could never fire under the default `GITHUB_TOKEN` at all (GitHub's anti-recursion rule, not a backfill quirk as first thought) — fixed in #384 by chaining in-process. See Outcome below.
+**Status:** Implemented and fully rolled out 2026-11-21 (PRs #370-#438). All 20 current `charts/*` Applications pinned off `HEAD` onto a tag shaped `<chart>-<upstreamVersion>-<wrapperVersion>` (e.g. `cilium-1.20.5-0.1.5`), or `<chart>-<wrapperVersion>` for a chart with more than one dependency. Neither workflow needs `RENOVATE_TOKEN` (dropped in #374). Two real bugs were caught and fixed after this was first "done": a final review caught the automated chain being unable to fire at all under `GITHUB_TOKEN` (#384); the user caught the tag format itself being wrong twice over (dependency-version-only silently misses wrapper-only fixes; wrapper-version-only is correct but unreadable) before landing on the combined shape (#420). See Outcome below.
 **Author:** Project Architect & Planner
 
 ## Context
@@ -288,3 +288,44 @@ shape-guessing regex, so both the two-dependency case (`cloudnative-pg-cloudnati
 an otherwise-ambiguous case (`spire-crds-0.6.1` vs. chart `spire`) resolve correctly; and it
 allows a leading `v` in the version portion (`cert-manager-v1.21.3`), matching the `v?` handling
 `check-chart-version-bump.sh` already does elsewhere.
+
+**The tag format went through three iterations in one session, caught by two different
+reviewers:**
+
+1. `<chart>-<dependencyVersion>` (the original design, e.g. `cilium-1.20.5`) — rolled out first.
+   A fresh-context final review caught **Critical #2**: tagging by the vendored dependency's
+   version means a hand-authored wrapper-only fix (`values.yaml`/templates, no dependency bump)
+   never mints a new tag, so once an Application is pinned, that kind of fix would silently
+   never deploy — a real regression from `HEAD`-tracking's always-current behaviour. This is not
+   a hypothetical: 6 of the 12 commits preceding this work to `charts/cilium` alone were exactly
+   that shape of fix.
+2. `<chart>-<wrapperVersion>` (e.g. `cilium-0.1.5`) — the fix for (1), since
+   `bump-chart-version.sh` bumps the wrapper's own version on every change, dependency bump or
+   hand-authored fix alike. Correct, and rolled out to all 20 charts. The user caught the real
+   problem with *this* shape immediately on seeing it live: the tag is opaque bookkeeping, and
+   `targetRevision` in the Argo CD UI no longer shows which upstream version is actually running
+   — a legitimate operational regression of its own, just a different one than (1)'s.
+3. `<chart>-<dependencyVersion>-<wrapperVersion>` (e.g. `cilium-1.20.5-0.1.5`) — combines both:
+   readable upstream version leads, wrapper version suffix means neither (1)'s nor (2)'s problem
+   recurs. Falls back to `<chart>-<wrapperVersion>` alone for a chart with zero or more than one
+   dependency (no single upstream version to lead with — `cloudnative-pg` today).
+
+Each iteration required re-tagging and re-opening the targetRevision PR for every already-pinned
+chart, which is exactly the cost the per-app `targetRevision` pin is supposed to make cheap and
+safe to pay: every re-tag pointed at the *same* commit as before, so every repoint PR's diff was
+a one-line `targetRevision` change plus the bootstrap chart's own version bump and golden-file
+regen — reviewable, revertible, and never a surprise to Argo CD (the rendered manifest never
+changed, only the pin's bookkeeping did).
+
+**Other real-world findings from the full rollout, not caught until actually running it live:**
+- The repo had "Allow GitHub Actions to create and approve pull requests" disabled, so even
+  after fixing the `GITHUB_TOKEN` anti-recursion issue, `gh pr create` from inside a CI job
+  failed outright with `GraphQL: GitHub Actions is not permitted to create or approve pull
+  requests`. This is a one-click repo setting (Settings → Actions → General → Workflow
+  permissions), not something fixable in script code; the user enabled it directly.
+- Historical tags whose target commit predates a recent `.github/workflows/**` edit on the
+  default branch still can't be pushed under the default token (the same restriction found
+  earlier), and this recurs every time a new workflow-file-touching commit lands — not a
+  one-off. Resolved the same way each time: push the stragglers directly with repo-owner
+  credentials, outside CI, since it only ever affects a one-time backfill, never a real future
+  bump (whose own commit always matches main's current workflow files).
