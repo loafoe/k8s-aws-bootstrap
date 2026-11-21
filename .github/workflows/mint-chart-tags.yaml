@@ -10,15 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    steps:
       # A tag's target commit can be old enough that its .github/workflows/**
       # content differs from the current default branch (workflow files
-      # change over time); GitHub treats pushing any ref to such a commit as
-      # "updating a workflow" and rejects it without this permission.
-      workflows: write
-    steps:
+      # change over time); GitHub rejects pushing a ref to such a commit
+      # under the default GITHUB_TOKEN as "updating a workflow" without a
+      # scope the permissions: block can't grant it. RENOVATE_TOKEN already
+      # has the broader scope this needs (used the same way for privileged
+      # pushes in helm-deps.yaml/renovate.yaml).
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.RENOVATE_TOKEN }}
       - name: Configure git identity for annotated tags
         run: |
           git config user.name "github-actions[bot]"
