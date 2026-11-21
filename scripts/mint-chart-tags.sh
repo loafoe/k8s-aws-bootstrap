@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Mints an immutable tag the moment a wrapper chart's vendored dependency
-# reaches a version that isn't tagged yet.
+# Mints an immutable tag the moment a wrapper chart's own version changes
+# to something that isn't tagged yet.
+#
+# Tagged by the WRAPPER chart's own top-level `version:`, not the vendored
+# dependency's version: bump-chart-version.sh bumps that field on every
+# change to the chart -- a dependency bump (helm-deps.yaml calls it after
+# re-vendoring) and a hand-authored values.yaml/templates fix alike
+# (check-chart-version-bump.sh requires it in CI). Tagging by the
+# dependency's version instead would miss the hand-authored case entirely:
+# a wrapper-only fix doesn't change that number, so no new tag would ever
+# be minted for it, and the Application would stay pinned to an older tag
+# forever once pinned -- a silent non-deploy, not caught until after the
+# first real rollout. Tagging by the wrapper's own version also means every
+# wrapper has exactly one tag-worthy version regardless of how many
+# dependencies it vendors, so there is no multi-dependency tag-name case to
+# handle here (bump-app-tag.sh still parses the older
+# "<chart>-<depName>-<version>" shape too, for tags minted before this
+# change, or any hand-made equivalent -- it does not care which number a
+# tag's suffix is, only that a real chart dir prefixes it).
 #
 # Tag-existence-driven, not before/after-driven: this script takes no
 # event-derived input (no before/after SHAs, no commit list) and only reads
@@ -30,23 +47,13 @@ case "${1:-}" in
         ;;
 esac
 
-# Emit "name<TAB>version" for every entry of the dependencies: block of a
-# Chart.yaml. Stops at the next top-level key. (Copied from
-# scripts/check-chart-deps.sh's dump_deps -- each script here owns its own
-# awk helpers rather than sharing a lib.)
-dump_deps() {
-    awk '
-        /^[[:space:]]*#/ { next }
-        /^dependencies:[[:space:]]*$/ { in_deps = 1; next }
-        /^[A-Za-z]/ { if (in_deps) exit; next }
-        in_deps && /name:[[:space:]]*/ {
-            n = $0; sub(/^.*name:[[:space:]]*/, "", n); gsub(/[^A-Za-z0-9._-]/, "", n); name = n
-        }
-        in_deps && /version:[[:space:]]*/ {
-            v = $0; sub(/^.*version:[[:space:]]*/, "", v); gsub(/[^0-9A-Za-z.+-]/, "", v)
-            if (name != "") { print name "\t" v; name = "" }
-        }
-    ' "$1"
+# Top-level `version:` of a chart. (Same single-line-match style as
+# version_of() in scripts/check-chart-version-bump.sh -- each script here
+# owns its own awk helpers rather than sharing a lib.)
+version_of() {
+    awk '/^version:[[:space:]]*/ {
+        v = $0; sub(/^version:[[:space:]]*/, "", v); gsub(/["'"'"'[:space:]]/, "", v); print v; exit
+    }' "$1"
 }
 
 minted=0
@@ -58,55 +65,47 @@ for chart_file in charts/*/Chart.yaml; do
     dir="$(dirname "$chart_file")"
     chart_name="$(basename "$dir")"
 
+    # Only wrapper charts (something vendored under dependencies:) are this
+    # scheme's concern.
     grep -q '^dependencies:' "$chart_file" || continue
 
-    mapfile -t deps < <(dump_deps "$chart_file")
-    dep_count="${#deps[@]}"
-    [[ "$dep_count" -gt 0 ]] || continue
+    version="$(version_of "$chart_file")"
+    [[ -n "$version" ]] || continue
 
-    for entry in "${deps[@]}"; do
-        dep_name="${entry%%$'\t'*}"
-        version="${entry#*$'\t'}"
+    tag="${chart_name}-${version}"
 
-        if [[ "$dep_count" -eq 1 ]]; then
-            tag="${chart_name}-${version}"
-        else
-            tag="${chart_name}-${dep_name}-${version}"
-        fi
+    if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null 2>&1; then
+        echo "  ${tag}: already exists, skipping"
+        continue
+    fi
 
-        if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null 2>&1; then
-            echo "  ${tag}: already exists, skipping"
-            continue
-        fi
+    vendor_check="$(./scripts/check-chart-deps.sh "$dir" 2>&1)" || {
+        echo "  ${dir}: not fully vendored yet, skipping"
+        echo "$vendor_check" | sed 's/^/    /'
+        continue
+    }
 
-        vendor_check="$(./scripts/check-chart-deps.sh "$dir" 2>&1)" || {
-            echo "  ${dir}: not fully vendored yet, skipping"
-            echo "$vendor_check" | sed 's/^/    /'
-            continue
-        }
+    sha="$(git log --first-parent -1 --format=%H -- "$dir")"
 
-        sha="$(git log --first-parent -1 --format=%H -- "$dir")"
+    if [[ "$dry_run" == true ]]; then
+        echo "  would tag ${tag} at ${sha}"
+        minted=$((minted + 1))
+        continue
+    fi
 
-        if [[ "$dry_run" == true ]]; then
-            echo "  would tag ${tag} at ${sha}"
-            minted=$((minted + 1))
-            continue
-        fi
-
-        # One chart's tag failing to push (e.g. a rejected push, a transient
-        # network error) must not stop every other chart from being tagged
-        # in this same run -- isolate the failure, keep going, and report it
-        # at the end instead of letting `set -e` abort the whole script.
-        if git tag -a "$tag" -m "${chart_name} ${version}" "$sha" && git push origin "$tag"; then
-            echo "  tagged ${tag} at ${sha}"
-            minted=$((minted + 1))
-            minted_tags+=("$tag")
-        else
-            echo "  ${tag}: failed to tag/push, see above" >&2
-            git tag -d "$tag" >/dev/null 2>&1 || true
-            failed=$((failed + 1))
-        fi
-    done
+    # One chart's tag failing to push (e.g. a rejected push, a transient
+    # network error) must not stop every other chart from being tagged
+    # in this same run -- isolate the failure, keep going, and report it
+    # at the end instead of letting `set -e` abort the whole script.
+    if git tag -a "$tag" -m "${chart_name} ${version}" "$sha" && git push origin "$tag"; then
+        echo "  tagged ${tag} at ${sha}"
+        minted=$((minted + 1))
+        minted_tags+=("$tag")
+    else
+        echo "  ${tag}: failed to tag/push, see above" >&2
+        git tag -d "$tag" >/dev/null 2>&1 || true
+        failed=$((failed + 1))
+    fi
 done
 
 if [[ "$minted" -gt 0 ]]; then
