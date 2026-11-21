@@ -24486,7 +24486,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/policy-reporter
-    targetRevision: HEAD
+    targetRevision: policy-reporter-3.11.2
     helm:
       valuesObject:
         policy-reporter:
