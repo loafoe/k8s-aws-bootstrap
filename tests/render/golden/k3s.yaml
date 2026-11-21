@@ -23769,7 +23769,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cilium
-    targetRevision: HEAD
+    targetRevision: cilium-1.20.5
     helm:
       valuesObject:
         cilium:
