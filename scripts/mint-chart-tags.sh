@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Mints an immutable tag the moment a wrapper chart's own version changes
-# to something that isn't tagged yet.
+# Mints an immutable tag the moment a wrapper chart's version pair (its
+# vendored dependency's version, plus its own wrapper version) changes to
+# something that isn't tagged yet.
 #
-# Tagged by the WRAPPER chart's own top-level `version:`, not the vendored
-# dependency's version: bump-chart-version.sh bumps that field on every
-# change to the chart -- a dependency bump (helm-deps.yaml calls it after
-# re-vendoring) and a hand-authored values.yaml/templates fix alike
-# (check-chart-version-bump.sh requires it in CI). Tagging by the
-# dependency's version instead would miss the hand-authored case entirely:
-# a wrapper-only fix doesn't change that number, so no new tag would ever
-# be minted for it, and the Application would stay pinned to an older tag
-# forever once pinned -- a silent non-deploy, not caught until after the
-# first real rollout. Tagging by the wrapper's own version also means every
-# wrapper has exactly one tag-worthy version regardless of how many
-# dependencies it vendors, so there is no multi-dependency tag-name case to
-# handle here (bump-app-tag.sh still parses the older
-# "<chart>-<depName>-<version>" shape too, for tags minted before this
-# change, or any hand-made equivalent -- it does not care which number a
-# tag's suffix is, only that a real chart dir prefixes it).
+# Tag shape for a chart with exactly one dependency: "<chart>-<depVersion>-
+# <wrapperVersion>" (e.g. "cilium-1.20.5-0.1.5") -- the upstream version
+# leads, for a human reading targetRevision in the Argo CD UI, but the
+# wrapper version is still part of the tag so a hand-authored wrapper fix
+# (values.yaml/templates, no dependency bump) still mints a new tag.
+# bump-chart-version.sh bumps the wrapper's own version on every change to
+# the chart, dependency bump or hand-authored fix alike (helm-deps.yaml
+# calls it after re-vendoring; check-chart-version-bump.sh requires it in
+# CI for the hand-authored case), so without that suffix a wrapper-only fix
+# would never mint a new tag at all, and a pinned Application would stay on
+# an older tag forever -- a silent non-deploy, not caught until after this
+# design's first real rollout. For a chart with zero or more than one
+# dependency, there is no single upstream version to lead with, so the tag
+# is just "<chart>-<wrapperVersion>" (bump-app-tag.sh's chart-dir-prefix
+# matching handles either shape the same way; it does not care which
+# number or numbers follow the chart name).
 #
 # Tag-existence-driven, not before/after-driven: this script takes no
 # event-derived input (no before/after SHAs, no commit list) and only reads
@@ -56,6 +57,24 @@ version_of() {
     }' "$1"
 }
 
+# Emit "name<TAB>version" for every entry of the dependencies: block of a
+# Chart.yaml. Stops at the next top-level key. (Copied from
+# scripts/check-chart-deps.sh's dump_deps.)
+dump_deps() {
+    awk '
+        /^[[:space:]]*#/ { next }
+        /^dependencies:[[:space:]]*$/ { in_deps = 1; next }
+        /^[A-Za-z]/ { if (in_deps) exit; next }
+        in_deps && /name:[[:space:]]*/ {
+            n = $0; sub(/^.*name:[[:space:]]*/, "", n); gsub(/[^A-Za-z0-9._-]/, "", n); name = n
+        }
+        in_deps && /version:[[:space:]]*/ {
+            v = $0; sub(/^.*version:[[:space:]]*/, "", v); gsub(/[^0-9A-Za-z.+-]/, "", v)
+            if (name != "") { print name "\t" v; name = "" }
+        }
+    ' "$1"
+}
+
 minted=0
 failed=0
 minted_tags=()
@@ -69,10 +88,16 @@ for chart_file in charts/*/Chart.yaml; do
     # scheme's concern.
     grep -q '^dependencies:' "$chart_file" || continue
 
-    version="$(version_of "$chart_file")"
-    [[ -n "$version" ]] || continue
+    wrapper_version="$(version_of "$chart_file")"
+    [[ -n "$wrapper_version" ]] || continue
 
-    tag="${chart_name}-${version}"
+    mapfile -t deps < <(dump_deps "$chart_file")
+    if [[ "${#deps[@]}" -eq 1 ]]; then
+        dep_version="${deps[0]#*$'\t'}"
+        tag="${chart_name}-${dep_version}-${wrapper_version}"
+    else
+        tag="${chart_name}-${wrapper_version}"
+    fi
 
     if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null 2>&1; then
         echo "  ${tag}: already exists, skipping"
@@ -97,7 +122,7 @@ for chart_file in charts/*/Chart.yaml; do
     # network error) must not stop every other chart from being tagged
     # in this same run -- isolate the failure, keep going, and report it
     # at the end instead of letting `set -e` abort the whole script.
-    if git tag -a "$tag" -m "${chart_name} ${version}" "$sha" && git push origin "$tag"; then
+    if git tag -a "$tag" -m "${chart_name} wrapper ${wrapper_version}" "$sha" && git push origin "$tag"; then
         echo "  tagged ${tag} at ${sha}"
         minted=$((minted + 1))
         minted_tags+=("$tag")
