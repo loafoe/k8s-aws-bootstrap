@@ -12,10 +12,15 @@ set -euo pipefail
 # Usage:
 #   ./scripts/bump-app-tag.sh <tag>
 #
-#   <tag> is expected to be "<chart>-<semver>", e.g. cilium-1.20.5. Anything
-# that doesn't parse that way, or whose chart directory doesn't exist, is
-# treated as "not ours" and ignored (exit 0) rather than failing -- tags
-# unrelated to this scheme (hand-made releases, etc.) must not break this.
+#   <tag> is expected to be "<chart>-<semver>" (e.g. cilium-1.20.5) or, for a
+# chart that vendors more than one dependency, "<chart>-<depName>-<semver>"
+# (e.g. cloudnative-pg-cloudnative-pg-0.29.2). Matched against the real
+# charts/* directory list rather than guessed from the tag's string shape,
+# so "spire-crds-0.6.1" resolves to chart spire-crds (not chart spire with
+# a fictitious "crds" dependency) and the two-dependency case parses at
+# all. Anything that doesn't match an actual chart dir this way is "not
+# ours" and ignored (exit 0) rather than failing -- tags unrelated to this
+# scheme (hand-made releases, etc.) must not break this.
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
@@ -27,14 +32,29 @@ fi
 
 tag="$1"
 
-if [[ ! "$tag" =~ ^(.+)-([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-    echo "not a chart tag, ignoring: $tag"
-    exit 0
-fi
-chart="${BASH_REMATCH[1]}"
-version="${BASH_REMATCH[2]}"
+# Longest chart-dir-name prefix match wins, so "spire-crds-0.6.1" prefers
+# chart dir "spire-crds" over the shorter "spire".
+chart=""
+for chart_file in charts/*/Chart.yaml; do
+    [[ -f "$chart_file" ]] || continue
+    dir="$(dirname "$chart_file")"
+    name="$(basename "$dir")"
+    prefix="${name}-"
+    [[ "$tag" == "${prefix}"* ]] || continue
 
-if [[ ! -f "charts/${chart}/Chart.yaml" ]]; then
+    rest="${tag#"$prefix"}"
+    if [[ "$rest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        : # single-dependency tag: "<chart>-<version>"
+    elif [[ "$rest" =~ ^[A-Za-z0-9._-]+-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        : # multi-dependency tag: "<chart>-<depName>-<version>"
+    else
+        continue
+    fi
+
+    [[ "${#name}" -gt "${#chart}" ]] && chart="$name"
+done
+
+if [[ -z "$chart" ]]; then
     echo "not a chart tag, ignoring: $tag"
     exit 0
 fi
