@@ -23591,7 +23591,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/external-dns
-    targetRevision: external-dns-1.24.0
+    targetRevision: external-dns-0.1.2
     helm:
       valuesObject:
         external-dns:
