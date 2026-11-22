@@ -23860,7 +23860,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/philips-software/helm-charts/common-bootstrap
     # renovate: datasource=docker depName=ghcr.io/philips-software/helm-charts/common-bootstrap
-    targetRevision: 2.3.0
+    targetRevision: 2.3.1
     path: .
     helm:
       valuesObject:
