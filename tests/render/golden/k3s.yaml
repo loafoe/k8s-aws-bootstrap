@@ -24001,6 +24001,13 @@ spec:
       valuesObject:
         package:
           registry: ghcr.io/crossplane-contrib
+        # TODO(remove once crossplane-providers >=0.0.48 is targetRevision here): the chart's
+        # VPA resources lack SkipDryRunOnMissingResource, so on a fresh cluster this app's sync
+        # fails validation outright before the VPA CRDs exist (wave 21), which blocks the AWS
+        # provider packages and everything after them, including the ArgoCD HTTPRoute (wave 22).
+        # Fixed upstream in philips-software/helm-charts@d159fcd / bc0427a.
+        vpa:
+          enabled: false
         environmentConfig:
           accountId: "123456789012"
           resourcePrefix: "acme-k3s"
