@@ -5,24 +5,31 @@ name: Bootstrap Render
 # get must leave it identical; one that should regenerates it with
 # scripts/check-bootstrap-render.sh --update, and the diff is the review.
 #
-# scripts/check-appproject.sh renders every child chart too and checks the bootstrap
-# AppProject permits all of it, so it also runs when a child chart (e.g. a Renovate bump) changes.
+# scripts/check-appproject.sh and scripts/check-sync-wave-crds.sh both render every child
+# chart too (scripts/lib/render-tree.sh), so they also run when a child chart (e.g. a
+# Renovate bump) changes, not just charts/bootstrap itself.
 
 on:
   pull_request:
     paths:
       - 'tests/render/**'
       - 'charts/**'
+      - 'scripts/lib/**'
+      - 'scripts/crd-providers.yaml'
       - 'scripts/check-bootstrap-render.sh'
       - 'scripts/check-appproject.sh'
+      - 'scripts/check-sync-wave-crds.sh'
       - '.github/workflows/bootstrap-render.yaml'
   push:
     branches: [main]
     paths:
       - 'tests/render/**'
       - 'charts/**'
+      - 'scripts/lib/**'
+      - 'scripts/crd-providers.yaml'
       - 'scripts/check-bootstrap-render.sh'
       - 'scripts/check-appproject.sh'
+      - 'scripts/check-sync-wave-crds.sh'
       - '.github/workflows/bootstrap-render.yaml'
   workflow_dispatch:
 
@@ -48,3 +55,6 @@ jobs:
 
       - name: Check the AppProject permits everything the apps deploy
         run: scripts/check-appproject.sh
+
+      - name: Check every resource's CRD exists by the sync-wave it's applied at
+        run: scripts/check-sync-wave-crds.sh

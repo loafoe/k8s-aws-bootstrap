@@ -84,6 +84,9 @@ spec:
       - CreateNamespace=false
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+      # ServiceMonitors here need the monitoring.coreos.com CRD, which only exists once
+      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 0.
+      - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries

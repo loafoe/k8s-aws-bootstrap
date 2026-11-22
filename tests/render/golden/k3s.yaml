@@ -23823,6 +23823,9 @@ spec:
       - CreateNamespace=false
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+      # ServiceMonitors here need the monitoring.coreos.com CRD, which only exists once
+      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 0.
+      - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
@@ -24340,6 +24343,9 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+      # Its ServiceMonitor needs the monitoring.coreos.com CRD, which only exists once
+      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 3.
+      - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
@@ -24508,6 +24514,10 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - HealthCheckTimeout=10m
+      # Its ServiceMonitor needs the monitoring.coreos.com CRD, which only exists once
+      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 3, and prune=true
+      # here makes a missing CRD fail the whole sync, not just this one resource.
+      - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
