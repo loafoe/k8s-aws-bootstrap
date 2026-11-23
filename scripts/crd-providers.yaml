@@ -75,9 +75,12 @@ groups:
   - group: monitoring.coreos.com
     providedBy: kube-prometheus-stack
     wave: 16
+  # Deliberately early: three apps render VerticalPodAutoscalers (kube-prometheus-stack
+  # wave 16, crossplane-providers-aws wave 18, cloudnative-pg-operator wave 21), and a VPA
+  # cannot be applied before this app installs the CRDs.
   - group: autoscaling.k8s.io
     providedBy: vertical-pod-autoscaler
-    wave: 21
+    wave: 15
 
   # Not in any chart's rendered output: Crossplane's package manager installs these AWS
   # provider groups dynamically once crossplane-providers-aws's Provider resources sync

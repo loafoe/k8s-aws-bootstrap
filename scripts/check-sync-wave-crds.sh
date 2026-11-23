@@ -2,7 +2,7 @@
 # Fails when a resource is synced at an Argo CD wave earlier than (or the same as) the
 # wave that installs its API group's CRD -- the bug class from the crossplane-providers
 # VPA incident: crossplane-providers-aws (wave 18) rendered a VerticalPodAutoscaler, but
-# the vertical-pod-autoscaler app that installs that CRD runs at wave 21. Argo CD's
+# the vertical-pod-autoscaler app that installs that CRD ran at wave 21. Argo CD's
 # resource-discovery step failed validation for the *whole* app before anything in it
 # ever applied, which blocked everything after it, including the ArgoCD HTTPRoute.
 #
@@ -12,10 +12,21 @@
 #   - fails if the group is not listed in scripts/crd-providers.yaml at all -- that file
 #     is the map of which wave installs which group, and an unlisted group means either
 #     this script or that file is now out of date with what the charts render;
-#   - fails if the resource's own wave (its owning Application's root sync-wave) is <=
-#     the wave crd-providers.yaml records for that group, unless the resource or its
-#     whole Application opts out with
-#     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true.
+#   - fails if the resource's own wave (its owning Application's root sync-wave) is <
+#     the wave crd-providers.yaml records for that group. That is the cross-Application
+#     case and is always a violation: a resource-level SkipDryRunOnMissingResource only
+#     defers the failure from validate time to apply time (gitops-engine's
+#     sync_context.go sets task.skipDryRun), so the apply still has no REST mapping and
+#     the app fails every attempt until the provider's wave lands. crossplane-providers
+#     chart >=0.0.48 annotates its VPAs that way, which is why a1863c9's "fixed
+#     upstream" reading was wrong and this check has to look past the annotation;
+#   - fails if the wave is EQUAL to the provider's, unless the resource (or its whole
+#     Application, via syncPolicy.syncOptions) opts out with
+#     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true. Ordering inside
+#     one wave isn't guaranteed, so this is still a race -- but it is the case the
+#     annotation is actually for (CRD arrives in the same wave, e.g. the root app's
+#     cert-manager PKI resources against the cert-manager Application), and it is the
+#     only mitigation available short of reordering half the chart.
 #
 # Needs helm, yq (mikefarah v4) and jq.
 set -euo pipefail
@@ -93,7 +104,6 @@ check_one_resource() {
     group="$(group_of "$api_version")"
     is_builtin "$group" && return 0
     [ "$app_skip" = 1 ] && return 0
-    [ "$resource_skip" = "true" ] && return 0
 
     IFS=$'\t' read -r pwave provided_by < <(provider_entry "$group")
     if [ -z "$pwave" ]; then
@@ -101,7 +111,10 @@ check_one_resource() {
         return 0
     fi
     [ "$provided_by" = "$context" ] && return 0
-    if [ "$wave" -le "$pwave" ]; then
+    if [ "$wave" -lt "$pwave" ]; then
+        # Provider is a later Application: the annotation cannot help, always flag.
+        echo -e "$label\t$what\t$group\t$wave\t$pwave" >>"$work/violations"
+    elif [ "$wave" -eq "$pwave" ] && [ "$resource_skip" != "true" ]; then
         echo -e "$label\t$what\t$group\t$wave\t$pwave" >>"$work/violations"
     fi
 }
@@ -111,7 +124,7 @@ check_one_resource() {
 check_root_resources() {
     local manifest="$1" label="$2" resfile="$work/res.json"
     yq -o=json 'select(.kind != null and .apiVersion != null)' "$manifest" >"$resfile"
-    local api_version kind name resource_skip wave
+    local api_version kind name wave resource_skip
     while IFS=$'\t' read -r api_version kind name wave resource_skip; do
         [ -n "$api_version" ] || continue
         check_one_resource "$label" "$kind/$name" "$api_version" "${wave:-0}" "$resource_skip" 0 root
@@ -175,10 +188,10 @@ if [ -s "$work/violations" ]; then
         fi
     done <"$work/violations" | sort -u
     echo >&2
-    echo "Fix by: moving the resource (or its Application) to a later wave, adding" >&2
-    echo "  argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true" >&2
-    echo "to the resource (or the whole Application's syncOptions if it's a vendored" >&2
-    echo "chart you can't annotate directly), or updating $providers_file." >&2
+    echo "Fix by: moving the Application that renders it (or the one that installs the" >&2
+    echo "  CRD) to a different wave so the CRD lands first, or updating $providers_file" >&2
+    echo "  if the map is wrong. A resource-level SkipDryRunOnMissingResource annotation" >&2
+    echo "  only defers the failure to apply time, so it is not a fix for a later wave." >&2
 else
     echo "✓ every resource's API group is available by the wave it syncs at"
 fi
