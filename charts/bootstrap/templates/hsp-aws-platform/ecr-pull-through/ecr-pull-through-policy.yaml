@@ -31,7 +31,11 @@ metadata:
       to this account's ECR pull-through cache, per registry alias enabled
       in the hsp-addons ConfigMap's enabledPullThroughRegistries list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
-    argocd.argoproj.io/sync-wave: "21"
+    # One wave behind its GlobalContextEntry (wave 4): the variables below read
+    # globalContext.get("ecr-pull-through-hsp-addons", "data"), and with
+    # failurePolicy: Ignore a policy compiled before that entry exists fails silently
+    # -- pods get admitted unmutated and nothing says so.
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   failurePolicy: Ignore
   # Legacy annotation `pod-policies.kyverno.io/autogen-controllers: none` --

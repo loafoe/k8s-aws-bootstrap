@@ -25403,7 +25403,12 @@ kind: GlobalContextEntry
 metadata:
   name: ecr-pull-through-hsp-addons
   annotations:
-    argocd.argoproj.io/sync-wave: "21"
+    # Wave 4, not the tail: this only needs kyverno.io/v2 (kyverno app, wave 3) and
+    # the hsp-addons ConfigMap (wave 0), and every other kyverno policy in this chart
+    # already lives at 4. It sat at 21 because the legacy ClusterPolicy it replaced
+    # did (5b2a940), not for any dependency -- so every image pulled by waves 4-21 was
+    # bypassing the pull-through cache for no reason.
+    argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
 spec:
   kubernetesResource:
@@ -25526,7 +25531,11 @@ metadata:
       to this account's ECR pull-through cache, per registry alias enabled
       in the hsp-addons ConfigMap's enabledPullThroughRegistries list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
-    argocd.argoproj.io/sync-wave: "21"
+    # One wave behind its GlobalContextEntry (wave 4): the variables below read
+    # globalContext.get("ecr-pull-through-hsp-addons", "data"), and with
+    # failurePolicy: Ignore a policy compiled before that entry exists fails silently
+    # -- pods get admitted unmutated and nothing says so.
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   failurePolicy: Ignore
   # Legacy annotation `pod-policies.kyverno.io/autogen-controllers: none` --
