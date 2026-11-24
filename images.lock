@@ -3,7 +3,6 @@
 # Read it back with: grep -v '^#' images.lock | sort -u
 
 # --- charts/bootstrap (jobs + shutdown)
-alpine/k8s:1.35.0
 alpine/k8s:1.37.2
 # --- charts/amazon-eks-pod-identity-webhook
 public.ecr.aws/eks/amazon-eks-pod-identity-webhook:v0.6.19
@@ -74,7 +73,6 @@ ghcr.io/kyverno/policy-reporter:3.11.2
 # --- charts/snapshot-controller
 registry.k8s.io/sig-storage/snapshot-controller:v8.7.0
 # --- charts/spire
-cgr.dev/chainguard/bash:latest@sha256:6386ad6bd017a549585d3833b654b5aa9da70bf231d4701c689b6b908f26725f
 docker.io/library/busybox:1.38.0-uclibc
 docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine
 ghcr.io/spiffe/oidc-discovery-provider:1.16.0

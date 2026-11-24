@@ -81,7 +81,8 @@ features:
   # Shutdown mode
   shutdown:
     enabled: false
-    image: "alpine/k8s:1.35.0"
+    # renovate: datasource=docker depName=alpine/k8s
+    image: alpine/k8s:1.37.2
 
 environmentConfig:
   # Top-level config
