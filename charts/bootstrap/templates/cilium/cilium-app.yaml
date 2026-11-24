@@ -54,6 +54,24 @@ spec:
           enableIPv4Masquerade: true
           {{- end }}
 
+          # The cilium chart's validate.yaml hard-fails the helm render when any
+          # ServiceMonitor is enabled and .Capabilities.APIVersions lacks
+          # monitoring.coreos.com/v1 -- and Argo CD passes the cluster's live API versions
+          # to `helm template`. On a fresh cluster that CRD only exists once
+          # kube-prometheus-stack (wave 16) has synced, so this app could not render at
+          # all until then: no manifests, no operator rollout, no GatewayClass, and any
+          # Gateway sat at Accepted/Programmed "Waiting for controller".
+          # SkipDryRunOnMissingResource cannot help -- it acts on apply, and there was
+          # nothing to apply. Observed on a fresh devcloud 2026-11-24, where it deadlocked
+          # the bootstrap: cilium needed wave 16 to render, wave 16 needed the Gateway at
+          # wave 13 to be healthy, and the Gateway needed cilium's GatewayClass.
+          # The chart's own escape hatch keeps the ServiceMonitors; applying them simply
+          # fails until wave 16, which the app-level SkipDryRunOnMissingResource and the
+          # unlimited retry below already cover.
+          prometheus:
+            serviceMonitor:
+              trustCRDsExist: true
+
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
