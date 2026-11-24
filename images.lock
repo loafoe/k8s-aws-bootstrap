@@ -9,6 +9,7 @@ alpine/k8s:1.37.2
 public.ecr.aws/eks/amazon-eks-pod-identity-webhook:v0.6.19
 # --- charts/argocd
 ecr-public.aws.com/docker/library/redis:8.6.4-alpine
+public.ecr.aws/docker/library/redis:8.6.4-alpine
 quay.io/argoproj/argocd:v3.6.2
 # --- charts/aws-ebs-csi-driver
 public.ecr.aws/csi-components/csi-attacher:v4.13.0-eksbuild.6

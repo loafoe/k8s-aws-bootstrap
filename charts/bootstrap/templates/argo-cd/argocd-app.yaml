@@ -30,6 +30,16 @@ spec:
             cm:
               ui.bannercontent: "Account ID: {{ .Values.environmentConfig.bootstrap.awsAccountId }} | Region: {{ .Values.environmentConfig.bootstrap.awsRegion }} | Cluster: {{ .Values.environmentConfig.bootstrap.clusterName }}"
               ui.bannerpermanent: "true"
+          # The argo-cd chart defaults redis (and redis-ha/haproxy) to
+          # ecr-public.aws.com/docker/library/redis. That host resolves and serves, but it
+          # is not the documented public-ECR hostname -- public.ecr.aws is -- and, more
+          # usefully, it is not the host the ECR pull-through `ecr-public` alias covers.
+          # Pointing at public.ecr.aws puts redis through the cache like every other
+          # registry we pull from. Only `redis` matters today: redis-ha is disabled, so
+          # its image and haproxy never render.
+          redis:
+            image:
+              repository: public.ecr.aws/docker/library/redis
           server:
             config:
               url: "https://argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}"
