@@ -89,8 +89,11 @@ spec:
     # Consolidate when nodes are empty or underutilized
     consolidationPolicy: WhenEmptyOrUnderutilized
     
-    # Wait time before consolidation (longer for system stability)
-    consolidateAfter: 10m
+    # Wait time before consolidation
+    # 5m: matches the default pool. The 1-node budget below is what actually keeps
+    # system-pool churn bounded (one disruption at a time), so this does not need to
+    # be the longer, "for stability" value it used to be.
+    consolidateAfter: 5m
     
     # Budget controls for disruption rate limiting
     budgets:
