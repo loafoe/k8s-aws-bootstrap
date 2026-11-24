@@ -98,18 +98,6 @@ metadata:
     pod-security.kubernetes.io/enforce: privileged
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-
----
 # Source: bootstrap/templates/aws/pod-identity-webhook-heal-cronjob.yaml
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: restart IRSA-dependent workloads that were admitted
@@ -22342,27 +22330,6 @@ subjects:
   namespace: kube-system
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-rules:
-- apiGroups: ["dip.io"]
-  resources: ["helmapplications"]
-  resourceNames: ["bootstrap"]
-  verbs: ["get", "patch"]
-- apiGroups: ["argoproj.io"]
-  resources: ["applications"]
-  resourceNames: ["bootstrap"]
-  verbs: ["get", "patch"]
-
----
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -22466,26 +22433,6 @@ spec:
     maxSessionDuration: 3600
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: bootstrap-project-migration
-subjects:
-- kind: ServiceAccount
-  name: bootstrap-project-migration
-  namespace: argocd
-
----
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -22584,88 +22531,6 @@ spec:
       port: 8443
       targetPort: federation
       protocol: TCP
-
----
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  labels:
-    
-    owner: "team"
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-spec:
-  ttlSecondsAfterFinished: 300
-  backoffLimit: 3
-  template:
-    metadata:
-      name: bootstrap-project-migration
-      labels:
-        
-        owner: "team"
-    spec:
-      serviceAccountName: bootstrap-project-migration
-      restartPolicy: OnFailure
-      # Wave -9 runs before Karpenter exists: on a new cluster the tainted master is the only node
-      tolerations:
-      - key: CriticalAddonsOnly
-        operator: Exists
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-      - name: migrate
-        # renovate: datasource=docker depName=alpine/k8s
-        image: alpine/k8s:1.37.2
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 65532
-          capabilities:
-            drop:
-              - ALL
-        env:
-        - name: HOME
-          value: /tmp
-        - name: KUBECACHEDIR
-          value: /tmp/.kube/cache
-        - name: ROOT
-          value: "bootstrap"
-        - name: PROJECT
-          value: "k8s-aws-bootstrap"
-        resources:
-          requests:
-            cpu: 10m
-            memory: 32Mi
-          limits:
-            memory: 64Mi
-        command:
-        - sh
-        - -c
-        - |
-          set -eu
-          if kubectl get helmapplications.dip.io "$ROOT" -n argocd >/dev/null 2>&1; then
-            kind=helmapplications.dip.io
-          elif [ -z "$(kubectl get applications.argoproj.io "$ROOT" -n argocd -o jsonpath='{.metadata.ownerReferences}')" ]; then
-            kind=applications.argoproj.io
-          else
-            echo "Application $ROOT is owned by something other than a HelmApplication, leaving its project alone"
-            exit 0
-          fi
-          current="$(kubectl get "$kind" "$ROOT" -n argocd -o jsonpath='{.spec.project}')"
-          if [ "$current" = "$PROJECT" ]; then
-            echo "$kind/$ROOT is already in project $PROJECT"
-            exit 0
-          fi
-          kubectl patch "$kind" "$ROOT" -n argocd --type merge -p "{\"spec\":{\"project\":\"$PROJECT\"}}"
-          echo "moved $kind/$ROOT from project ${current:-default} to $PROJECT"
 
 ---
 # Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
@@ -23151,14 +23016,6 @@ spec:
             operator: Exists
           - key: node.cilium.io/agent-not-ready
             operator: Exists
-
----
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-# Moves the root Application into .Values.project on clusters bootstrapped before
-# k3s-on-ec2 seeded the project (their root was created in "default" and k3s-on-ec2 never
-# re-applies it). Runs right after the AppProject is synced; a no-op once the root is in it.
-# The root comes from a HelmApplication (patched there, Crossplane would revert the
-# Application) or, without one, from a plain Application nothing owns.
 
 ---
 # Source: bootstrap/templates/crds/gateway-api/README.txt
