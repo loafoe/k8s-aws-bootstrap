@@ -65,7 +65,7 @@ reg.kyverno.io/kyverno/reports-controller:v1.20.0
 ghcr.io/kyverno/policy-reporter-ui:2.9.1
 ghcr.io/kyverno/policy-reporter:3.11.2
 # --- charts/snapshot-controller
-registry.k8s.io/sig-storage/snapshot-controller:v8.7.0
+registry.k8s.io/sig-storage/snapshot-controller:v8.7.1
 # --- charts/spire
 cgr.dev/chainguard/bash:latest@sha256:6386ad6bd017a549585d3833b654b5aa9da70bf231d4701c689b6b908f26725f
 docker.io/library/busybox:1.38.0-uclibc
