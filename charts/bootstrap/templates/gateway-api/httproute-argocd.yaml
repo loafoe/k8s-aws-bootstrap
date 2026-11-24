@@ -5,7 +5,12 @@ metadata:
   name: argocd-server-route
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "22"
+    # Wave 14: needs the Gateway (13) and the argocd-server Service (argocd app, 10).
+    # Not earlier -- with no parent Gateway, or a backendRef that doesn't resolve,
+    # HTTPRoute/health.lua reports Progressing / Degraded respectively and the wave
+    # either stalls or fails. Shares the spire-federation-tls Certificate's wave, so
+    # the route is programmed while that cert's DNS-01 runs.
+    argocd.argoproj.io/sync-wave: "14"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
     link.argocd.argoproj.io/external-link: https://argocd.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
 spec:

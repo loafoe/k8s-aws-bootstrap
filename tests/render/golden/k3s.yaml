@@ -24725,7 +24725,15 @@ metadata:
   name: acme-k3s-wildcard
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "17"
+    # Wave 12, sharing the spire-crds Application's wave on purpose. Waves are strictly
+    # sequential -- a Certificate blocks every later wave until cert-manager reports
+    # Ready -- so its cost (3m27s measured on devcloud, two sequential DNS-01
+    # authorizations per cert) is dead time wherever it sits. Pairing it with a wave
+    # that already has a slow rollout makes that wave cost max(cert, rollout) instead
+    # of the sum. It must not sit with the argocd Application (wave 10): syncing that
+    # one restarts the controller running this sync, which aborts the operation and
+    # retries from wave -10.
+    argocd.argoproj.io/sync-wave: "12"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   secretName: acme-k3s-wildcard-tls
@@ -25234,7 +25242,9 @@ metadata:
   name: argocd-grpc-route
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "22"
+    # Wave 14 with the argocd-server-route: same Gateway (13) and same argocd-server
+    # backend dependency.
+    argocd.argoproj.io/sync-wave: "14"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
 spec:
   parentRefs:
@@ -25261,7 +25271,16 @@ metadata:
   name: platform
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "18"
+    # Wave 13: the wildcard Certificate now lands in wave 12, so this is the first wave
+    # where the secret is guaranteed Ready. It shares the spire Application's wave, so
+    # the NLB provisioning hides behind that rollout. It cannot go below 7 -- k3s's
+    # servicelb is disabled (master userdata), so a LoadBalancer Service is reconciled
+    # by the aws-load-balancer-controller and nothing else, and the listener
+    # annotations here are LBC's. Before then the Service would sit pending, this never
+    # reports Programmed, and the wave would block forever. A missing TLS secret is
+    # worse than a block: Gateway/health.lua calls a listener with ResolvedRefs=False
+    # Degraded, which fails the sync and retries from wave -10.
+    argocd.argoproj.io/sync-wave: "13"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   gatewayClassName: cilium
@@ -25343,7 +25362,12 @@ metadata:
   name: argocd-server-route
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "22"
+    # Wave 14: needs the Gateway (13) and the argocd-server Service (argocd app, 10).
+    # Not earlier -- with no parent Gateway, or a backendRef that doesn't resolve,
+    # HTTPRoute/health.lua reports Progressing / Degraded respectively and the wave
+    # either stalls or fails. Shares the spire-federation-tls Certificate's wave, so
+    # the route is programmed while that cert's DNS-01 runs.
+    argocd.argoproj.io/sync-wave: "14"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
     link.argocd.argoproj.io/external-link: https://argocd.acme-k3s.example.com
 spec:

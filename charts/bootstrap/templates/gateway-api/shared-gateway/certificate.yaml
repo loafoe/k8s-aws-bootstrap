@@ -5,7 +5,15 @@ metadata:
   name: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "17"
+    # Wave 12, sharing the spire-crds Application's wave on purpose. Waves are strictly
+    # sequential -- a Certificate blocks every later wave until cert-manager reports
+    # Ready -- so its cost (3m27s measured on devcloud, two sequential DNS-01
+    # authorizations per cert) is dead time wherever it sits. Pairing it with a wave
+    # that already has a slow rollout makes that wave cost max(cert, rollout) instead
+    # of the sum. It must not sit with the argocd Application (wave 10): syncing that
+    # one restarts the controller running this sync, which aborts the operation and
+    # retries from wave -10.
+    argocd.argoproj.io/sync-wave: "12"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   secretName: {{ .Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-tls
@@ -23,7 +31,8 @@ metadata:
   name: {{ $.Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-{{ $i }}
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "17"
+    # Same wave as the primary wildcard above, for the same reason.
+    argocd.argoproj.io/sync-wave: "10"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   secretName: {{ $.Values.environmentConfig.bootstrap.resourcePrefix }}-wildcard-{{ $i }}-tls

@@ -5,7 +5,9 @@ metadata:
   name: argocd-grpc-route
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "22"
+    # Wave 14 with the argocd-server-route: same Gateway (13) and same argocd-server
+    # backend dependency.
+    argocd.argoproj.io/sync-wave: "14"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
 spec:
   parentRefs:

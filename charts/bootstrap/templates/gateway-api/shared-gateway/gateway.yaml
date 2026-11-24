@@ -5,7 +5,16 @@ metadata:
   name: platform
   namespace: kube-system
   annotations:
-    argocd.argoproj.io/sync-wave: "18"
+    # Wave 13: the wildcard Certificate now lands in wave 12, so this is the first wave
+    # where the secret is guaranteed Ready. It shares the spire Application's wave, so
+    # the NLB provisioning hides behind that rollout. It cannot go below 7 -- k3s's
+    # servicelb is disabled (master userdata), so a LoadBalancer Service is reconciled
+    # by the aws-load-balancer-controller and nothing else, and the listener
+    # annotations here are LBC's. Before then the Service would sit pending, this never
+    # reports Programmed, and the wave would block forever. A missing TLS secret is
+    # worse than a block: Gateway/health.lua calls a listener with ResolvedRefs=False
+    # Degraded, which fails the sync and retries from wave -10.
+    argocd.argoproj.io/sync-wave: "13"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   gatewayClassName: cilium

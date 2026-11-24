@@ -5,7 +5,9 @@ metadata:
   name: grafana-server-route
   namespace: prometheus
   annotations:
-    argocd.argoproj.io/sync-wave: "22"
+    # Wave 17: the Gateway is at 11 now, but the backendRef kps-grafana only exists once
+    # kube-prometheus-stack (16) has synced.
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Replace=true
     link.argocd.argoproj.io/external-link: https://grafana.{{ .Values.environmentConfig.bootstrap.clusterFqdn }}
 spec:
