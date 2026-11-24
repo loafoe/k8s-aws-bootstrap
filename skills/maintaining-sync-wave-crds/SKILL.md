@@ -89,11 +89,22 @@ Pick one:
 
 ### W == P: same wave, different Application
 
-Ordering inside a wave isn't guaranteed, so this is still a race — but it's the case
-the annotation exists for, and reordering half the chart to avoid it isn't worth it.
-The check accepts the annotation here and nothing else. Current examples: the root
-app's `crossplane-root-ca` / `letsencrypt-prod` / `crossplane-selfsigned-issuer`
-against the `cert-manager` Application, all at wave 1.
+Ordering inside a wave isn't guaranteed, so this is a race. The check accepts the
+annotation here and nothing else, but prefer restructuring: the one case that used to
+rely on it — the root app's `crossplane-root-ca` / `letsencrypt-prod` /
+`crossplane-selfsigned-issuer` against the `cert-manager` Application, all at wave 1 —
+failed on the first genuinely fresh cluster (2026-11-24, 07:15:31):
+
+```
+resource mapping not found for name: "crossplane-root-ca" ... no matches for kind
+"Certificate" in version "cert-manager.io/v1" ... Retrying attempt #1
+```
+
+Those three resources carry `SkipDryRunOnMissingResource=true`, and the **apply** still
+failed. Fixed by moving `cert-manager` to wave 0 so the CRDs and webhook exist before
+anything consumes them; the issuers and the PKI stayed at wave 1. That is the shape to
+reach for: if a consumer and its provider share a wave, move the provider down, not the
+consumer up.
 
 The annotation can be either:
 - on the resource itself, if you control its template, or
@@ -101,6 +112,33 @@ The annotation can be either:
   resource in that app's sync — this is how `cilium`, `karpenter` and
   `policy-reporter`'s `ServiceMonitor`s are exempted (none of those three own their
   own `templates/` dir).
+
+## W > P is necessary, not sufficient, on a cold cluster
+
+Satisfying the wave gap does not guarantee the first pass applies cleanly. On the same
+fresh cluster, wave 4's `ValidatingPolicy/unique-tlsroute-hostnames` failed with
+`no matches for kind` at **07:20:24**, while `validatingpolicies.policies.kyverno.io`
+had been created at **07:19:23** — a full minute earlier, in wave 3. `kyverno` is
+recorded at wave 3 and the consumer is at 4, so the map was right and the apply still
+failed. It healed on the next retry.
+
+The mechanism is **not confirmed**. Candidates: kubectl's on-disk discovery cache
+(`~/.kube/cache`, 10-minute refresh) in the kubectl invocations Argo CD shells out to,
+and CRD `Established` lag. Don't state one as fact without measuring it.
+
+What follows from it:
+- Expect roughly one retry per CRD group on a cold cluster. That is normal, and
+  `bootstrap`'s unlimited retry plus backoff is what absorbs it. A retry is not
+  evidence that the wave map is wrong — check whether the CRD already existed.
+- **`SkipDryRunOnMissingResource` is not the fix.** It defers validate-time to
+  apply-time, and apply-time hits the same mapping lookup (see the cert-manager case
+  above).
+- If a consumer genuinely cannot tolerate the retry, give it more slack — a wave or two
+  past the provider, not the same wave — or make the CRD pre-existing (installed by the
+  master's kustomize bootstrap, like `argoproj.io` and `apiextensions.crossplane.io`).
+- A retry restarts the whole sync from wave -10, including the `bootstrap-project-migration`
+  hook. That churn is the real cost, and it is why the wave map is worth keeping right
+  even though the retries self-heal.
 
 ## The self-reference rule
 
