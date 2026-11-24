@@ -181,7 +181,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 
@@ -22377,7 +22377,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 rules:
@@ -22476,7 +22476,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 roleRef:
@@ -22543,7 +22543,7 @@ metadata:
     
     owner: "team"
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
@@ -23092,6 +23092,15 @@ spec:
 # now in crossplane-root-ca, it deletes the stale leaf + per-package TLS secrets
 # and restarts crossplane so core re-signs everything from the shared CA. When
 # the CAs already match (fresh installs and post-convergence syncs) it is a no-op.
+#
+# Wave 17, not 4: it is a Sync hook, so every wave after it waits for it, and on a
+# fresh cluster its first action is to wait for cert-manager to populate
+# crossplane-root-ca (the Certificate is wave 1, cert-manager itself wave 0) --
+# 2m55s of blocked waves on fleet01 (2026-11-24: entered at 18:56:45, done at
+# 18:59:40) for a Job whose real work is a no-op there. Its only hard dependency is
+# that it runs before the Crossplane Providers at wave 18 (functions at wave 3
+# already start before it either way, and the Job restarts them if it does find a
+# mismatch), so wave 17 costs nothing and takes ~3 minutes off the critical path.
 
 ---
 # Source: bootstrap/templates/crossplane/crossplane-pki.yaml
@@ -23379,7 +23388,13 @@ metadata:
   name: aws-load-balancer-controller
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    # Wave 8, one wave after the ECR pull-through MutatingPolicy (7): the policy
+    # rewrites image references to this account's pull-through cache, so an app that
+    # syncs before it exists pulls straight from upstream. On fleet01 (2026-11-24)
+    # both of these apps sat at wave 6 and ran public.ecr.aws / registry.k8s.io
+    # images, while everything from wave 7 on came from 124355645143.dkr.ecr.
+    # Nothing consumes the ALB controller before the Gateway at wave 13.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: /charts/aws-load-balancer-controller
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -23450,7 +23465,13 @@ metadata:
   name: external-dns
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    # Wave 8, one wave after the ECR pull-through MutatingPolicy (7): the policy
+    # rewrites image references to this account's pull-through cache, so an app that
+    # syncs before it exists pulls straight from upstream. On fleet01 (2026-11-24)
+    # both of these apps sat at wave 6 and ran public.ecr.aws / registry.k8s.io
+    # images, while everything from wave 7 on came from 124355645143.dkr.ecr.
+    # Nothing consumes the ALB controller before the Gateway at wave 13.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: /charts/external-dns
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -24371,11 +24392,26 @@ spec:
     helm:
       valuesObject:
         kyverno:
+          # No legacy kyverno.io/v1 policies exist to check for: every cluster this
+          # chart bootstraps is fresh, and the wrapper only ever pins a current
+          # kyverno. The check is a pre-install hook, so it blocks the whole app
+          # (and therefore every CRD the bootstrap needs) behind a pod that has to be
+          # scheduled, pull kyverno-cli and run -- 69s on fleet01 (2026-11-24:
+          # scheduled 18:59:59, image pulled 19:00:37, Job completed 19:00:41 for 4
+          # seconds of work, CRDs 19:00:47), which is longer than the wave gap to the
+          # policies that consume those CRDs and cost a whole-sync retry. It also has
+          # its own activeDeadlineSeconds: 120, so on a cluster without a system node
+          # yet it fails twice instead of waiting. The chart's render-time `lookup`
+          # check stays enabled for helm-CLI users.
+          upgrade:
+            legacyPolicyCheck:
+              enabled: false
           # Pull every kyverno image from ghcr instead of the chart's default
           # reg.kyverno.io. On 2026-11-24 reg.kyverno.io answered 503/502/timeout and
           # there is no ECR pull-through rule for it, so a bootstrap stalled at the
           # chart's pre-install hook: `kyverno-check-legacy-policies` could not pull
-          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. A pre-install hook that cannot
+          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. That hook is now disabled
+          # below, but the same applies to every other kyverno image.
           # pull means nothing in the app applies -- no deployments, no CRDs -- so the
           # policies failed `no matches for kind` and the sync retried forever.
           # Same shape as the xpkg.crossplane.io outage the same day; see k3s-on-ec2's
