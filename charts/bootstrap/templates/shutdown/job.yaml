@@ -70,7 +70,9 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: cleanup
-        # renovate: datasource=docker depName=alpine/k8s
+        # The pin and its renovate hint live in values.yaml (features.shutdown.image):
+        # a hint here would sit above a template expression, which the regex manager
+        # cannot read, so it silently tracked nothing.
         image: {{ .Values.features.shutdown.image }}
         command:
         - sh
