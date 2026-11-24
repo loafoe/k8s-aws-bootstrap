@@ -22,6 +22,34 @@ argo-cd:
         argoproj.io/Application:
           health.lua: ""
 
+        # Kyverno policy objects. Argo CD has no health assessment for these kinds, so
+        # without this they report health "none" and the owning Application flaps
+        # between Progressing and Degraded while kyverno reconciles them -- on fleet00
+        # and fleet01 (2026-11-24) that was `Degraded` caused by ValidatingPolicy /
+        # MutatingPolicy objects, twice immediately before a whole-sync retry. Only a
+        # real Ready=False makes one Degraded; "not reconciled yet" is Healthy, so a
+        # bootstrap never waits on kyverno's controller to catch up.
+        policies.kyverno.io/*:
+          health.lua: |
+            if obj.status ~= nil and obj.status.conditions ~= nil then
+              for _, c in ipairs(obj.status.conditions) do
+                if c.type == "Ready" and c.status == "False" then
+                  return { status = "Degraded", message = c.message or "not ready" }
+                end
+              end
+            end
+            return { status = "Healthy" }
+        kyverno.io/*:
+          health.lua: |
+            if obj.status ~= nil and obj.status.conditions ~= nil then
+              for _, c in ipairs(obj.status.conditions) do
+                if c.type == "Ready" and c.status == "False" then
+                  return { status = "Degraded", message = c.message or "not ready" }
+                end
+              end
+            end
+            return { status = "Healthy" }
+
         # Crossplane custom resources
         pkg.crossplane.io/*:
           health.lua: |
