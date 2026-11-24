@@ -28,11 +28,26 @@ spec:
     helm:
       valuesObject:
         kyverno:
+          # No legacy kyverno.io/v1 policies exist to check for: every cluster this
+          # chart bootstraps is fresh, and the wrapper only ever pins a current
+          # kyverno. The check is a pre-install hook, so it blocks the whole app
+          # (and therefore every CRD the bootstrap needs) behind a pod that has to be
+          # scheduled, pull kyverno-cli and run -- 69s on fleet01 (2026-11-24:
+          # scheduled 18:59:59, image pulled 19:00:37, Job completed 19:00:41 for 4
+          # seconds of work, CRDs 19:00:47), which is longer than the wave gap to the
+          # policies that consume those CRDs and cost a whole-sync retry. It also has
+          # its own activeDeadlineSeconds: 120, so on a cluster without a system node
+          # yet it fails twice instead of waiting. The chart's render-time `lookup`
+          # check stays enabled for helm-CLI users.
+          upgrade:
+            legacyPolicyCheck:
+              enabled: false
           # Pull every kyverno image from ghcr instead of the chart's default
           # reg.kyverno.io. On 2026-11-24 reg.kyverno.io answered 503/502/timeout and
           # there is no ECR pull-through rule for it, so a bootstrap stalled at the
           # chart's pre-install hook: `kyverno-check-legacy-policies` could not pull
-          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. A pre-install hook that cannot
+          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. That hook is now disabled
+          # below, but the same applies to every other kyverno image.
           # pull means nothing in the app applies -- no deployments, no CRDs -- so the
           # policies failed `no matches for kind` and the sync retried forever.
           # Same shape as the xpkg.crossplane.io outage the same day; see k3s-on-ec2's
