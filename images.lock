@@ -71,7 +71,7 @@ reg.kyverno.io/kyverno/reports-controller:v1.20.0
 ghcr.io/kyverno/policy-reporter-ui:2.9.1
 ghcr.io/kyverno/policy-reporter:3.11.2
 # --- charts/snapshot-controller
-registry.k8s.io/sig-storage/snapshot-controller:v8.7.0
+registry.k8s.io/sig-storage/snapshot-controller:v8.7.1
 # --- charts/spire
 docker.io/library/busybox:1.38.0-uclibc
 docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine
