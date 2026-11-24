@@ -14,7 +14,7 @@ metadata:
       label is present, so untracked workloads can be identified during the
       audit rollout before any enforcement is turned on.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit

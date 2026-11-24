@@ -57,6 +57,20 @@ spire:
       limits:
         memory: 128Mi
     socketPath: /run/spire/agent-sockets/spire-agent.sock
+    # The chart's socketAlternate init container (it symlinks the CSI socket's alternate
+    # names) defaults to cgr.dev/chainguard/bash -- the last cgr.dev reference in the
+    # dependency set. It only runs `sh -xc` with readlink/ln/rm, so any POSIX shell does.
+    # busybox from docker.io rather than a ghcr image on purpose: ghcr has no busybox or
+    # alpine distribution image (only ghcr.io/containerd/busybox, containerd's integration
+    # test image), and this exact reference is already in images.lock via spike-pilot, so
+    # it adds no new registry and no new pre-cache entry. docker.io is covered by the ECR
+    # pull-through `docker-hub` alias like every other upstream we pull from.
+    socketAlternate:
+      image:
+        registry: docker.io
+        repository: library/busybox
+        # renovate: datasource=docker depName=library/busybox
+        tag: 1.38.0-uclibc
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
