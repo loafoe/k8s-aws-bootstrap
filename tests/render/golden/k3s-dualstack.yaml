@@ -24202,6 +24202,19 @@ spec:
     helm:
       valuesObject:
         vertical-pod-autoscaler:
+          # The `InPlace` feature gate, so the crossplane providers' VPAs can ask for
+          # updateMode: InPlace. Without the gate the admission controller rejects the
+          # object outright -- fleet00 (2026-11-24) failed crossplane-providers-aws for
+          # 9 retries and counting with
+          #   spec.updatePolicy.updateMode: Forbidden: in order to use UpdateMode InPlace,
+          #   you must enable feature gate InPlace in the admission-controller args
+          # so all five VPAs were never created at all (and the app could never reach
+          # Synced). InPlace is what stops a VPA whose target has outgrown its requests
+          # from being converted into an eviction when the resize cannot fit on the node
+          # -- see crossplane/crossplane-providers-aws-app.yaml. Non-GA upstream, hence
+          # spelled out here rather than assumed: it is a deliberate opt-in.
+          featureGates:
+            InPlace: true
           commonLabels:
             
             owner: "team"
