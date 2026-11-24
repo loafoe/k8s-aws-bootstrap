@@ -4,7 +4,13 @@ metadata:
   name: aws-load-balancer-controller
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    # Wave 8, one wave after the ECR pull-through MutatingPolicy (7): the policy
+    # rewrites image references to this account's pull-through cache, so an app that
+    # syncs before it exists pulls straight from upstream. On fleet01 (2026-11-24)
+    # both of these apps sat at wave 6 and ran public.ecr.aws / registry.k8s.io
+    # images, while everything from wave 7 on came from 124355645143.dkr.ecr.
+    # Nothing consumes the ALB controller before the Gateway at wave 13.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: /charts/aws-load-balancer-controller
   finalizers:
     - resources-finalizer.argocd.argoproj.io
