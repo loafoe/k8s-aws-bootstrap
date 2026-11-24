@@ -54,6 +54,24 @@ spec:
           enableIPv4Masquerade: true
           {{- end }}
 
+          # Upstream defaults operator.replicas to 2, and upstream also defaults
+          # operator.hostNetwork to true -- which gives the operator hostPort
+          # 9234/9963, i.e. one operator pod per node by construction. With the
+          # chart's nodeAffinity restricting it to node-type system/control-plane, a
+          # fresh cluster has exactly one eligible node (the master), so the second
+          # replica is permanently Pending. The cilium Application then sits Degraded,
+          # wave 0 never completes, Karpenter (wave 3) never runs, no system node is
+          # ever created, and the loop closes -- measured on a fresh devcloud
+          # 2026-11-24 09:14: operator 2 desired / 1 available, second pod
+          # "0/1 nodes are available: 1 node(s) didn't have free ports".
+          # 1 is also what the chart expects: it sets maxUnavailable: 100% for a
+          # single-replica RollingUpdate precisely so the old pod releases the hostPort
+          # before the new one starts, which the replicas: 2 branch does not do.
+          # Matches resources/kustomize/cilium-values.yaml in k3s-on-ec2, which the
+          # master boots with.
+          operator:
+            replicas: 1
+
           # The cilium chart's validate.yaml hard-fails the helm render when any
           # ServiceMonitor is enabled and .Capabilities.APIVersions lacks
           # monitoring.coreos.com/v1 -- and Argo CD passes the cluster's live API versions

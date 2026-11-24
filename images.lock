@@ -3,12 +3,12 @@
 # Read it back with: grep -v '^#' images.lock | sort -u
 
 # --- charts/bootstrap (jobs + shutdown)
-alpine/k8s:1.35.0
 alpine/k8s:1.37.2
 # --- charts/amazon-eks-pod-identity-webhook
 public.ecr.aws/eks/amazon-eks-pod-identity-webhook:v0.6.19
 # --- charts/argocd
 ecr-public.aws.com/docker/library/redis:8.6.4-alpine
+public.ecr.aws/docker/library/redis:8.6.4-alpine
 quay.io/argoproj/argocd:v3.6.2
 # --- charts/aws-ebs-csi-driver
 public.ecr.aws/csi-components/csi-attacher:v4.13.0-eksbuild.6
@@ -35,7 +35,7 @@ quay.io/cilium/operator-generic:v1.20.5@sha256:c6e7de6665aa9701db86c4fe46828a75a
 ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2
 ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.16.0
 # --- charts/crossplane
-ghcr.io/crossplane/crossplane:v2.4.3
+ghcr.io/crossplane/crossplane:v2.5.0
 # --- charts/descheduler
 registry.k8s.io/descheduler/descheduler:v0.37.0
 # --- charts/external-dns
@@ -54,7 +54,13 @@ quay.io/prometheus/node-exporter:v1.12.1-distroless
 quay.io/prometheus/prometheus:v3.16.0-distroless
 registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
 # --- charts/kyverno
+ghcr.io/kyverno/background-controller:v1.20.0
+ghcr.io/kyverno/cleanup-controller:v1.20.0
+ghcr.io/kyverno/kyverno-cli:v1.20.0
+ghcr.io/kyverno/kyverno:v1.20.0
+ghcr.io/kyverno/kyvernopre:v1.20.0
 ghcr.io/kyverno/readiness-checker:v1.20.0
+ghcr.io/kyverno/reports-controller:v1.20.0
 reg.kyverno.io/kyverno/background-controller:v1.20.0
 reg.kyverno.io/kyverno/cleanup-controller:v1.20.0
 reg.kyverno.io/kyverno/kyverno-cli:v1.20.0
@@ -65,9 +71,8 @@ reg.kyverno.io/kyverno/reports-controller:v1.20.0
 ghcr.io/kyverno/policy-reporter-ui:2.9.1
 ghcr.io/kyverno/policy-reporter:3.11.2
 # --- charts/snapshot-controller
-registry.k8s.io/sig-storage/snapshot-controller:v8.7.0
+registry.k8s.io/sig-storage/snapshot-controller:v8.7.1
 # --- charts/spire
-cgr.dev/chainguard/bash:latest@sha256:6386ad6bd017a549585d3833b654b5aa9da70bf231d4701c689b6b908f26725f
 docker.io/library/busybox:1.38.0-uclibc
 docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine
 ghcr.io/spiffe/oidc-discovery-provider:1.16.0

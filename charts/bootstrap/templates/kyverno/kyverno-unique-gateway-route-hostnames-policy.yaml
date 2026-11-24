@@ -16,7 +16,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -76,7 +76,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -136,7 +136,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny

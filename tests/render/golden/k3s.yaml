@@ -98,18 +98,6 @@ metadata:
     pod-security.kubernetes.io/enforce: privileged
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-
----
 # Source: bootstrap/templates/aws/pod-identity-webhook-heal-cronjob.yaml
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: restart IRSA-dependent workloads that were admitted
@@ -193,7 +181,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 
@@ -22342,27 +22330,6 @@ subjects:
   namespace: kube-system
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-rules:
-- apiGroups: ["dip.io"]
-  resources: ["helmapplications"]
-  resourceNames: ["bootstrap"]
-  verbs: ["get", "patch"]
-- apiGroups: ["argoproj.io"]
-  resources: ["applications"]
-  resourceNames: ["bootstrap"]
-  verbs: ["get", "patch"]
-
----
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -22410,7 +22377,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 rules:
@@ -22466,26 +22433,6 @@ spec:
     maxSessionDuration: 3600
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: bootstrap-project-migration
-subjects:
-- kind: ServiceAccount
-  name: bootstrap-project-migration
-  namespace: argocd
-
----
 # Source: bootstrap/templates/cilium/cilium-operator-healer-cronjob.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -22529,7 +22476,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 roleRef:
@@ -22586,88 +22533,6 @@ spec:
       protocol: TCP
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: bootstrap-project-migration
-  namespace: argocd
-  labels:
-    
-    owner: "team"
-  annotations:
-    argocd.argoproj.io/sync-wave: "-9"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-spec:
-  ttlSecondsAfterFinished: 300
-  backoffLimit: 3
-  template:
-    metadata:
-      name: bootstrap-project-migration
-      labels:
-        
-        owner: "team"
-    spec:
-      serviceAccountName: bootstrap-project-migration
-      restartPolicy: OnFailure
-      # Wave -9 runs before Karpenter exists: on a new cluster the tainted master is the only node
-      tolerations:
-      - key: CriticalAddonsOnly
-        operator: Exists
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-      - name: migrate
-        # renovate: datasource=docker depName=alpine/k8s
-        image: alpine/k8s:1.37.2
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 65532
-          capabilities:
-            drop:
-              - ALL
-        env:
-        - name: HOME
-          value: /tmp
-        - name: KUBECACHEDIR
-          value: /tmp/.kube/cache
-        - name: ROOT
-          value: "bootstrap"
-        - name: PROJECT
-          value: "k8s-aws-bootstrap"
-        resources:
-          requests:
-            cpu: 10m
-            memory: 32Mi
-          limits:
-            memory: 64Mi
-        command:
-        - sh
-        - -c
-        - |
-          set -eu
-          if kubectl get helmapplications.dip.io "$ROOT" -n argocd >/dev/null 2>&1; then
-            kind=helmapplications.dip.io
-          elif [ -z "$(kubectl get applications.argoproj.io "$ROOT" -n argocd -o jsonpath='{.metadata.ownerReferences}')" ]; then
-            kind=applications.argoproj.io
-          else
-            echo "Application $ROOT is owned by something other than a HelmApplication, leaving its project alone"
-            exit 0
-          fi
-          current="$(kubectl get "$kind" "$ROOT" -n argocd -o jsonpath='{.spec.project}')"
-          if [ "$current" = "$PROJECT" ]; then
-            echo "$kind/$ROOT is already in project $PROJECT"
-            exit 0
-          fi
-          kubectl patch "$kind" "$ROOT" -n argocd --type merge -p "{\"spec\":{\"project\":\"$PROJECT\"}}"
-          echo "moved $kind/$ROOT from project ${current:-default} to $PROJECT"
-
----
 # Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
 apiVersion: batch/v1
 kind: Job
@@ -22678,7 +22543,7 @@ metadata:
     
     owner: "team"
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
@@ -23153,14 +23018,6 @@ spec:
             operator: Exists
 
 ---
-# Source: bootstrap/templates/argo-cd/root-project-migration-job.yaml
-# Moves the root Application into .Values.project on clusters bootstrapped before
-# k3s-on-ec2 seeded the project (their root was created in "default" and k3s-on-ec2 never
-# re-applies it). Runs right after the AppProject is synced; a no-op once the root is in it.
-# The root comes from a HelmApplication (patched there, Crossplane would revert the
-# Application) or, without one, from a plain Application nothing owns.
-
----
 # Source: bootstrap/templates/crds/gateway-api/README.txt
 # Gateway API CRDs v1.6.3 (Standard Channel Bundle)
 #
@@ -23235,6 +23092,15 @@ spec:
 # now in crossplane-root-ca, it deletes the stale leaf + per-package TLS secrets
 # and restarts crossplane so core re-signs everything from the shared CA. When
 # the CAs already match (fresh installs and post-convergence syncs) it is a no-op.
+#
+# Wave 17, not 4: it is a Sync hook, so every wave after it waits for it, and on a
+# fresh cluster its first action is to wait for cert-manager to populate
+# crossplane-root-ca (the Certificate is wave 1, cert-manager itself wave 0) --
+# 2m55s of blocked waves on fleet01 (2026-11-24: entered at 18:56:45, done at
+# 18:59:40) for a Job whose real work is a no-op there. Its only hard dependency is
+# that it runs before the Crossplane Providers at wave 18 (functions at wave 3
+# already start before it either way, and the Job restarts them if it does find a
+# mismatch), so wave 17 costs nothing and takes ~3 minutes off the critical path.
 
 ---
 # Source: bootstrap/templates/crossplane/crossplane-pki.yaml
@@ -23365,6 +23231,16 @@ spec:
             cm:
               ui.bannercontent: "Account ID: 123456789012 | Region: eu-west-2 | Cluster: acme-k3s-cluster"
               ui.bannerpermanent: "true"
+          # The argo-cd chart defaults redis (and redis-ha/haproxy) to
+          # ecr-public.aws.com/docker/library/redis. That host resolves and serves, but it
+          # is not the documented public-ECR hostname -- public.ecr.aws is -- and, more
+          # usefully, it is not the host the ECR pull-through `ecr-public` alias covers.
+          # Pointing at public.ecr.aws puts redis through the cache like every other
+          # registry we pull from. Only `redis` matters today: redis-ha is disabled, so
+          # its image and haproxy never render.
+          redis:
+            image:
+              repository: public.ecr.aws/docker/library/redis
           server:
             config:
               url: "https://argocd.acme-k3s.example.com"
@@ -23512,7 +23388,13 @@ metadata:
   name: aws-load-balancer-controller
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    # Wave 8, one wave after the ECR pull-through MutatingPolicy (7): the policy
+    # rewrites image references to this account's pull-through cache, so an app that
+    # syncs before it exists pulls straight from upstream. On fleet01 (2026-11-24)
+    # both of these apps sat at wave 6 and ran public.ecr.aws / registry.k8s.io
+    # images, while everything from wave 7 on came from 124355645143.dkr.ecr.
+    # Nothing consumes the ALB controller before the Gateway at wave 13.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: /charts/aws-load-balancer-controller
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -23583,7 +23465,13 @@ metadata:
   name: external-dns
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    # Wave 8, one wave after the ECR pull-through MutatingPolicy (7): the policy
+    # rewrites image references to this account's pull-through cache, so an app that
+    # syncs before it exists pulls straight from upstream. On fleet01 (2026-11-24)
+    # both of these apps sat at wave 6 and ran public.ecr.aws / registry.k8s.io
+    # images, while everything from wave 7 on came from 124355645143.dkr.ecr.
+    # Nothing consumes the ALB controller before the Gateway at wave 13.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: /charts/external-dns
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -23645,7 +23533,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/snapshot-controller
-    targetRevision: snapshot-controller-5.4.0-0.1.3
+    targetRevision: snapshot-controller-5.4.1-0.1.4
     helm:
       valuesObject:
         snapshot-controller:
@@ -23802,6 +23690,24 @@ spec:
             enabled: false
           enableIPv4Masquerade: true
 
+          # Upstream defaults operator.replicas to 2, and upstream also defaults
+          # operator.hostNetwork to true -- which gives the operator hostPort
+          # 9234/9963, i.e. one operator pod per node by construction. With the
+          # chart's nodeAffinity restricting it to node-type system/control-plane, a
+          # fresh cluster has exactly one eligible node (the master), so the second
+          # replica is permanently Pending. The cilium Application then sits Degraded,
+          # wave 0 never completes, Karpenter (wave 3) never runs, no system node is
+          # ever created, and the loop closes -- measured on a fresh devcloud
+          # 2026-11-24 09:14: operator 2 desired / 1 available, second pod
+          # "0/1 nodes are available: 1 node(s) didn't have free ports".
+          # 1 is also what the chart expects: it sets maxUnavailable: 100% for a
+          # single-replica RollingUpdate precisely so the old pod releases the hostPort
+          # before the new one starts, which the replicas: 2 branch does not do.
+          # Matches resources/kustomize/cilium-values.yaml in k3s-on-ec2, which the
+          # master boots with.
+          operator:
+            replicas: 1
+
           # The cilium chart's validate.yaml hard-fails the helm render when any
           # ServiceMonitor is enabled and .Capabilities.APIVersions lacks
           # monitoring.coreos.com/v1 -- and Argo CD passes the cluster's live API versions
@@ -23930,7 +23836,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/crossplane
-    targetRevision: crossplane-v2.4.3-0.1.2
+    targetRevision: crossplane-v2.5.0-0.1.3
     helm:
       valuesObject:
         crossplane:
@@ -24031,6 +23937,20 @@ spec:
       valuesObject:
         package:
           registry: ghcr.io/crossplane-contrib
+        # InPlace, not the chart's InPlaceOrRecreate: on fleet00 (2026-11-24) the
+        # providers' requests (cpu 100m) are far below the VPA target (476m), because
+        # the target is a decaying max that a provider's startup CRD/schema work spikes
+        # to. The in-place resize then cannot fit on a small node (`ResizeDeferred:
+        # OutOfcpu` at 16:44:18) and InPlaceOrRecreate falls back to evicting -- all
+        # four pods at 16:50:18, whose replacements (now asking 476m) fitted nowhere, so
+        # Karpenter launched 3 fresh nodes and the last wave of the bootstrap sat ~7
+        # minutes waiting for them. InPlace defers an unfittable resize instead of
+        # evicting; the next pod creation picks the recommendation up anyway. It needs
+        # the kubelet's InPlacePodVerticalScaling gate, which the worker user data sets.
+        # Prefer `vpa.evictionRequirements` (only evict for memory *downsizing*) once the
+        # chart renders it -- 0.0.48 has no knob for it.
+        vpa:
+          updateMode: InPlace
         environmentConfig:
           accountId: "123456789012"
           resourcePrefix: "acme-k3s"
@@ -24276,6 +24196,19 @@ spec:
     helm:
       valuesObject:
         vertical-pod-autoscaler:
+          # The `InPlace` feature gate, so the crossplane providers' VPAs can ask for
+          # updateMode: InPlace. Without the gate the admission controller rejects the
+          # object outright -- fleet00 (2026-11-24) failed crossplane-providers-aws for
+          # 9 retries and counting with
+          #   spec.updatePolicy.updateMode: Forbidden: in order to use UpdateMode InPlace,
+          #   you must enable feature gate InPlace in the admission-controller args
+          # so all five VPAs were never created at all (and the app could never reach
+          # Synced). InPlace is what stops a VPA whose target has outgrown its requests
+          # from being converted into an eviction when the resize cannot fit on the node
+          # -- see crossplane/crossplane-providers-aws-app.yaml. Non-GA upstream, hence
+          # spelled out here rather than assumed: it is a deliberate opt-in.
+          featureGates:
+            InPlace: true
           commonLabels:
             
             owner: "team"
@@ -24442,7 +24375,17 @@ metadata:
   name: kyverno
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    # Wave 5, not 3: every kyverno controller (and the chart's pre-install
+    # check-legacy-policies hook, which blocks the whole app) is pinned to
+    # node-type=system, and that pool's nodes only exist once the NodePools at
+    # wave 4 have been applied and Karpenter has launched and joined them (~2-3
+    # min). At wave 3 the app sat with nothing applied for 7.5 minutes on
+    # fleet00 (2026-11-24): the hook's 120s activeDeadlineSeconds failed twice
+    # while its pod waited for a system node, so no CRDs existed until 16:19:50
+    # -- which is what made the kyverno policies (wave 6) fail `no matches for kind`
+    # and forced a whole-sync retry. Wave 5 is reached ~6 min after wave 4
+    # starts, which is enough for the system nodes to be Ready.
+    argocd.argoproj.io/sync-wave: "5"
     argocd.argoproj.io/manifest-generate-paths: /charts/kyverno
 spec:
   destination:
@@ -24456,6 +24399,41 @@ spec:
     helm:
       valuesObject:
         kyverno:
+          # No legacy kyverno.io/v1 policies exist to check for: every cluster this
+          # chart bootstraps is fresh, and the wrapper only ever pins a current
+          # kyverno. The check is a pre-install hook, so it blocks the whole app
+          # (and therefore every CRD the bootstrap needs) behind a pod that has to be
+          # scheduled, pull kyverno-cli and run -- 69s on fleet01 (2026-11-24:
+          # scheduled 18:59:59, image pulled 19:00:37, Job completed 19:00:41 for 4
+          # seconds of work, CRDs 19:00:47), which is longer than the wave gap to the
+          # policies that consume those CRDs and cost a whole-sync retry. It also has
+          # its own activeDeadlineSeconds: 120, so on a cluster without a system node
+          # yet it fails twice instead of waiting. The chart's render-time `lookup`
+          # check stays enabled for helm-CLI users.
+          upgrade:
+            legacyPolicyCheck:
+              enabled: false
+          # Pull every kyverno image from ghcr instead of the chart's default
+          # reg.kyverno.io. On 2026-11-24 reg.kyverno.io answered 503/502/timeout and
+          # there is no ECR pull-through rule for it, so a bootstrap stalled at the
+          # chart's pre-install hook: `kyverno-check-legacy-policies` could not pull
+          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. That hook is now disabled
+          # below, but the same applies to every other kyverno image.
+          # pull means nothing in the app applies -- no deployments, no CRDs -- so the
+          # policies failed `no matches for kind` and the sync retried forever.
+          # Same shape as the xpkg.crossplane.io outage the same day; see k3s-on-ec2's
+          # docs/REGISTRY_DEPENDENCIES.md.
+          #
+          # One key covers all seven images: the chart's image helper is
+          # `default (default .image.defaultRegistry .globalRegistry) .image.registry`
+          # and every per-component `image.registry` is null, so this is what resolves.
+          # Verified by rendering the chart: background-controller, cleanup-controller,
+          # kyverno-cli, kyverno, kyvernopre, readiness-checker and reports-controller
+          # all move to ghcr.io/kyverno/..., and all seven repos answer 200 on ghcr's
+          # token endpoint.
+          global:
+            image:
+              registry: ghcr.io
           customLabels:
             
             owner: "team"
@@ -25364,12 +25342,15 @@ kind: GlobalContextEntry
 metadata:
   name: ecr-pull-through-hsp-addons
   annotations:
-    # Wave 4, not the tail: this only needs kyverno.io/v2 (kyverno app, wave 3) and
-    # the hsp-addons ConfigMap (wave 0), and every other kyverno policy in this chart
-    # already lives at 4. It sat at 21 because the legacy ClusterPolicy it replaced
-    # did (5b2a940), not for any dependency -- so every image pulled by waves 4-21 was
-    # bypassing the pull-through cache for no reason.
-    argocd.argoproj.io/sync-wave: "4"
+    # Wave 6, with the rest of the kyverno resources: this only needs kyverno.io/v2
+    # (kyverno app, wave 5) and the hsp-addons ConfigMap (wave 0). It sat at 21 because
+    # the legacy ClusterPolicy it replaced did (5b2a940), not for any dependency -- so
+    # every image pulled by waves 6-21 was bypassing the pull-through cache for no
+    # reason. Keep it a wave *after* the kyverno app rather than at the same wave: the
+    # app applies its CRDs only once it has a system node to schedule on (see
+    # kyverno-app.yaml), which on a cold cluster is later than the wave that creates
+    # that pool.
+    argocd.argoproj.io/sync-wave: "6"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
 spec:
   kubernetesResource:
@@ -25497,11 +25478,11 @@ metadata:
       to this account's ECR pull-through cache, per registry alias enabled
       in the hsp-addons ConfigMap's enabledPullThroughRegistries list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
-    # One wave behind its GlobalContextEntry (wave 4): the variables below read
+    # One wave behind its GlobalContextEntry (wave 6): the variables below read
     # globalContext.get("ecr-pull-through-hsp-addons", "data"), and with
     # failurePolicy: Ignore a policy compiled before that entry exists fails silently
     # -- pods get admitted unmutated and nothing says so.
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "7"
 spec:
   failurePolicy: Ignore
   # Legacy annotation `pod-policies.kyverno.io/autogen-controllers: none` --
@@ -25639,7 +25620,7 @@ metadata:
       EBS volume detach/reattach issues. This policy automatically injects the
       nodeSelector to ensure CNPG pods are scheduled on on-demand instances only.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   matchConstraints:
     resourceRules:
@@ -25717,7 +25698,7 @@ metadata:
       that already carry any pod-security label (including an explicit
       `enforce: privileged` opt-out) are left untouched.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   evaluation:
     background:
@@ -25771,7 +25752,7 @@ metadata:
       accumulate excessive ReplicaSets over time. A limit of 3 balances
       rollback capability with resource efficiency.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   matchConstraints:
     resourceRules:
@@ -25885,8 +25866,11 @@ spec:
     # Consolidate when nodes are empty or underutilized
     consolidationPolicy: WhenEmptyOrUnderutilized
     
-    # Wait time before consolidation (longer for system stability)
-    consolidateAfter: 10m
+    # Wait time before consolidation
+    # 5m: matches the default pool. The 1-node budget below is what actually keeps
+    # system-pool churn bounded (one disruption at a time), so this does not need to
+    # be the longer, "for stability" value it used to be.
+    consolidateAfter: 5m
     
     # Budget controls for disruption rate limiting
     budgets:
@@ -25986,7 +25970,12 @@ spec:
   # Disruption settings for node lifecycle management
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 10m
+    # 5m: short on purpose. The default pool is where the bootstrap's own pods land
+    # first and where they get replaced once the real workloads exist, so the sooner
+    # an underutilized node is folded into a bigger one the fewer nodes (and the less
+    # image pulling) a fresh cluster pays for. Nodes that are still settling are
+    # protected by the 1-node budget, not by this timer.
+    consolidateAfter: 5m
     budgets:
       - nodes: "1"
         
@@ -26123,7 +26112,7 @@ metadata:
       update one to the platform-admin groups already granted write access in
       exceptions-rbac.yaml.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26193,7 +26182,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, forcing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26251,7 +26240,7 @@ metadata:
       dedicated service accounts by chart design and never need AWS
       credentials, so they are intentionally excluded from this check.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26303,7 +26292,7 @@ metadata:
       that does not request one explicitly. This policy requires Pods to
       specify a dedicated, purpose-built ServiceAccount.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26358,7 +26347,7 @@ metadata:
       a specific version of an application Pod. This policy validates that the image
       specifies a tag and that it is not called `latest`.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26411,7 +26400,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26463,7 +26452,7 @@ metadata:
       This policy ensures that EBS CSI Controller pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26511,7 +26500,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26563,7 +26552,7 @@ metadata:
       This policy ensures that External DNS pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26614,7 +26603,7 @@ metadata:
       added either. This policy blocks that finalizer from being set on the
       composite itself; the Composition adds it only to the generated Application.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26655,7 +26644,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26707,7 +26696,7 @@ metadata:
       This policy ensures that Karpenter controller pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -26755,7 +26744,7 @@ metadata:
       label is present, so untracked workloads can be identified during the
       audit rollout before any enforcement is turned on.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26801,7 +26790,7 @@ metadata:
       Pods that run privileged containers, allow privilege escalation, or
       share the host network, PID, or IPC namespace.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26876,7 +26865,7 @@ metadata:
       service accounts. This policy flags any ClusterRoleBinding to
       `cluster-admin` whose subjects are not in an administrative group.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26917,7 +26906,7 @@ metadata:
       least-privilege model. This policy flags any Role or ClusterRole rule
       that grants one of these verbs.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -26993,7 +26982,7 @@ metadata:
       compromised identity unbounded. This policy flags any rule that uses
       a wildcard in place of an explicit verb or resource list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
@@ -27062,7 +27051,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -27124,7 +27113,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny
@@ -27186,7 +27175,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny

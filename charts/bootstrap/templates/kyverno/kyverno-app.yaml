@@ -4,7 +4,17 @@ metadata:
   name: kyverno
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    # Wave 5, not 3: every kyverno controller (and the chart's pre-install
+    # check-legacy-policies hook, which blocks the whole app) is pinned to
+    # node-type=system, and that pool's nodes only exist once the NodePools at
+    # wave 4 have been applied and Karpenter has launched and joined them (~2-3
+    # min). At wave 3 the app sat with nothing applied for 7.5 minutes on
+    # fleet00 (2026-11-24): the hook's 120s activeDeadlineSeconds failed twice
+    # while its pod waited for a system node, so no CRDs existed until 16:19:50
+    # -- which is what made the kyverno policies (wave 6) fail `no matches for kind`
+    # and forced a whole-sync retry. Wave 5 is reached ~6 min after wave 4
+    # starts, which is enough for the system nodes to be Ready.
+    argocd.argoproj.io/sync-wave: "5"
     argocd.argoproj.io/manifest-generate-paths: /charts/kyverno
 spec:
   destination:
@@ -18,6 +28,41 @@ spec:
     helm:
       valuesObject:
         kyverno:
+          # No legacy kyverno.io/v1 policies exist to check for: every cluster this
+          # chart bootstraps is fresh, and the wrapper only ever pins a current
+          # kyverno. The check is a pre-install hook, so it blocks the whole app
+          # (and therefore every CRD the bootstrap needs) behind a pod that has to be
+          # scheduled, pull kyverno-cli and run -- 69s on fleet01 (2026-11-24:
+          # scheduled 18:59:59, image pulled 19:00:37, Job completed 19:00:41 for 4
+          # seconds of work, CRDs 19:00:47), which is longer than the wave gap to the
+          # policies that consume those CRDs and cost a whole-sync retry. It also has
+          # its own activeDeadlineSeconds: 120, so on a cluster without a system node
+          # yet it fails twice instead of waiting. The chart's render-time `lookup`
+          # check stays enabled for helm-CLI users.
+          upgrade:
+            legacyPolicyCheck:
+              enabled: false
+          # Pull every kyverno image from ghcr instead of the chart's default
+          # reg.kyverno.io. On 2026-11-24 reg.kyverno.io answered 503/502/timeout and
+          # there is no ECR pull-through rule for it, so a bootstrap stalled at the
+          # chart's pre-install hook: `kyverno-check-legacy-policies` could not pull
+          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. That hook is now disabled
+          # below, but the same applies to every other kyverno image.
+          # pull means nothing in the app applies -- no deployments, no CRDs -- so the
+          # policies failed `no matches for kind` and the sync retried forever.
+          # Same shape as the xpkg.crossplane.io outage the same day; see k3s-on-ec2's
+          # docs/REGISTRY_DEPENDENCIES.md.
+          #
+          # One key covers all seven images: the chart's image helper is
+          # `default (default .image.defaultRegistry .globalRegistry) .image.registry`
+          # and every per-component `image.registry` is null, so this is what resolves.
+          # Verified by rendering the chart: background-controller, cleanup-controller,
+          # kyverno-cli, kyverno, kyvernopre, readiness-checker and reports-controller
+          # all move to ghcr.io/kyverno/..., and all seven repos answer 200 on ghcr's
+          # token endpoint.
+          global:
+            image:
+              registry: ghcr.io
           customLabels:
             {{- include "bootstrap.ownerLabels" . | nindent 12 }}
           crds:

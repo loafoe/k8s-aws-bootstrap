@@ -59,10 +59,10 @@ groups:
     wave: 3
   - group: kyverno.io
     providedBy: kyverno
-    wave: 3
+    wave: 5
   - group: policies.kyverno.io
     providedBy: kyverno
-    wave: 3
+    wave: 5
   - group: gateway.networking.k8s.io
     providedBy: root
     wave: 0
