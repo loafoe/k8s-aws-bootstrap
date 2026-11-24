@@ -87,8 +87,11 @@ features:
 environmentConfig:
   # Top-level config
   sharedServicesAccountId: ""
-  # Ownership metadata used by chart-managed workloads to satisfy the
-  # require-owner-label Kyverno policy.
+  # Ownership metadata, rendered as the app.kubernetes.io/managed-by label and the
+  # Owner/ManagedBy tags on everything this chart creates. (It used to also exist to
+  # satisfy the require-owner-label Kyverno policy; that policy was removed 2026-11-24
+  # -- it audited every workload for a label the chart's own pods could not always
+  # carry, which cost more in noise than it caught.)
   owner: ""
   managedBy: ""
   
