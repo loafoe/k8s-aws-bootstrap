@@ -35,7 +35,7 @@ quay.io/cilium/operator-generic:v1.20.5@sha256:c6e7de6665aa9701db86c4fe46828a75a
 ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2
 ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.16.0
 # --- charts/crossplane
-ghcr.io/crossplane/crossplane:v2.4.3
+ghcr.io/crossplane/crossplane:v2.5.0
 # --- charts/descheduler
 registry.k8s.io/descheduler/descheduler:v0.37.0
 # --- charts/external-dns
@@ -71,7 +71,7 @@ reg.kyverno.io/kyverno/reports-controller:v1.20.0
 ghcr.io/kyverno/policy-reporter-ui:2.9.1
 ghcr.io/kyverno/policy-reporter:3.11.2
 # --- charts/snapshot-controller
-registry.k8s.io/sig-storage/snapshot-controller:v8.7.0
+registry.k8s.io/sig-storage/snapshot-controller:v8.7.1
 # --- charts/spire
 docker.io/library/busybox:1.38.0-uclibc
 docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine

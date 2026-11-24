@@ -81,7 +81,12 @@ spec:
   # Disruption settings for node lifecycle management
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    consolidateAfter: 10m
+    # 5m: short on purpose. The default pool is where the bootstrap's own pods land
+    # first and where they get replaced once the real workloads exist, so the sooner
+    # an underutilized node is folded into a bigger one the fewer nodes (and the less
+    # image pulling) a fresh cluster pays for. Nodes that are still settling are
+    # protected by the 1-node budget, not by this timer.
+    consolidateAfter: 5m
     budgets:
       - nodes: "1"
         

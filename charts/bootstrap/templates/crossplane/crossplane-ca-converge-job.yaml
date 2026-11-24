@@ -13,6 +13,15 @@
 # now in crossplane-root-ca, it deletes the stale leaf + per-package TLS secrets
 # and restarts crossplane so core re-signs everything from the shared CA. When
 # the CAs already match (fresh installs and post-convergence syncs) it is a no-op.
+#
+# Wave 17, not 4: it is a Sync hook, so every wave after it waits for it, and on a
+# fresh cluster its first action is to wait for cert-manager to populate
+# crossplane-root-ca (the Certificate is wave 1, cert-manager itself wave 0) --
+# 2m55s of blocked waves on fleet01 (2026-11-24: entered at 18:56:45, done at
+# 18:59:40) for a Job whose real work is a no-op there. Its only hard dependency is
+# that it runs before the Crossplane Providers at wave 18 (functions at wave 3
+# already start before it either way, and the Job restarts them if it does find a
+# mismatch), so wave 17 costs nothing and takes ~3 minutes off the critical path.
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -20,7 +29,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 ---
@@ -30,7 +39,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 rules:
@@ -57,7 +66,7 @@ metadata:
   name: crossplane-ca-converger
   namespace: crossplane-system
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 roleRef:
@@ -77,7 +86,7 @@ metadata:
   labels:
     {{- include "bootstrap.ownerLabels" . | nindent 4 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:

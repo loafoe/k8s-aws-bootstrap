@@ -14,7 +14,7 @@ metadata:
       compromised identity unbounded. This policy flags any rule that uses
       a wildcard in place of an explicit verb or resource list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
