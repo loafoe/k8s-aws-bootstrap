@@ -24331,6 +24331,26 @@ spec:
     helm:
       valuesObject:
         kyverno:
+          # Pull every kyverno image from ghcr instead of the chart's default
+          # reg.kyverno.io. On 2026-11-24 reg.kyverno.io answered 503/502/timeout and
+          # there is no ECR pull-through rule for it, so a bootstrap stalled at the
+          # chart's pre-install hook: `kyverno-check-legacy-policies` could not pull
+          # reg.kyverno.io/kyverno/kyverno-cli:v1.20.0. A pre-install hook that cannot
+          # pull means nothing in the app applies -- no deployments, no CRDs -- so the
+          # wave-4 policies failed `no matches for kind` and the sync retried forever.
+          # Same shape as the xpkg.crossplane.io outage the same day; see k3s-on-ec2's
+          # docs/REGISTRY_DEPENDENCIES.md.
+          #
+          # One key covers all seven images: the chart's image helper is
+          # `default (default .image.defaultRegistry .globalRegistry) .image.registry`
+          # and every per-component `image.registry` is null, so this is what resolves.
+          # Verified by rendering the chart: background-controller, cleanup-controller,
+          # kyverno-cli, kyverno, kyvernopre, readiness-checker and reports-controller
+          # all move to ghcr.io/kyverno/..., and all seven repos answer 200 on ghcr's
+          # token endpoint.
+          global:
+            image:
+              registry: ghcr.io
           customLabels:
             
             owner: "team"
