@@ -4,7 +4,15 @@ metadata:
   name: cert-manager
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Wave 0, so the CRDs and the webhook exist before wave 1 applies the ClusterIssuers
+    # and the crossplane PKI. At wave 1 those three resources were applied in the *same*
+    # wave as this Application, i.e. concurrently with the very install that creates the
+    # cert-manager.io kinds -- and on a fresh cluster that failed: "no matches for kind
+    # Certificate in version cert-manager.io/v1", sync failed, retry from wave -10.
+    # SkipDryRunOnMissingResource did not help; it only defers the failure from validate
+    # to apply, and the apply has the same problem. Nothing at wave 0 needs cert-manager,
+    # and CreateNamespace below makes the namespace.
+    argocd.argoproj.io/sync-wave: "0"
     argocd.argoproj.io/manifest-generate-paths: /charts/cert-manager
 spec:
   project: {{ .Values.project }}

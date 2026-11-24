@@ -4,10 +4,10 @@ metadata:
   name: crossplane
   namespace: argocd
   annotations:
-    # Wave 2 (after cert-manager + crossplane-pki at wave 1) so the cert-manager
-    # managed CA is present in the crossplane-root-ca secret before `core init`
-    # runs. core reuses that CA to sign all server/client/package certs, keeping
-    # crossplane core and the composition functions on a single, stable CA.
+    # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
+    # cert-manager managed CA is present in the crossplane-root-ca secret before
+    # `core init` runs. core reuses that CA to sign all server/client/package certs,
+    # keeping crossplane core and the composition functions on a single, stable CA.
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/crossplane
 spec:

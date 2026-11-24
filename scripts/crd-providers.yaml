@@ -50,7 +50,7 @@ groups:
   # Rendered as literal CRDs by the apps that own them.
   - group: cert-manager.io
     providedBy: cert-manager
-    wave: 1
+    wave: 0
   - group: karpenter.sh
     providedBy: karpenter
     wave: 3

@@ -17,9 +17,10 @@
 # preserves its type; crossplane reads certs by key (tls.crt/tls.key/ca.crt),
 # not by secret type, so an Opaque secret is fine.
 #
-# Ordering: these resources sync at wave 1 alongside cert-manager (which must be
-# Healthy to serve its webhook); the `crossplane` Application is moved to wave 2
-# so the CA exists in `crossplane-root-ca` before `core init` executes.
+# Ordering: cert-manager itself is wave 0, so its CRDs and webhook are established
+# before anything here is applied; these resources and the ClusterIssuers sit at wave
+# 1. The `crossplane` Application is moved to wave 2 so the CA exists in
+# `crossplane-root-ca` before `core init` executes.
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
