@@ -40,12 +40,16 @@ groups:
   - group: argoproj.io
     providedBy: pre-existing
     wave: -1
+  # Crossplane core is no longer installed by the master's boot kustomization: the
+  # `crossplane` Application (wave 2) installs it, so its CRDs exist from wave 2 on.
+  # Everything that uses them (the functions app at 3, the compositions and the
+  # EnvironmentConfigs at 4) has to come after that.
   - group: apiextensions.crossplane.io
-    providedBy: pre-existing
-    wave: -1
+    providedBy: crossplane
+    wave: 2
   - group: pkg.crossplane.io
-    providedBy: pre-existing
-    wave: -1
+    providedBy: crossplane
+    wave: 2
 
   # Rendered as literal CRDs by the apps that own them.
   - group: cert-manager.io
@@ -84,8 +88,8 @@ groups:
 
   # Not in any chart's rendered output: Crossplane's package manager installs these AWS
   # provider groups dynamically once crossplane-providers-aws's Provider resources sync
-  # (pkg.crossplane.io itself is pre-existing, above -- it comes from Crossplane core,
-  # not a provider package).
+  # (pkg.crossplane.io itself comes from Crossplane core, the `crossplane` app at wave 2,
+  # not from a provider package).
   - group: "*aws.upbound.io"
     providedBy: crossplane-providers-aws
     wave: 18

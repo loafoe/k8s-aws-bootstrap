@@ -23777,7 +23777,14 @@ metadata:
   name: common-bootstrap
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Wave 4, not 1: these Compositions are apiextensions.crossplane.io objects whose
+    # pipeline references Functions, and both come from Applications that are now part of
+    # the wave map -- `crossplane` (wave 2) installs the CRDs, `crossplane-functions`
+    # (wave 3) the functions. Until 2026-11-24 the master applied this out of band during
+    # boot, which is also why a CompositionRevision flip could hit a running bootstrap: the
+    # revision hash includes the resolved functions, so applying the Composition before the
+    # functions were active minted a second revision mid-sync. After the functions, one.
+    argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/manifest-generate-paths: kustomize
 spec:
   destination:
@@ -25109,6 +25116,89 @@ spec:
     httpTokens: required
 
 ---
+# Source: bootstrap/templates/crossplane/environmentconfig.yaml
+# The cluster's own EnvironmentConfig: what the add-on compositions read (HelmApplication
+# CRs from other repos, crossplane-providers-aws, the EBS/RDS compositions). Rendered from
+# the same `.Values.environmentConfig` the chart's own templates use, so the two cannot
+# drift.
+#
+# It used to come from an SSM parameter that the master applied during boot, because the
+# bootstrap app's Helm values were themselves composed from it by the helmapp composition --
+# a circle that required Crossplane to exist before Argo CD did. With the bootstrap app
+# applied as a plain Application (k3s-on-ec2's resources/bootstrap-app-plain.yaml) the
+# values are inlined there instead, and this object is just another chart resource.
+#
+# Wave 4: after the `crossplane` Application (wave 2) installs apiextensions.crossplane.io.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: acme-k3s-environment
+  labels:
+    # Compositions select this by name and by this label.
+    config: dip-software
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+# Explicit keys, not `toYaml .Values.environmentConfig`: `environmentConfig.bootstrap` also
+# carries controlPlane (k3s-on-ec2's controlPlane output), which is chart config, not
+# EnvironmentConfig data. scripts/check-bootstrap-render.sh renders each fixture with
+# controlPlane=k3s and requires byte-identical output, which is how this stayed honest.
+data:
+  resourcePrefix: "acme-k3s"
+  region: "eu-west-2"
+  clusterFqdn: "acme-k3s.example.com"
+  accountId: "123456789012"
+  partition: "aws"
+  sharedServicesAccountId: "124355645143"
+  owner: "team"
+  managedBy: "api"
+  bootstrap:
+    acmeDirectoryUrl: ""
+    acmeEabKeyId: ""
+    additionalClusterFqdns: []
+    awsAccountId: "123456789012"
+    awsActivemqSecurityGroups: '{"arn":"","id":"acme-k3s-activemq-sg-id","name":""}'
+    awsEbsCsiDriverRoleArn: arn:aws:iam::123456789012:role/acme-k3s-ebs-csi-driver-role
+    awsElasticacheSecurityGroups: '{"arn":"","id":"acme-k3s-elasticache-sg-id","name":""}'
+    awsElasticacheSubnetGroup: '{"arn":"","id":"acme-k3s-elasticache-subnet-group","name":"acme-k3s-elasticache-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsExternalDnsRoleArn: arn:aws:iam::123456789012:role/acme-k3s-external-dns-role
+    awsLbcRoleArn: arn:aws:iam::123456789012:role/acme-k3s-aws-load-balancer-controller-role
+    awsPartition: aws
+    awsPrivateSubnetIds: '["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]'
+    awsRdsSecurityGroups: '{"arn":"","id":"acme-k3s-rds-sg-id","name":""}'
+    awsRdsSubnetGroup: '{"arn":"","id":"acme-k3s-rds-subnet-group","name":"acme-k3s-rds-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsRedshiftSecurityGroups: '{"arn":"","id":"acme-k3s-redshift-sg-id","name":""}'
+    awsRedshiftSubnetGroup: '{"arn":"","id":"acme-k3s-redshift-subnet-group","name":"acme-k3s-redshift-subnet-group","subnet_ids":["acme-k3s-vpc-private-a-id","acme-k3s-vpc-private-b-id","acme-k3s-vpc-private-c-id"]}'
+    awsRegion: eu-west-2
+    awsVpcId: acme-k3s-vpc-id
+    certManagerRoleArn: arn:aws:iam::123456789012:role/acme-k3s-cert-manager-role
+    certificateIssuer: letsencrypt
+    clusterEndpoint: https://k3s.acme-k3s.example.com:6443
+    clusterFqdn: acme-k3s.example.com
+    clusterHost: k3s.acme-k3s.example.com
+    clusterName: acme-k3s-cluster
+    crossplaneProviderAwsIamRoleArn: arn:aws:iam::123456789012:role/acme-k3s-crossplane-provider-aws-iam-role
+    ecrPullThroughCachePolicyArn: arn:aws:iam::123456789012:policy/acme-k3s-ecr-pull-through-cache-policy
+    ecrPullThroughCachePolicyName: acme-k3s-ecr-pull-through-cache-policy
+    enableDualStack: false
+    ipv4ClusterCIDR: 10.42.0.0/16
+    ipv6ClusterCIDR: fd00::/48
+    k3sChannel: ""
+    k3sTokenParameterName: /acme-k3s/acme-k3s-cluster/node-token
+    k3sVersion: v1.37.2+k3s1
+    k3sVersionParameterName: /acme-k3s/acme-k3s-cluster/k3s-version
+    karpenterInstanceProfile: KarpenterNodeInstanceProfile-acme-k3s-cluster
+    karpenterInterruptionQueueName: acme-k3s-cluster
+    karpenterRoleArn: arn:aws:iam::123456789012:role/acme-k3s-karpenter-role
+    managedBy: api
+    nodeOs: al2023
+    oidcProvider: k3s-issuer.acme-k3s.example.com
+    oidcProviderArn: arn:aws:iam::123456789012:oidc-provider/k3s-issuer.acme-k3s.example.com
+    owner: team
+    resourcePrefix: acme-k3s
+    selinuxMode: permissive
+    sshKeyPairName: acme-k3s-ssh-keypair
+
+---
 # Source: bootstrap/templates/features.yaml
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
@@ -25116,6 +25206,11 @@ metadata:
   name: k8s-aws-bootstrap-base-features
   labels:
     config: dip-software
+  annotations:
+    # Wave 4, after the `crossplane` Application (wave 2) installs
+    # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
+    # installing Crossplane during boot.
+    argocd.argoproj.io/sync-wave: "4"
 data:
   features:
     argoCd: true
@@ -25138,6 +25233,11 @@ metadata:
   name: k8s-aws-bootstrap-overlay-gateway-api-features
   labels:
     config: dip-software
+  annotations:
+    # Wave 4, after the `crossplane` Application (wave 2) installs
+    # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
+    # installing Crossplane during boot.
+    argocd.argoproj.io/sync-wave: "4"
 data:
   features:
     gatewayApi: true
@@ -25152,9 +25252,13 @@ kind: EnvironmentConfig
 metadata:
   name: hsp-addons
   labels:
-    # Compositions select config=hsp-addons as well as referencing the name; k3s-on-ec2's
-    # first-boot copy (resources/bootstrap-app.yaml) carries the same label
+    # Compositions select config=hsp-addons as well as referencing the name.
     config: hsp-addons
+  annotations:
+    # Wave 4, after the `crossplane` Application (wave 2) installs
+    # apiextensions.crossplane.io. Until 2026-11-24 the master installed Crossplane during
+    # boot, so this could sit at wave 0 with everything else in this file.
+    argocd.argoproj.io/sync-wave: "4"
 data:
   accountId: "123456789012"
   sharedServicesAccountId: "124355645143"
@@ -25235,6 +25339,11 @@ metadata:
   name: k8s-aws-bootstrap-overlay-spiffe-features
   labels:
     config: dip-software
+  annotations:
+    # Wave 4, after the `crossplane` Application (wave 2) installs
+    # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
+    # installing Crossplane during boot.
+    argocd.argoproj.io/sync-wave: "4"
 data:
   features:
     spiffe: true

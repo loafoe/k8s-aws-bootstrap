@@ -4,7 +4,14 @@ metadata:
   name: common-bootstrap
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Wave 4, not 1: these Compositions are apiextensions.crossplane.io objects whose
+    # pipeline references Functions, and both come from Applications that are now part of
+    # the wave map -- `crossplane` (wave 2) installs the CRDs, `crossplane-functions`
+    # (wave 3) the functions. Until 2026-11-24 the master applied this out of band during
+    # boot, which is also why a CompositionRevision flip could hit a running bootstrap: the
+    # revision hash includes the resolved functions, so applying the Composition before the
+    # functions were active minted a second revision mid-sync. After the functions, one.
+    argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/manifest-generate-paths: kustomize
 spec:
   destination:

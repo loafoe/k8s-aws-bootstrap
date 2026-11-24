@@ -5,6 +5,11 @@ metadata:
   name: k8s-aws-bootstrap-overlay-spiffe-features
   labels:
     config: dip-software
+  annotations:
+    # Wave 4, after the `crossplane` Application (wave 2) installs
+    # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
+    # installing Crossplane during boot.
+    argocd.argoproj.io/sync-wave: "4"
 data:
   features:
     spiffe: true
