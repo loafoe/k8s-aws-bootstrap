@@ -17,7 +17,7 @@ metadata:
       dedicated service accounts by chart design and never need AWS
       credentials, so they are intentionally excluded from this check.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit
