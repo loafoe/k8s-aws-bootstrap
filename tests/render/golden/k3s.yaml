@@ -23524,14 +23524,20 @@ metadata:
   name: common-bootstrap
   namespace: argocd
   annotations:
-    # Wave 4, not 1: these Compositions are apiextensions.crossplane.io objects whose
+    # Wave 8, not 1: these Compositions are apiextensions.crossplane.io objects whose
     # pipeline references Functions, and both come from Applications that are now part of
     # the wave map -- `crossplane` (wave 2) installs the CRDs, `crossplane-functions`
     # (wave 3) the functions. Until 2026-11-24 the master applied this out of band during
     # boot, which is also why a CompositionRevision flip could hit a running bootstrap: the
     # revision hash includes the resolved functions, so applying the Composition before the
     # functions were active minted a second revision mid-sync. After the functions, one.
-    argocd.argoproj.io/sync-wave: "4"
+    #
+    # Wave 8 rather than 4 for the envconfig-harvester Job this chart runs: it creates
+    # hsp-addons-compat and fails outright if apiextensions.crossplane.io is not
+    # *established* yet, which on a cold cluster takes a few minutes past wave 2 (fleet00,
+    # 2026-11-25: crossplane's CRD landed at 08:48:11, the Job ran 08:47:37). Four waves of
+    # slack is what makes that deterministic instead of a retry.
+    argocd.argoproj.io/sync-wave: "8"
     argocd.argoproj.io/manifest-generate-paths: kustomize
 spec:
   destination:
