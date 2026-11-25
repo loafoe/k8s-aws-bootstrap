@@ -174,21 +174,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-pki.yaml
-# Pre-created empty so cert-manager preserves the type (see the header). The crossplane
-# chart renders the same object; the two definitions are identical apart from this one
-# existing before `core init` and before the chart's Application is ever compared.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: crossplane-root-ca
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec: {}
-type: Opaque
-
----
 # Source: bootstrap/templates/hsp-aws-platform/hsp-addons/hsp-addons.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -22891,42 +22876,6 @@ spec:
 
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-pki.yaml
-# Crossplane internal PKI, externally managed by cert-manager.
-#
-# Why this exists:
-# Crossplane core (`core init`) bootstraps its own internal CA into the
-# `crossplane-root-ca` secret and signs the server/client certs AND every
-# per-package (function/provider) TLS server cert from it. `core init` REUSES
-# an existing CA secret if `tls.crt`+`tls.key` are already present (verified in
-# crossplane v2.3.1 internal/initializer/tls.go `loadOrGenerateCA`).
-#
-# By having cert-manager populate `crossplane-root-ca` with a STABLE, git-tracked
-# CA BEFORE crossplane init runs, every cert crossplane subsequently generates
-# chains to one CA that never silently diverges. This removes the recurring
-# "certificate signed by unknown authority" handshake failures between crossplane
-# core and the composition functions.
-#
-# The empty Secret below is what makes that work, and it is load-bearing. A Secret's type
-# is IMMUTABLE, so whoever creates `crossplane-root-ca` first decides it forever: the
-# crossplane chart renders it `type: Opaque`, cert-manager creates a Certificate's secret
-# as `kubernetes.io/tls`, and once cert-manager got there first the chart could never apply
-# its own version again (fleet11, 2026-11-25: the crossplane Application failed every
-# comparison with `field is immutable`, so Crossplane never installed and nothing below it
-# in the wave map could apply). Pre-creating it here, empty and Opaque, means cert-manager
-# *adopts* the existing secret and preserves the type -- exactly what happened on every
-# cluster the master installed Crossplane on, now made deterministic instead of a race.
-#
-# crossplane-app-plain's Application ignores /data and /type on this Secret
-# (resources/bootstrap-app-plain.yaml, ignoreDifferences + RespectIgnoreDifferences), so a
-# re-sync of the root app never blanks the CA cert-manager wrote.
-#
-# Ordering: cert-manager itself is wave 0, so its CRDs and webhook are established
-# before anything here is applied; these resources and the ClusterIssuers sit at wave
-# 1. The `crossplane` Application is moved to wave 2 so the CA exists in
-# `crossplane-root-ca` before `core init` executes.
-
----
 # Source: bootstrap/templates/argo-cd/appproject.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -23630,10 +23579,18 @@ metadata:
   name: crossplane
   namespace: argocd
   annotations:
-    # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
-    # cert-manager managed CA is present in the crossplane-root-ca secret before
-    # `core init` runs. core reuses that CA to sign all server/client/package certs,
-    # keeping crossplane core and the composition functions on a single, stable CA.
+    # Wave 2: the earliest point after the namespaces (wave 0) at which anything else in
+    # this chart needs Crossplane's CRDs (the functions at 3, the compositions and every
+    # EnvironmentConfig at 4).
+    #
+    # Crossplane owns its own PKI. It used to take its CA from a cert-manager Certificate
+    # instead, for a "stable, git-tracked CA" that removed a class of
+    # "certificate signed by unknown authority" handshakes -- but that Certificate and the
+    # chart's own empty Opaque `crossplane-root-ca` could never coexist: a Secret's type is
+    # immutable, so whichever was created first won and the other side could never apply
+    # (fleet11, 2026-11-25). Crossplane's `core init` generates and signs its own CA just
+    # fine, and signs every function/provider cert from it, so the Certificate, its
+    # ClusterIssuer and the crossplane-ca-converger Job are all gone.
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/crossplane
 spec:
@@ -24502,32 +24459,6 @@ spec:
         name: spire-federation-bundle-ca
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-pki.yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: crossplane-root-ca
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-spec:
-  # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
-  # uses to sign all server/client/package certificates.
-  secretName: crossplane-root-ca
-  isCA: true
-  commonName: crossplane-ca
-  duration: 87600h    # 10y, matches crossplane's own internal CA lifetime
-  renewBefore: 8760h  # 1y
-  privateKey:
-    algorithm: RSA
-    size: 2048
-  issuerRef:
-    name: crossplane-selfsigned-issuer
-    kind: ClusterIssuer
-    group: cert-manager.io
-
----
 # Source: bootstrap/templates/gateway-api/shared-gateway/certificate.yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -24598,18 +24529,6 @@ spec:
           # region — Pod Identity injects credentials but not AWS_REGION, so
           # without this the Route53 solver fails with "Missing Region".
           region: eu-west-2
-
----
-# Source: bootstrap/templates/crossplane/crossplane-pki.yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: crossplane-selfsigned-issuer
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-spec:
-  selfSigned: {}
 
 ---
 # Source: bootstrap/templates/crossplane/providerconfig-aws.yaml

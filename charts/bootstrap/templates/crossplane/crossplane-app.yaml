@@ -4,10 +4,18 @@ metadata:
   name: crossplane
   namespace: argocd
   annotations:
-    # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
-    # cert-manager managed CA is present in the crossplane-root-ca secret before
-    # `core init` runs. core reuses that CA to sign all server/client/package certs,
-    # keeping crossplane core and the composition functions on a single, stable CA.
+    # Wave 2: the earliest point after the namespaces (wave 0) at which anything else in
+    # this chart needs Crossplane's CRDs (the functions at 3, the compositions and every
+    # EnvironmentConfig at 4).
+    #
+    # Crossplane owns its own PKI. It used to take its CA from a cert-manager Certificate
+    # instead, for a "stable, git-tracked CA" that removed a class of
+    # "certificate signed by unknown authority" handshakes -- but that Certificate and the
+    # chart's own empty Opaque `crossplane-root-ca` could never coexist: a Secret's type is
+    # immutable, so whichever was created first won and the other side could never apply
+    # (fleet11, 2026-11-25). Crossplane's `core init` generates and signs its own CA just
+    # fine, and signs every function/provider cert from it, so the Certificate, its
+    # ClusterIssuer and the crossplane-ca-converger Job are all gone.
     argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/crossplane
 spec:
