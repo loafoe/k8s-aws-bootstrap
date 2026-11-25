@@ -174,6 +174,21 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 
 ---
+# Source: bootstrap/templates/crossplane/crossplane-pki.yaml
+# Pre-created empty so cert-manager preserves the type (see the header). The crossplane
+# chart renders the same object; the two definitions are identical apart from this one
+# existing before `core init` and before the chart's Application is ever compared.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crossplane-root-ca
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec: {}
+type: Opaque
+
+---
 # Source: bootstrap/templates/hsp-aws-platform/hsp-addons/hsp-addons.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -22886,33 +22901,30 @@ spec:
 # an existing CA secret if `tls.crt`+`tls.key` are already present (verified in
 # crossplane v2.3.1 internal/initializer/tls.go `loadOrGenerateCA`).
 #
-# By having cert-manager populate the CA secret with a STABLE, git-tracked
+# By having cert-manager populate `crossplane-root-ca` with a STABLE, git-tracked
 # CA BEFORE crossplane init runs, every cert crossplane subsequently generates
 # chains to one CA that never silently diverges. This removes the recurring
 # "certificate signed by unknown authority" handshake failures between crossplane
 # core and the composition functions.
 #
-# The CA does NOT live in crossplane's own `crossplane-root-ca` secret. That one is
-# rendered by the crossplane chart with `type: Opaque`, and a Secret's type is
-# IMMUTABLE -- so whoever creates it first wins and the other side can never apply it.
-# That was fine while the master installed the chart during boot (the chart created it
-# empty and cert-manager filled it in place, preserving Opaque); now that Crossplane is
-# an Argo CD add-on, cert-manager's Certificate is applied first and creates it as
-# kubernetes.io/tls, after which the crossplane Application cannot sync at all:
+# The empty Secret below is what makes that work, and it is load-bearing. A Secret's type
+# is IMMUTABLE, so whoever creates `crossplane-root-ca` first decides it forever: the
+# crossplane chart renders it `type: Opaque`, cert-manager creates a Certificate's secret
+# as `kubernetes.io/tls`, and once cert-manager got there first the chart could never apply
+# its own version again (fleet11, 2026-11-25: the crossplane Application failed every
+# comparison with `field is immutable`, so Crossplane never installed and nothing below it
+# in the wave map could apply). Pre-creating it here, empty and Opaque, means cert-manager
+# *adopts* the existing secret and preserves the type -- exactly what happened on every
+# cluster the master installed Crossplane on, now made deterministic instead of a race.
 #
-#   error running server side apply in dryrun mode for resource Secret/crossplane-root-ca:
-#   Secret "crossplane-root-ca" is invalid: type: Invalid value: "Opaque": field is immutable
-#
-# (fleet11, 2026-11-25). So cert-manager gets its own secret name and crossplane's init
-# container is pointed at it (crossplane-app.yaml, extraEnvVarsCrossplaneInit). Crossplane
-# reads certs by key (tls.crt/tls.key), not by secret type, and `core init` reuses an
-# existing CA -- so the CA is present before init runs and nothing ever diverges, which is
-# also why the crossplane-ca-converger Job is gone.
+# crossplane-app-plain's Application ignores /data and /type on this Secret
+# (resources/bootstrap-app-plain.yaml, ignoreDifferences + RespectIgnoreDifferences), so a
+# re-sync of the root app never blanks the CA cert-manager wrote.
 #
 # Ordering: cert-manager itself is wave 0, so its CRDs and webhook are established
 # before anything here is applied; these resources and the ClusterIssuers sit at wave
 # 1. The `crossplane` Application is moved to wave 2 so the CA exists in
-# `crossplane-root-ca-cert-manager` before `core init` executes.
+# `crossplane-root-ca` before `core init` executes.
 
 ---
 # Source: bootstrap/templates/argo-cd/appproject.yaml
@@ -23619,7 +23631,7 @@ metadata:
   namespace: argocd
   annotations:
     # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
-    # cert-manager managed CA is present in the crossplane-root-ca-cert-manager secret before
+    # cert-manager managed CA is present in the crossplane-root-ca secret before
     # `core init` runs. core reuses that CA to sign all server/client/package certs,
     # keeping crossplane core and the composition functions on a single, stable CA.
     argocd.argoproj.io/sync-wave: "2"
@@ -23633,13 +23645,6 @@ spec:
     helm:
       valuesObject:
         crossplane:
-          # The CA comes from cert-manager's Certificate (crossplane-pki.yaml) under its
-          # own secret name, not from the chart's `crossplane-root-ca`: that Secret is
-          # Opaque and immutable, and cert-manager would create it as kubernetes.io/tls.
-          # Only the init container reads this (TLS_CA_SECRET_NAME); `core init` reuses an
-          # existing CA, so what it finds here is what signs every leaf and package cert.
-          extraEnvVarsCrossplaneInit:
-            TLS_CA_SECRET_NAME: crossplane-root-ca-cert-manager
           customLabels:
             
             owner: "team"
@@ -24509,7 +24514,7 @@ metadata:
 spec:
   # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
   # uses to sign all server/client/package certificates.
-  secretName: crossplane-root-ca-cert-manager
+  secretName: crossplane-root-ca
   isCA: true
   commonName: crossplane-ca
   duration: 87600h    # 10y, matches crossplane's own internal CA lifetime
