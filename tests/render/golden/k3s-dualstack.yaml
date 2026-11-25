@@ -22365,7 +22365,7 @@ metadata:
   name: acme-k3s-eso
   namespace: external-secrets
   annotations:
-    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/sync-wave: "23"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   forProvider:
@@ -24581,7 +24581,7 @@ kind: ClusterProviderConfig
 metadata:
   name: default
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "22"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   credentials:
@@ -25944,7 +25944,11 @@ kind: ProviderConfig
 metadata:
   name: default
   annotations:
-    argocd.argoproj.io/sync-wave: "20"
+    # Wave 22, four past crossplane-providers-aws (18): these are aws.upbound.io CRs, and
+    # SkipDryRunOnMissingResource only defers validation -- the apply still fails until the
+    # provider's CRDs are installed, which on a cold cluster is well past wave 18 (fleet01,
+    # 2026-11-25).
+    argocd.argoproj.io/sync-wave: "22"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   credentials:
