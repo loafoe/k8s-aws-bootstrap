@@ -4,7 +4,15 @@ metadata:
   name: karpenter
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    # Wave 2, not 3: its NodePools and EC2NodeClass (wave 4) are this chart's own
+    # karpenter.sh / karpenter.k8s.aws CRs, and they only have one wave of slack. The
+    # parent gates a wave on a child Application's health, and a fresh child reports
+    # Healthy with no status, so wave 4 arrived before this Application had installed its
+    # CRDs and the NodePools failed with `no matches for kind` (fleet10, 2026-11-25). They
+    # cannot move later: kyverno (wave 5) is pinned to node-type=system, which only the
+    # system NodePool below creates, so the pool has to stay ahead of it. Moving this
+    # Application up is the fix that does not starve kyverno.
+    argocd.argoproj.io/sync-wave: "2"
     argocd.argoproj.io/manifest-generate-paths: /charts/karpenter
 spec:
   project: {{ .Values.project }}
@@ -54,7 +62,7 @@ spec:
       - ServerSideApply=true
       - HealthCheckTimeout=10m
       # Its ServiceMonitor needs the monitoring.coreos.com CRD, which only exists once
-      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 3.
+      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 2.
       - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
