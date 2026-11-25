@@ -4,9 +4,15 @@ metadata:
   name: crossplane-functions
   namespace: argocd
   annotations:
-    # Wave 3: after the crossplane Application (wave 2) so the Function CRD and
-    # core (which signs each function's TLS cert from the shared CA) are ready.
-    argocd.argoproj.io/sync-wave: "3"
+    # Wave 6, not 3: this app's own sync applies `Function` objects, and it fails outright
+    # when pkg.crossplane.io is not installed yet --
+    #   The Kubernetes API could not find pkg.crossplane.io/Function for requested resource
+    #   crossplane-system/function-go-templating
+    # (fleet00, 2026-11-25). The parent app gates a wave on a child Application's *health*,
+    # and a freshly created child with no status reports Healthy, so wave 3 started before
+    # the crossplane Application (wave 2) had applied its CRDs. Wave 6 is four waves of
+    # slack, and the compositions that reference these functions follow at wave 8.
+    argocd.argoproj.io/sync-wave: "6"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
