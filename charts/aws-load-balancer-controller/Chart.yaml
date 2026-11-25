@@ -1,9 +1,9 @@
 apiVersion: v2
 name: aws-load-balancer-controller
-version: 0.1.6
+version: 0.1.7
 description: Thin wrapper for AWS Load Balancer Controller
 dependencies:
   - name: aws-load-balancer-controller
     # renovate: datasource=helm registryUrl=https://aws.github.io/eks-charts depName=aws-load-balancer-controller
-    version: "3.6.3"
+    version: "3.7.0"
     repository: "https://aws.github.io/eks-charts"
