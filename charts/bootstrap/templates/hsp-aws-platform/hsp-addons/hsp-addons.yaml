@@ -47,6 +47,10 @@ metadata:
     # apiextensions.crossplane.io. Until 2026-11-24 the master installed Crossplane during
     # boot, so this could sit at wave 0 with everything else in this file.
     argocd.argoproj.io/sync-wave: "4"
+    # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
+    # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
+    # skip the dry run and let the apply happen where the wave map puts it.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 data:
   accountId: {{ .Values.environmentConfig.bootstrap.awsAccountId | toString | trim | quote }}
   sharedServicesAccountId: {{ .Values.environmentConfig.sharedServicesAccountId | toString | trim | quote }}

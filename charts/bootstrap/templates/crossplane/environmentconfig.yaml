@@ -19,6 +19,10 @@ metadata:
     config: dip-software
   annotations:
     argocd.argoproj.io/sync-wave: "4"
+    # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
+    # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
+    # skip the dry run and let the apply happen where the wave map puts it.
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 # Explicit keys, not `toYaml .Values.environmentConfig`: `environmentConfig.bootstrap` also
 # carries controlPlane (k3s-on-ec2's controlPlane output), which is chart config, not
 # EnvironmentConfig data. scripts/check-bootstrap-render.sh renders each fixture with
