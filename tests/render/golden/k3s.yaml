@@ -22589,14 +22589,28 @@ spec:
         - -c
         - |
           set -eu
+          # Poll for existence first: `kubectl wait --for=condition=established crd/x`
+          # fails immediately when x does not exist yet (it does not wait for creation),
+          # which is what made this hook fail in seconds on fleet10 (2026-11-25).
           for crd in \
             environmentconfigs.apiextensions.crossplane.io \
             compositions.apiextensions.crossplane.io \
             compositeresourcedefinitions.apiextensions.crossplane.io \
             providerrevisions.pkg.crossplane.io \
             functions.pkg.crossplane.io; do
-            echo "waiting for $crd to be established..."
-            kubectl wait --for=condition=established --timeout=900s "crd/$crd"
+            echo "waiting for $crd..."
+            i=0
+            while [ "$i" -lt 180 ]; do
+              if kubectl get "crd/$crd" >/dev/null 2>&1; then
+                kubectl wait --for=condition=established --timeout=120s "crd/$crd" && break
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+            if ! kubectl get "crd/$crd" >/dev/null 2>&1; then
+              echo "timed out waiting for $crd"
+              exit 1
+            fi
           done
           echo "Crossplane's CRDs are established."
 
