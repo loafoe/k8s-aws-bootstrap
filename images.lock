@@ -89,10 +89,10 @@ registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20231011-8b53cabe0
 # --- app common-bootstrap
 docker.io/alpine/k8s:1.37.2
 # --- app crossplane-functions
-ghcr.io/crossplane-contrib/function-auto-ready:v0.7.3
-ghcr.io/crossplane-contrib/function-environment-configs:v0.9.2
-ghcr.io/crossplane-contrib/function-go-templating:v0.13.2
-ghcr.io/crossplane-contrib/function-patch-and-transform:v0.11.2
+ghcr.io/crossplane-contrib/function-auto-ready:v0.7.4
+ghcr.io/crossplane-contrib/function-environment-configs:v0.9.3
+ghcr.io/crossplane-contrib/function-go-templating:v0.13.3
+ghcr.io/crossplane-contrib/function-patch-and-transform:v0.11.3
 # --- app crossplane-providers-aws
 ghcr.io/crossplane-contrib/provider-aws-iam:v2.10.0
 ghcr.io/crossplane-contrib/provider-aws-kms:v2.10.0
