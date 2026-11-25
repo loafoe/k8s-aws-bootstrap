@@ -1,0 +1,139 @@
+{{- /* Gate the provider configs on the provider's CRDs actually existing.
+
+       Same story as crossplane-crd-wait one layer down: a Crossplane *provider package* also
+       installs its CRDs at runtime, when its ProviderRevision activates, so
+       crossplane-providers-aws (wave 18) has "synced" long before aws.upbound.io and
+       aws.m.upbound.io exist. The ProviderConfig/ClusterProviderConfig at wave 22 then fail
+       with `no matches for kind` -- which is what the last retry of fleet01 (2026-11-25
+       20:31) was, after everything else had been wave-ordered.
+
+       A bounded wait is the only reliable gate; four waves of offset was not (the packages
+       pull an image and reconcile). Same shape as crossplane-crd-wait: blocks its wave until
+       the CRDs are established, 900s budget, no-op in seconds on later syncs. */}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crossplane-provider-crd-wait
+  namespace: crossplane-system
+  labels:
+    {{- include "bootstrap.ownerLabels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 0
+  template:
+    metadata:
+      name: crossplane-provider-crd-wait
+      labels:
+        {{- include "bootstrap.ownerLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: crossplane-provider-crd-wait
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - system
+                - control-plane
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      containers:
+      - name: wait
+        # renovate: datasource=docker depName=alpine/k8s
+        image: alpine/k8s:1.37.2
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop:
+              - ALL
+        env:
+        - name: HOME
+          value: /tmp
+        - name: KUBECACHEDIR
+          value: /tmp/.kube/cache
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        command:
+        - sh
+        - -c
+        - |
+          set -eu
+          # Poll for existence: `kubectl wait --for=condition=established crd/x` fails
+          # immediately when x does not exist.
+          for crd in \
+            providerconfigs.aws.upbound.io \
+            clusterproviderconfigs.aws.m.upbound.io; do
+            echo "waiting for $crd..."
+            i=0
+            while [ "$i" -lt 180 ]; do
+              if kubectl get "crd/$crd" >/dev/null 2>&1; then
+                kubectl wait --for=condition=established --timeout=120s "crd/$crd" && break
+              fi
+              i=$((i + 1))
+              sleep 5
+            done
+            if ! kubectl get "crd/$crd" >/dev/null 2>&1; then
+              echo "timed out waiting for $crd"
+              exit 1
+            fi
+          done
+          echo "The AWS provider's CRDs are established."
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crossplane-provider-crd-wait
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-provider-crd-wait
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crossplane-provider-crd-wait
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crossplane-provider-crd-wait
+subjects:
+- kind: ServiceAccount
+  name: crossplane-provider-crd-wait
+  namespace: crossplane-system
