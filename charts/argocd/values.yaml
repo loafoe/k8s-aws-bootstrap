@@ -28,13 +28,19 @@ argo-cd:
         # and fleet01 (2026-11-24) that was `Degraded` caused by ValidatingPolicy /
         # MutatingPolicy objects, twice immediately before a whole-sync retry. Only a
         # real Ready=False makes one Degraded; "not reconciled yet" is Healthy, so a
-        # bootstrap never waits on kyverno's controller to catch up.
+        # bootstrap never waits on kyverno's controller to catch up. Ready=False is
+        # Progressing: it is transient while the controller reconciles, and Degraded there
+        # retries the whole app-of-apps.
         policies.kyverno.io/*:
           health.lua: |
             if obj.status ~= nil and obj.status.conditions ~= nil then
               for _, c in ipairs(obj.status.conditions) do
                 if c.type == "Ready" and c.status == "False" then
-                  return { status = "Degraded", message = c.message or "not ready" }
+                  -- Progressing, not Degraded: kyverno reports Ready=False transiently
+                  -- while its controller reconciles a freshly applied policy, and
+                  -- Degraded fails the parent's wave and retries the whole app-of-apps
+                  -- (fleet10, 2026-11-25: two retries from exactly this).
+                  return { status = "Progressing", message = c.message or "not ready" }
                 end
               end
             end
@@ -44,7 +50,11 @@ argo-cd:
             if obj.status ~= nil and obj.status.conditions ~= nil then
               for _, c in ipairs(obj.status.conditions) do
                 if c.type == "Ready" and c.status == "False" then
-                  return { status = "Degraded", message = c.message or "not ready" }
+                  -- Progressing, not Degraded: kyverno reports Ready=False transiently
+                  -- while its controller reconciles a freshly applied policy, and
+                  -- Degraded fails the parent's wave and retries the whole app-of-apps
+                  -- (fleet10, 2026-11-25: two retries from exactly this).
+                  return { status = "Progressing", message = c.message or "not ready" }
                 end
               end
             end
