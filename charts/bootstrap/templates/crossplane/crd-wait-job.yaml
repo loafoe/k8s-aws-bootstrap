@@ -1,14 +1,17 @@
-{{- /* Wave-independent gate: block until Crossplane's CRDs actually exist.
-       Everything downstream (the EnvironmentConfigs, the compositions, the functions,
-       crossplane-providers-aws and the provider configs) needs these, and "three waves
-       after the crossplane Application" is not a reliable proxy for them existing: the
-       chart's 21 CRDs are applied in a *later* sync pass than its RBAC and Deployments, so
-       they landed 4m20s after the Application's first sync on fleet10 (2026-11-25), past
-       every wave offset that was still useful for kyverno and the karpenter pools.
+{{- /* Gate the waves that need Crossplane's CRDs, because no wave offset can be right.
 
-       A Sync hook blocks its own wave until the Job completes, which is exactly the
-       semantics needed: it waits (up to 15 minutes) and is a no-op in a few seconds on every
-       later sync, because the CRDs are already established. */}}
+       The crossplane chart ships NO CRDs -- not `crds/`, not `templates/`, nothing (v2.5.0:
+       `helm template` emits 23 RBAC/Deployment resources and no CRD at all). Crossplane
+       core *installs its own CRDs at runtime*, so they only exist once its pod is running,
+       and its pod is pinned to node-type=system, i.e. it waits for the first Karpenter
+       system node from the NodePools at wave 4. That is why the CRDs turned up 4m20s after
+       the Application's first sync on fleet10 (14:45:15 -> 14:49:35): node launch time, not
+       a slow apply.
+
+       So a Sync hook is the only reliable gate: it blocks its own wave until the Job
+       completes (900s bounded), is a no-op in seconds on later syncs, and turns a broken
+       Crossplane into one clear failure instead of a scatter of `no matches for kind`
+       retries. It must sit after the NodePools (4) and before the first consumer (6). */}}
 apiVersion: batch/v1
 kind: Job
 metadata:
