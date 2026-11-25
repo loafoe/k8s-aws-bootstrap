@@ -19,7 +19,7 @@ metadata:
       update one to the platform-admin groups already granted write access in
       exceptions-rbac.yaml.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny

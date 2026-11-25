@@ -15,7 +15,7 @@ metadata:
       Pods that run privileged containers, allow privilege escalation, or
       share the host network, PID, or IPC namespace.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit

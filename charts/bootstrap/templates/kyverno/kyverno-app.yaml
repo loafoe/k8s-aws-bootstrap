@@ -14,7 +14,7 @@ metadata:
     # -- which is what made the kyverno policies (wave 6) fail `no matches for kind`
     # and forced a whole-sync retry. Wave 5 is reached ~6 min after wave 4
     # starts, which is enough for the system nodes to be Ready.
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "7"
     argocd.argoproj.io/manifest-generate-paths: /charts/kyverno
 spec:
   destination:

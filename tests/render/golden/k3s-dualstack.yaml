@@ -24173,7 +24173,7 @@ metadata:
     # -- which is what made the kyverno policies (wave 6) fail `no matches for kind`
     # and forced a whole-sync retry. Wave 5 is reached ~6 min after wave 4
     # starts, which is enough for the system nodes to be Ready.
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "7"
     argocd.argoproj.io/manifest-generate-paths: /charts/kyverno
 spec:
   destination:
@@ -24288,7 +24288,7 @@ metadata:
     # attempt until the CRD exists, so the app sat in a retry storm and the parent's wave 3
     # waited on it (fleet00, 2026-11-25). Nothing needs policy-reporter before the stack
     # that scrapes it.
-    argocd.argoproj.io/sync-wave: "17"
+    argocd.argoproj.io/sync-wave: "20"
     argocd.argoproj.io/manifest-generate-paths: /charts/policy-reporter
 spec:
   destination:
@@ -24603,7 +24603,7 @@ metadata:
   name: default
   namespace: karpenter
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     # Injected from EnvironmentConfig for drift detection
     k8s-aws-bootstrap.io/k3s-version: "v1.37.1+k3s1"
@@ -25313,7 +25313,7 @@ metadata:
     # app applies its CRDs only once it has a system node to schedule on (see
     # kyverno-app.yaml), which on a cold cluster is later than the wave that creates
     # that pool.
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "9"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
 spec:
   kubernetesResource:
@@ -25445,7 +25445,7 @@ metadata:
     # globalContext.get("ecr-pull-through-hsp-addons", "data"), and with
     # failurePolicy: Ignore a policy compiled before that entry exists fails silently
     # -- pods get admitted unmutated and nothing says so.
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   failurePolicy: Ignore
   # Legacy annotation `pod-policies.kyverno.io/autogen-controllers: none` --
@@ -25583,7 +25583,7 @@ metadata:
       EBS volume detach/reattach issues. This policy automatically injects the
       nodeSelector to ensure CNPG pods are scheduled on on-demand instances only.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   matchConstraints:
     resourceRules:
@@ -25661,7 +25661,7 @@ metadata:
       that already carry any pod-security label (including an explicit
       `enforce: privileged` opt-out) are left untouched.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   evaluation:
     background:
@@ -25715,7 +25715,7 @@ metadata:
       accumulate excessive ReplicaSets over time. A limit of 3 balances
       rollback capability with resource efficiency.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   matchConstraints:
     resourceRules:
@@ -25744,7 +25744,7 @@ metadata:
   name: system
   namespace: karpenter
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   # Template for system node provisioning
@@ -25856,7 +25856,7 @@ metadata:
   name: default
   namespace: karpenter
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   # Template for node provisioning
@@ -26079,7 +26079,7 @@ metadata:
       update one to the platform-admin groups already granted write access in
       exceptions-rbac.yaml.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26149,7 +26149,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, forcing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26207,7 +26207,7 @@ metadata:
       dedicated service accounts by chart design and never need AWS
       credentials, so they are intentionally excluded from this check.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26259,7 +26259,7 @@ metadata:
       that does not request one explicitly. This policy requires Pods to
       specify a dedicated, purpose-built ServiceAccount.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26314,7 +26314,7 @@ metadata:
       a specific version of an application Pod. This policy validates that the image
       specifies a tag and that it is not called `latest`.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26367,7 +26367,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26419,7 +26419,7 @@ metadata:
       This policy ensures that EBS CSI Controller pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26467,7 +26467,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26519,7 +26519,7 @@ metadata:
       This policy ensures that External DNS pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26570,7 +26570,7 @@ metadata:
       added either. This policy blocks that finalizer from being set on the
       composite itself; the Composition adds it only to the generated Application.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26611,7 +26611,7 @@ metadata:
       environment variable injected by the EKS Pod Identity webhook. If the environment
       variable is missing, the pod is rejected, allowing the webhook to retry the mutation.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26663,7 +26663,7 @@ metadata:
       This policy ensures that Karpenter controller pods are using the correct
       service account that has the EKS role annotation for pod identity.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -26712,7 +26712,7 @@ metadata:
       Pods that run privileged containers, allow privilege escalation, or
       share the host network, PID, or IPC namespace.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26787,7 +26787,7 @@ metadata:
       service accounts. This policy flags any ClusterRoleBinding to
       `cluster-admin` whose subjects are not in an administrative group.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26828,7 +26828,7 @@ metadata:
       least-privilege model. This policy flags any Role or ClusterRole rule
       that grants one of these verbs.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26904,7 +26904,7 @@ metadata:
       compromised identity unbounded. This policy flags any rule that uses
       a wildcard in place of an explicit verb or resource list.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Audit
@@ -26973,7 +26973,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -27035,7 +27035,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny
@@ -27097,7 +27097,7 @@ metadata:
       This policy prevents creation of routes with hostnames that already exist on
       another route targeting the same Gateway and listener.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   validationActions:
   - Deny

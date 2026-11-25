@@ -21,7 +21,7 @@ metadata:
     # app applies its CRDs only once it has a system node to schedule on (see
     # kyverno-app.yaml), which on a cold cluster is later than the wave that creates
     # that pool.
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "9"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true,Prune=false
 spec:
   kubernetesResource:

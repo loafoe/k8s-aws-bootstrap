@@ -10,8 +10,15 @@
 # add (or correct) an entry instead of finding out on a fresh cluster.
 #
 # A group's wave is either:
+# "The Application's wave is not when its CRD is there." Argo CD starts a wave when the
+# previous one is healthy -- except that a freshly created child Application with no status
+# reports Healthy, so the parent does not wait for it to apply anything. A CRD provided by a
+# child Application is only reliably usable three waves after that Application's wave, so
+# record Application wave + 3 and let this check enforce real slack instead of the one-wave
+# gap that failed on every cold cluster on 2026-11-25.
+#
 #   - the sync-wave of the Application whose rendered output contains a literal
-#     CustomResourceDefinition for it (most charts), or
+#     CustomResourceDefinition for it (most charts), plus three, or
 #   - for a group no Application ever renders a CRD for, because Crossplane installs it
 #     itself at runtime from a Provider/Function package: the sync-wave of the
 #     Application that installs that package.
@@ -46,10 +53,10 @@ groups:
   # EnvironmentConfigs at 4) has to come after that.
   - group: apiextensions.crossplane.io
     providedBy: crossplane
-    wave: 2
+    wave: 5
   - group: pkg.crossplane.io
     providedBy: crossplane
-    wave: 2
+    wave: 5
 
   # Rendered as literal CRDs by the apps that own them.
   - group: cert-manager.io
@@ -57,16 +64,16 @@ groups:
     wave: 0
   - group: karpenter.sh
     providedBy: karpenter
-    wave: 3
+    wave: 5
   - group: karpenter.k8s.aws
     providedBy: karpenter
-    wave: 3
+    wave: 5
   - group: kyverno.io
     providedBy: kyverno
-    wave: 5
+    wave: 8
   - group: policies.kyverno.io
     providedBy: kyverno
-    wave: 5
+    wave: 8
   - group: gateway.networking.k8s.io
     providedBy: root
     wave: 0
@@ -78,7 +85,7 @@ groups:
     wave: 12
   - group: monitoring.coreos.com
     providedBy: kube-prometheus-stack
-    wave: 16
+    wave: 19
   # Deliberately early: three apps render VerticalPodAutoscalers (kube-prometheus-stack
   # wave 16, crossplane-providers-aws wave 18, cloudnative-pg-operator wave 21), and a VPA
   # cannot be applied before this app installs the CRDs.
@@ -92,7 +99,7 @@ groups:
   # not from a provider package).
   - group: "*aws.upbound.io"
     providedBy: crossplane-providers-aws
-    wave: 18
+    wave: 21
   - group: "*aws.m.upbound.io"
     providedBy: crossplane-providers-aws
-    wave: 18
+    wave: 21

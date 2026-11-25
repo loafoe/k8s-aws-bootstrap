@@ -14,7 +14,7 @@ metadata:
       EBS volume detach/reattach issues. This policy automatically injects the
       nodeSelector to ensure CNPG pods are scheduled on on-demand instances only.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   matchConstraints:
     resourceRules:
