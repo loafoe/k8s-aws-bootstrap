@@ -24863,7 +24863,11 @@ spec:
 # applied as a plain Application (k3s-on-ec2's resources/bootstrap-app-plain.yaml) the
 # values are inlined there instead, and this object is just another chart resource.
 #
-# Wave 4: after the `crossplane` Application (wave 2) installs apiextensions.crossplane.io.
+# Wave 7: after the `crossplane` Application (wave 2) installs apiextensions.crossplane.io,
+# with slack for it to be *established* -- the parent gates a wave on a child Application's
+# health, and a fresh child reports Healthy with no status, so wave 4 still ran before
+# Crossplane had applied anything (fleet01, 2026-11-25). Before the compositions at 8, which
+# read these.
 apiVersion: apiextensions.crossplane.io/v1beta1
 kind: EnvironmentConfig
 metadata:
@@ -24872,7 +24876,7 @@ metadata:
     # Compositions select this by name and by this label.
     config: dip-software
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.
@@ -24949,7 +24953,7 @@ metadata:
     # Wave 4, after the `crossplane` Application (wave 2) installs
     # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
     # installing Crossplane during boot.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.
@@ -24980,7 +24984,7 @@ metadata:
     # Wave 4, after the `crossplane` Application (wave 2) installs
     # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
     # installing Crossplane during boot.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.
@@ -25005,7 +25009,7 @@ metadata:
     # Wave 4, after the `crossplane` Application (wave 2) installs
     # apiextensions.crossplane.io. Until 2026-11-24 the master installed Crossplane during
     # boot, so this could sit at wave 0 with everything else in this file.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.
@@ -25094,7 +25098,7 @@ metadata:
     # Wave 4, after the `crossplane` Application (wave 2) installs
     # apiextensions.crossplane.io. These sat at the default wave 0 until the master stopped
     # installing Crossplane during boot.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.

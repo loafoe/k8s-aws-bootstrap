@@ -46,7 +46,7 @@ metadata:
     # Wave 4, after the `crossplane` Application (wave 2) installs
     # apiextensions.crossplane.io. Until 2026-11-24 the master installed Crossplane during
     # boot, so this could sit at wave 0 with everything else in this file.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "7"
     # No CRD exists when Argo CD validates the whole app (the crossplane Application installs
     # apiextensions.crossplane.io at wave 2, after this validation but before this wave), so
     # skip the dry run and let the apply happen where the wave map puts it.
