@@ -14,7 +14,7 @@ metadata:
       least-privilege model. This policy flags any Role or ClusterRole rule
       that grants one of these verbs.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "8"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit

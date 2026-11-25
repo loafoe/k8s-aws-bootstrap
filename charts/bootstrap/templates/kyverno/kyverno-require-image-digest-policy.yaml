@@ -15,7 +15,7 @@ metadata:
       different code. This policy requires every container image to be
       pinned by its immutable `@sha256:` digest.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "8"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Audit

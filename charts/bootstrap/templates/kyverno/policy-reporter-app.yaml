@@ -10,7 +10,7 @@ metadata:
     # attempt until the CRD exists, so the app sat in a retry storm and the parent's wave 3
     # waited on it (fleet00, 2026-11-25). Nothing needs policy-reporter before the stack
     # that scrapes it.
-    argocd.argoproj.io/sync-wave: "20"
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/manifest-generate-paths: /charts/policy-reporter
 spec:
   destination:

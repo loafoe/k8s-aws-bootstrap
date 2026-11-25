@@ -17,7 +17,7 @@ metadata:
       added either. This policy blocks that finalizer from being set on the
       composite itself; the Composition adds it only to the generated Application.
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
-    argocd.argoproj.io/sync-wave: "8"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   validationActions:
   - Deny

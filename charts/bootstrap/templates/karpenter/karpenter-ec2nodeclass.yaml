@@ -7,7 +7,7 @@ metadata:
   name: default
   namespace: karpenter
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
     # Injected from EnvironmentConfig for drift detection
     k8s-aws-bootstrap.io/k3s-version: "{{ .Values.environmentConfig.bootstrap.k3sVersion }}"
