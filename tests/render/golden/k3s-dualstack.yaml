@@ -174,18 +174,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: crossplane-ca-converger
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "17"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-
----
 # Source: bootstrap/templates/hsp-aws-platform/hsp-addons/hsp-addons.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -22370,35 +22358,6 @@ rules:
   verbs: ["list"]
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: crossplane-ca-converger
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "17"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["get", "list", "delete"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "delete"]
-# watch is required by `kubectl rollout status` to follow the rollout.
-- apiGroups: ["apps"]
-  resources: ["deployments"]
-  verbs: ["get", "list", "watch", "patch"]
-# Allows removing the stale, hand-applied cert-manager Certificate that issues
-# crossplane-tls-client with the wrong CA. If left in place it would re-issue
-# the secret (wrong CA) the moment this Job deletes it, racing crossplane core.
-- apiGroups: ["cert-manager.io"]
-  resources: ["certificates"]
-  verbs: ["get", "list", "delete"]
-
----
 # Source: bootstrap/templates/eso/externals-secrets-role.yaml
 apiVersion: iam.aws.upbound.io/v1beta1
 kind: Role
@@ -22469,26 +22428,6 @@ subjects:
   namespace: kube-system
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: crossplane-ca-converger
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "17"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: crossplane-ca-converger
-subjects:
-- kind: ServiceAccount
-  name: crossplane-ca-converger
-  namespace: crossplane-system
-
----
 # Source: bootstrap/templates/kyverno/exceptions-rbac.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -22531,145 +22470,6 @@ spec:
       port: 8443
       targetPort: federation
       protocol: TCP
-
----
-# Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: crossplane-ca-converger
-  namespace: crossplane-system
-  labels:
-    
-    owner: "team"
-  annotations:
-    argocd.argoproj.io/sync-wave: "17"
-    argocd.argoproj.io/hook: Sync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-spec:
-  ttlSecondsAfterFinished: 300
-  backoffLimit: 3
-  template:
-    metadata:
-      name: crossplane-ca-converger
-      labels:
-        
-        owner: "team"
-    spec:
-      serviceAccountName: crossplane-ca-converger
-      restartPolicy: OnFailure
-      # crossplane-system enforces PodSecurity "restricted".
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-      - name: converger
-        # renovate: datasource=docker depName=alpine/k8s
-        image: alpine/k8s:1.37.2
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 65532
-          capabilities:
-            drop:
-              - ALL
-        env:
-        # uid 65532 has no home dir; keep kubectl's discovery cache writable.
-        - name: HOME
-          value: /tmp
-        - name: KUBECACHEDIR
-          value: /tmp/.kube/cache
-        resources:
-          requests:
-            cpu: 10m
-            memory: 32Mi
-          limits:
-            memory: 64Mi
-        command:
-        - sh
-        - -c
-        - |
-          set -eu
-          NS=crossplane-system
-
-          # Returns a sha256 hash of the (PEM) cert bytes in a secret key, or an
-          # empty string if the secret/key is absent or empty. We hash the bytes
-          # rather than parse the cert because the alpine/k8s image ships kubectl
-          # but NOT the openssl CLI. $2 is the data key with the dot escaped
-          # (e.g. tls\.crt) so jsonpath matches the literal key instead of
-          # descending a nested field path ({.data.tls.crt} -> tls -> crt).
-          ca_hash() {
-            pem="$(kubectl get secret "$1" -n "$NS" -o "jsonpath={.data.$2}" 2>/dev/null \
-                     | base64 -d 2>/dev/null)"
-            [ -n "$pem" ] || return 0
-            printf '%s' "$pem" | sha256sum | cut -d' ' -f1
-          }
-
-          echo "Waiting for cert-manager managed CA in crossplane-root-ca..."
-          i=0
-          while [ -z "$(ca_hash crossplane-root-ca 'tls\.crt')" ]; do
-            i=$((i+1)); [ "$i" -gt 60 ] && echo "timed out waiting for crossplane-root-ca" && exit 1
-            sleep 5
-          done
-
-          ROOT_CA="$(ca_hash crossplane-root-ca 'tls\.crt')"
-          SERVER_CA="$(ca_hash crossplane-tls-server 'ca\.crt')"
-          echo "root-ca(tls.crt) sha256:   $ROOT_CA"
-          echo "tls-server(ca.crt) sha256: ${SERVER_CA:-<absent>}"
-
-          if [ -n "$SERVER_CA" ] && [ "$ROOT_CA" = "$SERVER_CA" ]; then
-            echo "CA already aligned. Nothing to do."
-            exit 0
-          fi
-
-          echo "CA mismatch detected. Converging onto crossplane-root-ca..."
-
-          # Remove the stale hand-applied cert-manager Certificate that issues
-          # crossplane-tls-client from the wrong CA. Otherwise cert-manager would
-          # re-issue the secret (wrong CA) as soon as we delete it below, racing
-          # crossplane core. crossplane-root-ca's own Certificate is git-managed
-          # and intentionally left in place.
-          kubectl delete certificate crossplane-tls-client -n "$NS" --ignore-not-found
-
-          # Delete the leaf certs so core re-signs them from the shared CA.
-          # crossplane-root-ca is intentionally NOT deleted (cert-manager owns it).
-          kubectl delete secret crossplane-tls-server crossplane-tls-client -n "$NS" --ignore-not-found
-
-          # Delete every per-package (function/provider) server cert so each pod
-          # gets a fresh cert signed by the shared CA on restart.
-          for s in $(kubectl get secret -n "$NS" -o name | grep -E '\-tls-(server|client)$' \
-                       | grep -vE 'crossplane-tls-(server|client)$'); do
-            echo "deleting $s"
-            kubectl delete "$s" -n "$NS" --ignore-not-found
-          done
-
-          echo "Restarting crossplane core to regenerate server/client certs..."
-          kubectl rollout restart deployment crossplane -n "$NS"
-          kubectl rollout status deployment crossplane -n "$NS" --timeout=5m
-
-          # Restart function/provider package runtime pods so they re-read certs.
-          echo "Restarting function/provider package pods..."
-          kubectl delete pod -n "$NS" \
-            -l 'pkg.crossplane.io/function' --ignore-not-found --wait=false || true
-          kubectl delete pod -n "$NS" \
-            -l 'pkg.crossplane.io/provider' --ignore-not-found --wait=false || true
-
-          echo "✅ Convergence complete. Certs will be re-signed from crossplane-root-ca."
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: node-type
-                operator: In
-                values:
-                - system
-                - control-plane
-      tolerations:
-      - key: CriticalAddonsOnly
-        operator: Exists
 
 ---
 # Source: bootstrap/templates/aws/pod-identity-webhook-heal-cronjob.yaml
@@ -23076,33 +22876,6 @@ spec:
 
 
 ---
-# Source: bootstrap/templates/crossplane/crossplane-ca-converge-job.yaml
-# One-time (idempotent) convergence of crossplane's internal PKI onto the
-# cert-manager managed CA in the crossplane-root-ca secret.
-#
-# crossplane `core init` only generates the server/client/package TLS certs when
-# the target secrets are EMPTY; it skips regeneration if they are already
-# populated. On a cluster that bootstrapped with crossplane's self-generated CA
-# (or a half-finished cert-manager migration), simply pointing cert-manager at
-# crossplane-root-ca is not enough: the already-populated leaf/package secrets
-# keep their old CA, so the gRPC handshake between core and the functions keeps
-# failing with "certificate signed by unknown authority".
-#
-# This Job reconciles that: if the CA in the leaf certs no longer matches the CA
-# now in crossplane-root-ca, it deletes the stale leaf + per-package TLS secrets
-# and restarts crossplane so core re-signs everything from the shared CA. When
-# the CAs already match (fresh installs and post-convergence syncs) it is a no-op.
-#
-# Wave 17, not 4: it is a Sync hook, so every wave after it waits for it, and on a
-# fresh cluster its first action is to wait for cert-manager to populate
-# crossplane-root-ca (the Certificate is wave 1, cert-manager itself wave 0) --
-# 2m55s of blocked waves on fleet01 (2026-11-24: entered at 18:56:45, done at
-# 18:59:40) for a Job whose real work is a no-op there. Its only hard dependency is
-# that it runs before the Crossplane Providers at wave 18 (functions at wave 3
-# already start before it either way, and the Job restarts them if it does find a
-# mismatch), so wave 17 costs nothing and takes ~3 minutes off the critical path.
-
----
 # Source: bootstrap/templates/crossplane/crossplane-pki.yaml
 # Crossplane internal PKI, externally managed by cert-manager.
 #
@@ -23113,20 +22886,33 @@ spec:
 # an existing CA secret if `tls.crt`+`tls.key` are already present (verified in
 # crossplane v2.3.1 internal/initializer/tls.go `loadOrGenerateCA`).
 #
-# By having cert-manager populate `crossplane-root-ca` with a STABLE, git-tracked
+# By having cert-manager populate the CA secret with a STABLE, git-tracked
 # CA BEFORE crossplane init runs, every cert crossplane subsequently generates
 # chains to one CA that never silently diverges. This removes the recurring
 # "certificate signed by unknown authority" handshake failures between crossplane
 # core and the composition functions.
 #
-# cert-manager writes into the (chart pre-created, empty, Opaque) secret and
-# preserves its type; crossplane reads certs by key (tls.crt/tls.key/ca.crt),
-# not by secret type, so an Opaque secret is fine.
+# The CA does NOT live in crossplane's own `crossplane-root-ca` secret. That one is
+# rendered by the crossplane chart with `type: Opaque`, and a Secret's type is
+# IMMUTABLE -- so whoever creates it first wins and the other side can never apply it.
+# That was fine while the master installed the chart during boot (the chart created it
+# empty and cert-manager filled it in place, preserving Opaque); now that Crossplane is
+# an Argo CD add-on, cert-manager's Certificate is applied first and creates it as
+# kubernetes.io/tls, after which the crossplane Application cannot sync at all:
+#
+#   error running server side apply in dryrun mode for resource Secret/crossplane-root-ca:
+#   Secret "crossplane-root-ca" is invalid: type: Invalid value: "Opaque": field is immutable
+#
+# (fleet11, 2026-11-25). So cert-manager gets its own secret name and crossplane's init
+# container is pointed at it (crossplane-app.yaml, extraEnvVarsCrossplaneInit). Crossplane
+# reads certs by key (tls.crt/tls.key), not by secret type, and `core init` reuses an
+# existing CA -- so the CA is present before init runs and nothing ever diverges, which is
+# also why the crossplane-ca-converger Job is gone.
 #
 # Ordering: cert-manager itself is wave 0, so its CRDs and webhook are established
 # before anything here is applied; these resources and the ClusterIssuers sit at wave
 # 1. The `crossplane` Application is moved to wave 2 so the CA exists in
-# `crossplane-root-ca` before `core init` executes.
+# `crossplane-root-ca-cert-manager` before `core init` executes.
 
 ---
 # Source: bootstrap/templates/argo-cd/appproject.yaml
@@ -23839,7 +23625,7 @@ metadata:
   namespace: argocd
   annotations:
     # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
-    # cert-manager managed CA is present in the crossplane-root-ca secret before
+    # cert-manager managed CA is present in the crossplane-root-ca-cert-manager secret before
     # `core init` runs. core reuses that CA to sign all server/client/package certs,
     # keeping crossplane core and the composition functions on a single, stable CA.
     argocd.argoproj.io/sync-wave: "2"
@@ -23853,6 +23639,13 @@ spec:
     helm:
       valuesObject:
         crossplane:
+          # The CA comes from cert-manager's Certificate (crossplane-pki.yaml) under its
+          # own secret name, not from the chart's `crossplane-root-ca`: that Secret is
+          # Opaque and immutable, and cert-manager would create it as kubernetes.io/tls.
+          # Only the init container reads this (TLS_CA_SECRET_NAME); `core init` reuses an
+          # existing CA, so what it finds here is what signs every leaf and package cert.
+          extraEnvVarsCrossplaneInit:
+            TLS_CA_SECRET_NAME: crossplane-root-ca-cert-manager
           customLabels:
             
             owner: "team"
@@ -24722,7 +24515,7 @@ metadata:
 spec:
   # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
   # uses to sign all server/client/package certificates.
-  secretName: crossplane-root-ca
+  secretName: crossplane-root-ca-cert-manager
   isCA: true
   commonName: crossplane-ca
   duration: 87600h    # 10y, matches crossplane's own internal CA lifetime

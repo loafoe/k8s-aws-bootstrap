@@ -7,20 +7,33 @@
 # an existing CA secret if `tls.crt`+`tls.key` are already present (verified in
 # crossplane v2.3.1 internal/initializer/tls.go `loadOrGenerateCA`).
 #
-# By having cert-manager populate `crossplane-root-ca` with a STABLE, git-tracked
+# By having cert-manager populate the CA secret with a STABLE, git-tracked
 # CA BEFORE crossplane init runs, every cert crossplane subsequently generates
 # chains to one CA that never silently diverges. This removes the recurring
 # "certificate signed by unknown authority" handshake failures between crossplane
 # core and the composition functions.
 #
-# cert-manager writes into the (chart pre-created, empty, Opaque) secret and
-# preserves its type; crossplane reads certs by key (tls.crt/tls.key/ca.crt),
-# not by secret type, so an Opaque secret is fine.
+# The CA does NOT live in crossplane's own `crossplane-root-ca` secret. That one is
+# rendered by the crossplane chart with `type: Opaque`, and a Secret's type is
+# IMMUTABLE -- so whoever creates it first wins and the other side can never apply it.
+# That was fine while the master installed the chart during boot (the chart created it
+# empty and cert-manager filled it in place, preserving Opaque); now that Crossplane is
+# an Argo CD add-on, cert-manager's Certificate is applied first and creates it as
+# kubernetes.io/tls, after which the crossplane Application cannot sync at all:
+#
+#   error running server side apply in dryrun mode for resource Secret/crossplane-root-ca:
+#   Secret "crossplane-root-ca" is invalid: type: Invalid value: "Opaque": field is immutable
+#
+# (fleet11, 2026-11-25). So cert-manager gets its own secret name and crossplane's init
+# container is pointed at it (crossplane-app.yaml, extraEnvVarsCrossplaneInit). Crossplane
+# reads certs by key (tls.crt/tls.key), not by secret type, and `core init` reuses an
+# existing CA -- so the CA is present before init runs and nothing ever diverges, which is
+# also why the crossplane-ca-converger Job is gone.
 #
 # Ordering: cert-manager itself is wave 0, so its CRDs and webhook are established
 # before anything here is applied; these resources and the ClusterIssuers sit at wave
 # 1. The `crossplane` Application is moved to wave 2 so the CA exists in
-# `crossplane-root-ca` before `core init` executes.
+# `crossplane-root-ca-cert-manager` before `core init` executes.
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -43,7 +56,7 @@ metadata:
 spec:
   # This is the secret crossplane `core init` reads as TLS_CA_SECRET_NAME and
   # uses to sign all server/client/package certificates.
-  secretName: crossplane-root-ca
+  secretName: crossplane-root-ca-cert-manager
   isCA: true
   commonName: crossplane-ca
   duration: 87600h    # 10y, matches crossplane's own internal CA lifetime

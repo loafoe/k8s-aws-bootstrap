@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     # Wave 2 (after crossplane-pki at wave 1; cert-manager itself is wave 0) so the
-    # cert-manager managed CA is present in the crossplane-root-ca secret before
+    # cert-manager managed CA is present in the crossplane-root-ca-cert-manager secret before
     # `core init` runs. core reuses that CA to sign all server/client/package certs,
     # keeping crossplane core and the composition functions on a single, stable CA.
     argocd.argoproj.io/sync-wave: "2"
@@ -19,6 +19,13 @@ spec:
     helm:
       valuesObject:
         crossplane:
+          # The CA comes from cert-manager's Certificate (crossplane-pki.yaml) under its
+          # own secret name, not from the chart's `crossplane-root-ca`: that Secret is
+          # Opaque and immutable, and cert-manager would create it as kubernetes.io/tls.
+          # Only the init container reads this (TLS_CA_SECRET_NAME); `core init` reuses an
+          # existing CA, so what it finds here is what signs every leaf and package cert.
+          extraEnvVarsCrossplaneInit:
+            TLS_CA_SECRET_NAME: crossplane-root-ca-cert-manager
           customLabels:
             {{- include "bootstrap.ownerLabels" . | nindent 12 }}
   destination:
