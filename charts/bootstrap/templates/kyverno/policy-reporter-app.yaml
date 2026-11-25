@@ -4,7 +4,13 @@ metadata:
   name: policy-reporter
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    # Wave 17, after kube-prometheus-stack (16): its ServiceMonitor needs
+    # monitoring.coreos.com. At wave 3 the Application-level
+    # SkipDryRunOnMissingResource only defers validation -- the *apply* still fails every
+    # attempt until the CRD exists, so the app sat in a retry storm and the parent's wave 3
+    # waited on it (fleet00, 2026-11-25). Nothing needs policy-reporter before the stack
+    # that scrapes it.
+    argocd.argoproj.io/sync-wave: "17"
     argocd.argoproj.io/manifest-generate-paths: /charts/policy-reporter
 spec:
   destination:
@@ -28,9 +34,9 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - HealthCheckTimeout=10m
-      # Its ServiceMonitor needs the monitoring.coreos.com CRD, which only exists once
-      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 3, and prune=true
-      # here makes a missing CRD fail the whole sync, not just this one resource.
+      # Belt: the wave move above is what keeps this app from running before
+      # kube-prometheus-stack (16) has installed monitoring.coreos.com; the option keeps a
+      # stray ServiceMonitor from failing the whole sync, since prune=true here.
       - SkipDryRunOnMissingResource=true
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
