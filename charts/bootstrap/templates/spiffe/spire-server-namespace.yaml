@@ -1,0 +1,18 @@
+{{- if .Values.features.spiffe.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    # spire-server and the OIDC discovery provider need no host access at all (unlike
+    # spire-agent/spiffe-csi-driver in spire-system, which do), so they get the stricter
+    # PSS level - a real, blocking admission backstop independent of the Kyverno
+    # require-restricted-pod-security policy, which only Audits. Chart-side,
+    # global.spire.recommendations.securityContexts (set in spire-app.yaml) makes the
+    # server/oidc-discovery-provider pods actually comply with "restricted" - without it
+    # this namespace would reject their pods outright.
+    pod-security.kubernetes.io/enforce: restricted
+{{- end }}

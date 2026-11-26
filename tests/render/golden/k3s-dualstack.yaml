@@ -98,6 +98,25 @@ metadata:
     pod-security.kubernetes.io/enforce: privileged
 
 ---
+# Source: bootstrap/templates/spiffe/spire-server-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire-server
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    # spire-server and the OIDC discovery provider need no host access at all (unlike
+    # spire-agent/spiffe-csi-driver in spire-system, which do), so they get the stricter
+    # PSS level - a real, blocking admission backstop independent of the Kyverno
+    # require-restricted-pod-security policy, which only Audits. Chart-side,
+    # global.spire.recommendations.securityContexts (set in spire-app.yaml) makes the
+    # server/oidc-discovery-provider pods actually comply with "restricted" - without it
+    # this namespace would reject their pods outright.
+    pod-security.kubernetes.io/enforce: restricted
+
+---
 # Source: bootstrap/templates/aws/pod-identity-webhook-heal-cronjob.yaml
 # ---------------------------------------------------------------------------
 # Self-healing CronJob: restart IRSA-dependent workloads that were admitted
@@ -262,7 +281,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: spire-federation-bundle-ca
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -22548,7 +22567,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: spire-server-federation-bundle
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -23210,6 +23229,8 @@ spec:
       namespace: kyverno-exceptions
     - server: https://kubernetes.default.svc
       namespace: prometheus
+    - server: https://kubernetes.default.svc
+      namespace: spire-server
     - server: https://kubernetes.default.svc
       namespace: spire-system
     - server: https://kubernetes.default.svc
@@ -24699,6 +24720,26 @@ spec:
             spire:
               trustDomain: acme-k3s.example.com
               jwtIssuer: https://oidc-discovery.acme-k3s.example.com
+              # Split spire-server + the OIDC discovery provider into their own namespace
+              # (spire-server, PSS "restricted") from spire-agent + spiffe-csi-driver
+              # (spire-system, PSS "privileged" - they need host access, the server doesn't).
+              # securityContexts is not optional here: without it neither pod satisfies
+              # "restricted" and spire-server-namespace.yaml's PSA enforcement rejects them
+              # outright. strictMode/priorityClassName/prometheus are left off - orthogonal
+              # to the namespace/PSS split, not part of this change.
+              recommendations:
+                enabled: true
+                namespaceLayout: true
+                namespacePSS: true
+                securityContexts: true
+                strictMode: false
+                priorityClassName: false
+                prometheus: false
+              namespaces:
+                server:
+                  name: spire-server
+                system:
+                  name: spire-system
           spire-server:
             podLabels:
               
@@ -24814,7 +24855,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: BackendTLSPolicy
 metadata:
   name: spire-server-federation-bundle
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -24884,7 +24925,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: spire-federation-tls
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "14"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -25704,7 +25745,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: spiffe-federation-bundle-https
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -25729,7 +25770,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
   name: spiffe-oidc-discovery
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
@@ -26309,7 +26350,7 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: TLSRoute
 metadata:
   name: spiffe-federation-bundle
-  namespace: spire-system
+  namespace: spire-server
   annotations:
     argocd.argoproj.io/sync-wave: "19"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true

@@ -28,6 +28,26 @@ spec:
             spire:
               trustDomain: {{ $trustDomain }}
               jwtIssuer: {{ $jwtIssuer }}
+              # Split spire-server + the OIDC discovery provider into their own namespace
+              # (spire-server, PSS "restricted") from spire-agent + spiffe-csi-driver
+              # (spire-system, PSS "privileged" - they need host access, the server doesn't).
+              # securityContexts is not optional here: without it neither pod satisfies
+              # "restricted" and spire-server-namespace.yaml's PSA enforcement rejects them
+              # outright. strictMode/priorityClassName/prometheus are left off - orthogonal
+              # to the namespace/PSS split, not part of this change.
+              recommendations:
+                enabled: true
+                namespaceLayout: true
+                namespacePSS: true
+                securityContexts: true
+                strictMode: false
+                priorityClassName: false
+                prometheus: false
+              namespaces:
+                server:
+                  name: spire-server
+                system:
+                  name: spire-system
           spire-server:
             podLabels:
               {{- include "bootstrap.ownerLabels" . | nindent 14 }}
