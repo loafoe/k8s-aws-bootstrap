@@ -26171,6 +26171,14 @@ spec:
         - key: karpenter.sh/unregistered
           value: "true"
           effect: NoExecute
+        # Registered by the kubelet in _k3s-userdata.tpl and lifted by cilium-operator once the
+        # node's Cilium agent is ready. Declared here so Karpenter treats it as transient: without
+        # it, Karpenter counted every new node as one pending pods can never tolerate and kept
+        # launching more during the ~1-2 min Cilium start-up (2 -> 14 workers on one drift roll
+        # of fleet11, 2026-11-26).
+        - key: node.cilium.io/agent-not-ready
+          value: "true"
+          effect: NoSchedule
           
       # Node expiration for security and cost management
       expireAfter: 360h # 15 days
@@ -26277,6 +26285,14 @@ spec:
         - key: karpenter.sh/unregistered
           value: "true"
           effect: NoExecute
+        # Registered by the kubelet in _k3s-userdata.tpl and lifted by cilium-operator once the
+        # node's Cilium agent is ready. Declared here so Karpenter treats it as transient: without
+        # it, Karpenter counted every new node as one pending pods can never tolerate and kept
+        # launching more during the ~1-2 min Cilium start-up (2 -> 14 workers on one drift roll
+        # of fleet11, 2026-11-26).
+        - key: node.cilium.io/agent-not-ready
+          value: "true"
+          effect: NoSchedule
           
       # Node expiration for security and cost management
       expireAfter: 360h # 15 days
