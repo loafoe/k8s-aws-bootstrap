@@ -105,7 +105,11 @@ check_one_resource() {
     is_builtin "$group" && return 0
     [ "$app_skip" = 1 ] && return 0
 
-    IFS=$'\t' read -r pwave provided_by < <(provider_entry "$group")
+    # `|| true`: an unmapped group makes provider_entry print nothing, and read returns 1 at
+    # EOF; under `set -e` that silently ended the whole script with exit 1 here, before the
+    # UNKNOWN violation below was recorded or the report printed. read still leaves both
+    # variables empty, which is what the check below looks for.
+    IFS=$'\t' read -r pwave provided_by < <(provider_entry "$group") || true
     if [ -z "$pwave" ]; then
         echo -e "$label\t$what\t$group\t$wave\tUNKNOWN" >>"$work/violations"
         return 0
