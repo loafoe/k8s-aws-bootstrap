@@ -48,13 +48,29 @@ tetragon:
         extraLabels:
           release: kps
 
-    # Not set upstream. Starting point, to be tuned from measured usage on fleet11.
+    # Upstream's startup probe allows 3 x 10s. Loading and verifying the BPF programs for
+    # the policies in templates/ took 20s on an idle m5a.large and over 30s when every node
+    # started its agent at once (fleet11, 2026-11-26): two of three agents were killed by the
+    # probe and restart-looped. 30 x 10s is only an upper bound; a healthy agent still goes
+    # Ready as soon as it serves.
+    startupProbe:
+      grpc:
+        port: 6789
+        service: "startup"
+      timeoutSeconds: 60
+      periodSeconds: 10
+      failureThreshold: 30
+
+    # Not set upstream. BPF map memory is charged to the agent's memory cgroup, so the limit
+    # covers the maps for every loaded policy plus the process cache. Measured on fleet11
+    # (2026-11-26) with templates/ loaded: 278-326Mi on m5a.large workers; the master (k3s
+    # server and the master-agent workloads, so far more processes) was OOMKilled at 512Mi.
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
+        memory: 320Mi
       limits:
-        memory: 512Mi
+        memory: 1Gi
 
   # The export-stdout sidecar tails the JSON export and prints it to the container's stdout,
   # so `kubectl logs -c export-stdout` shows events and any pod-log collector ships them.
