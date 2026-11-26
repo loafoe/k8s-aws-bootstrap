@@ -71,6 +71,18 @@ spire:
         repository: library/busybox
         # renovate: datasource=docker depName=library/busybox
         tag: 1.38.0-uclibc
+    # The fsgroupfix init container (it chowns the socket dir to the pod's fsGroup) only
+    # renders once global.spire.recommendations.securityContexts sets a non-zero fsGroup
+    # on this pod -- recommendations were off until now, so it never rendered and its
+    # cgr.dev/chainguard/bash default never showed up here. It only runs `chown -R`, so
+    # the same busybox pin as socketAlternate above covers it; see that comment for why
+    # docker.io/busybox rather than a ghcr image.
+    fsGroupFix:
+      image:
+        registry: docker.io
+        repository: library/busybox
+        # renovate: datasource=docker depName=library/busybox
+        tag: 1.38.0-uclibc
     tolerations:
     - key: CriticalAddonsOnly
       operator: Exists
