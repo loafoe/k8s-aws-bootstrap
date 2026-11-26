@@ -1,0 +1,67 @@
+tetragon:
+  # CRDs (TracingPolicy, TracingPolicyNamespaced, PodInfo) rendered as literal manifests by
+  # Helm instead of created at runtime by the operator. That puts them in this Application's
+  # own sync, next to the TracingPolicies in templates/, so Argo CD applies both together
+  # (the self-reference case in scripts/crd-providers.yaml) instead of failing the policies'
+  # dry run on a fresh cluster before an operator has registered the kinds.
+  crds:
+    installMethod: helm
+
+  # The operator only installs CRDs and reconciles PodInfo (off upstream too). With the CRDs
+  # coming from Helm it has nothing left to do, and its Deployment tolerates no taints: on a
+  # fresh cluster whose only node is the CriticalAddonsOnly master it would sit Pending and
+  # hold this Application (and the parent's wave gate) Progressing until Karpenter adds a node.
+  tetragonOperator:
+    enabled: false
+
+  # Never preempted or evicted ahead of workloads: a runtime-security agent that disappears
+  # from a full node is a blind spot exactly when something is wrong there.
+  priorityClassName: system-node-critical
+
+  tetragon:
+    # --- Export filter: keep kube-system and the host visible -------------------------
+    # Upstream's default denylist is
+    #   {"health_check":true}
+    #   {"namespace":["", "cilium", "kube-system"]}
+    # i.e. it drops every event from kube-system and from host processes (namespace "").
+    # Here those are where the most privileged code runs: cilium, cilium-envoy, the k3s
+    # binary (kubelet, containerd) and anything that reaches a node over SSM/SSH. Hiding them
+    # would leave the exempted, host-namespace pods (see the require-restricted-pod-security
+    # policy) unobserved. So only exec-probe health checks are dropped, plus BPF activity
+    # by the two agents whose whole job is loading BPF programs. Each line is one filter,
+    # its fields ANDed; a line matching drops the event. This denylist applies to the JSON
+    # export (file + the export-stdout sidecar) only, not to gRPC or metrics.
+    exportDenyList: |-
+      {"health_check":true}
+      {"policy_names":["bpf-library-policy"],"binary_regex":["(^|/)cilium-agent$","(^|/)tetragon$"]}
+    exportFileCompress: true
+
+    # Exposes namespace/pod/workload on every event; pod association via the k8s API.
+    enableK8sAPI: true
+
+    prometheus:
+      # "pod" dropped from the upstream default: per-pod series churn with every rollout and
+      # Karpenter drift roll, and namespace+workload+binary is what an alert keys on.
+      metricsLabelFilter: "namespace,workload,binary"
+      serviceMonitor:
+        enabled: true
+        extraLabels:
+          release: kps
+
+    # Not set upstream. Starting point, to be tuned from measured usage on fleet11.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+  # The export-stdout sidecar tails the JSON export and prints it to the container's stdout,
+  # so `kubectl logs -c export-stdout` shows events and any pod-log collector ships them.
+  export:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        memory: 64Mi

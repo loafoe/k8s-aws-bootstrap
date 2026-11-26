@@ -24920,6 +24920,61 @@ spec:
   revisionHistoryLimit: 3
 
 ---
+# Source: bootstrap/templates/tetragon/tetragon-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tetragon
+  namespace: argocd
+  annotations:
+    # Last wave: Tetragon is an observer nothing else depends on, so a node where its agent
+    # cannot start (kernel, image pull) only leaves this Application Degraded instead of
+    # holding the parent's wave gate in front of the rest of the bootstrap. Its CRDs (cilium.io
+    # TracingPolicy*) ship in this Application's own sync, and the ServiceMonitors' CRDs come
+    # from prometheus-operator-crds at wave -5.
+    argocd.argoproj.io/sync-wave: "22"
+    argocd.argoproj.io/manifest-generate-paths: /charts/tetragon
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: k8s-aws-bootstrap
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/tetragon
+    targetRevision: feat/tetragon
+    helm:
+      valuesObject:
+        tetragon:
+          podLabels:
+            
+            owner: "team"
+          tetragon:
+            # Stamped on every exported event (cluster_name), so events from several
+            # clusters stay distinguishable once shipped to one log store.
+            clusterName: "acme-k3s-cluster"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The TracingPolicy CRDs are large; client-side apply's last-applied annotation would
+      # not fit.
+      - ServerSideApply=true
+    retry:
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures must heal by
+      # themselves instead of exhausting retries
+      limit: -1
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+
+---
 # Source: bootstrap/templates/spiffe/federation-bundle-route-https.yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: BackendTLSPolicy
@@ -27218,7 +27273,10 @@ spec:
   # host-level metrics. kube-system/cilium* (cilium, cilium-envoy,
   # cilium-operator) is the cluster's CNI plugin - it manages the host's
   # network namespace directly, so hostNetwork/hostPID is inherent, not an
-  # over-grant. All five are inherent to what these workloads do.
+  # over-grant. kube-system/tetragon* is the eBPF runtime-security agent: its
+  # init container mounts bpffs on the host (privileged) and the agent runs on
+  # the host network, with SYS_ADMIN to load BPF programs. All six are inherent
+  # to what these workloads do.
   matchConditions:
   - name: exclude-known-legit-pod-security
     expression: >-
@@ -27227,7 +27285,8 @@ spec:
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-spiffe-csi-driver')) ||
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-agent')) ||
         (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter')) ||
-        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium'))
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium')) ||
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('tetragon'))
       )
   validations:
   - expression: >-

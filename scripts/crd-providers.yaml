@@ -76,6 +76,13 @@ groups:
   - group: spire.spiffe.io
     providedBy: spire-crds
     wave: 12
+  # tetragon renders its TracingPolicy/TracingPolicyNamespaced/PodInfo CRDs literally
+  # (crds.installMethod: helm) alongside its own TracingPolicies, so they sync together.
+  # Cilium's own cilium.io CRDs are created at runtime by cilium-operator and nothing in the
+  # tree renders a Cilium CR today; if something starts to, it needs its own reasoning here.
+  - group: cilium.io
+    providedBy: tetragon
+    wave: 22
   # Its own upstream split chart, wave -5, because consumers start at wave 0 (cilium's
   # ServiceMonitors) and the ones that came later never got a turn: at wave 16 the root's retry
   # budget was gone before kube-prometheus-stack was ever reached (fleet10, 2026-11-26).

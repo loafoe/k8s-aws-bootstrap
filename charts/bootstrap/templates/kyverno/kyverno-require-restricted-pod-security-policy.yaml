@@ -47,7 +47,10 @@ spec:
   # host-level metrics. kube-system/cilium* (cilium, cilium-envoy,
   # cilium-operator) is the cluster's CNI plugin - it manages the host's
   # network namespace directly, so hostNetwork/hostPID is inherent, not an
-  # over-grant. All five are inherent to what these workloads do.
+  # over-grant. kube-system/tetragon* is the eBPF runtime-security agent: its
+  # init container mounts bpffs on the host (privileged) and the agent runs on
+  # the host network, with SYS_ADMIN to load BPF programs. All six are inherent
+  # to what these workloads do.
   matchConditions:
   - name: exclude-known-legit-pod-security
     expression: >-
@@ -56,7 +59,8 @@ spec:
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-spiffe-csi-driver')) ||
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-agent')) ||
         (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter')) ||
-        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium'))
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium')) ||
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('tetragon'))
       )
   validations:
   - expression: >-
