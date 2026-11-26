@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/argocd
-    targetRevision: argocd-10.19.1-0.1.21
+    targetRevision: argocd-10.20.0-0.1.22
     helm:
       valuesObject:
         argo-cd:
