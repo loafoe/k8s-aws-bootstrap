@@ -24236,16 +24236,23 @@ metadata:
   annotations:
     # Must run before anything that renders a VerticalPodAutoscaler: kube-prometheus-stack
     # (16), crossplane-providers-aws (18) and cloudnative-pg-operator (21) all do, and a
-    # 1, not 15: consumers of the VPA CRD are kube-prometheus-stack (16) and
-    # crossplane-providers-aws (18), which render VerticalPodAutoscalers, and at 15 the parent
-    # still managed to reach 18 before this app's CRDs were established -- fleet00, 2026-11-26:
-    # `no matches for kind "VerticalPodAutoscaler"` from provider-aws-iam-vpa, three sync
-    # retries. Nothing here depends on another add-on, and the earlier it lands the wider the
-    # margin, which is the only guarantee available: the parent gates a wave on a child
-    # Application's health, and a child that has not synced yet is not observably unhealthy.
-    # There is no upstream CRD-only chart for the VPA (unlike prometheus-operator-crds), so
-    # this Application stays the CRD's owner and simply moves early.
-    argocd.argoproj.io/sync-wave: "1"
+    # 6, not 15: consumers of the VPA CRD are kube-prometheus-stack (16),
+    # crossplane-providers-aws (18) and cloudnative-pg-operator (21), which render
+    # VerticalPodAutoscalers, and at 15 the parent still reached wave 18 before this app's CRDs
+    # were established -- fleet00, 2026-11-26: `no matches for kind "VerticalPodAutoscaler"`
+    # from provider-aws-iam-vpa, three sync retries. Ten waves of margin is the guarantee
+    # available: the parent gates a wave on a child Application's health, and a child that has
+    # not synced yet does not look unhealthy.
+    #
+    # Not wave -5 or 1 (the first attempt, 2026-11-26): there is no upstream CRD-only chart for
+    # the VPA, so this Application has to own both the CRDs and the controllers -- and its
+    # controllers have neither a CriticalAddonsOnly toleration nor a node-type selector. Before
+    # the NodePools at wave 4 there is no schedulable node at all (the master and the system
+    # pool are both tainted), so at 1 the app would sit with three Pending pods and hold the
+    # parent's gate for minutes on every attempt. kyverno sits at 5 for exactly this reason;
+    # 6 puts these CRDs ten waves ahead of their first consumer and their pods on the first
+    # Karpenter node.
+    argocd.argoproj.io/sync-wave: "6"
     argocd.argoproj.io/manifest-generate-paths: /charts/vertical-pod-autoscaler
   finalizers:
     - resources-finalizer.argocd.argoproj.io

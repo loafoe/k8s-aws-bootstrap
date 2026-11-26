@@ -83,15 +83,16 @@ groups:
   - group: monitoring.coreos.com
     providedBy: prometheus-operator-crds
     wave: -5
-  # Deliberately early: three apps render VerticalPodAutoscalers (kube-prometheus-stack
-  # wave 16, crossplane-providers-aws wave 18, cloudnative-pg-operator wave 21), and a VPA
-  # cannot be applied before this app installs the CRDs. There is no upstream CRD-only chart
-  # for the VPA, so this Application stays the owner and moved from 15 to 1: at 15 the parent
-  # still reached wave 18 before these CRDs were established (fleet00, 2026-11-26, three
-  # retries).
+  # Three apps render VerticalPodAutoscalers (kube-prometheus-stack wave 16,
+  # crossplane-providers-aws wave 18, cloudnative-pg-operator wave 21), and a VPA cannot be
+  # applied before this app installs the CRDs. There is no upstream CRD-only chart for the VPA,
+  # so this Application owns both CRDs and controllers; it moved 15 -> 6 because at 15 the
+  # parent reached wave 18 first (fleet00, 2026-11-26), and it cannot go earlier than the
+  # NodePools at wave 4 -- its controllers tolerate no CriticalAddonsOnly taint, so before the
+  # first Karpenter node they are Pending and hold the parent's wave gate.
   - group: autoscaling.k8s.io
     providedBy: vertical-pod-autoscaler
-    wave: 1
+    wave: 6
 
   # Not in any chart's rendered output: Crossplane's package manager installs these AWS
   # provider groups dynamically once crossplane-providers-aws's Provider resources sync
