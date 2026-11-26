@@ -1,6 +1,13 @@
 kube-prometheus-stack:
   fullnameOverride: kps
 
+  # The CRDs are owned by the `prometheus-operator-crds` Application (wave -5), which is the
+  # upstream split chart built for exactly this. Left on, this chart would install them again at
+  # wave 16 -- as it did until 2026-11-26, when cilium (wave 0) could not sync its
+  # ServiceMonitors and the root's retry budget ran out. One owner, and it is the early one.
+  crds:
+    enabled: false
+
   alertmanager:
     alertmanagerSpec:
       resources:

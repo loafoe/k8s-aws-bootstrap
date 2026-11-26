@@ -7,12 +7,16 @@ metadata:
   annotations:
     # Must run before anything that renders a VerticalPodAutoscaler: kube-prometheus-stack
     # (16), crossplane-providers-aws (18) and cloudnative-pg-operator (21) all do, and a
-    # VPA cannot be applied before its CRD exists -- those apps fail every sync attempt
-    # until this one lands. SkipDryRunOnMissingResource does not help across Applications
-    # (it only defers validate-time to apply-time), and the parent app gates on child
-    # health, not sync success, so nothing else catches it. See
-    # skills/maintaining-sync-wave-crds/SKILL.md.
-    argocd.argoproj.io/sync-wave: "15"
+    # 1, not 15: consumers of the VPA CRD are kube-prometheus-stack (16) and
+    # crossplane-providers-aws (18), which render VerticalPodAutoscalers, and at 15 the parent
+    # still managed to reach 18 before this app's CRDs were established -- fleet00, 2026-11-26:
+    # `no matches for kind "VerticalPodAutoscaler"` from provider-aws-iam-vpa, three sync
+    # retries. Nothing here depends on another add-on, and the earlier it lands the wider the
+    # margin, which is the only guarantee available: the parent gates a wave on a child
+    # Application's health, and a child that has not synced yet is not observably unhealthy.
+    # There is no upstream CRD-only chart for the VPA (unlike prometheus-operator-crds), so
+    # this Application stays the CRD's owner and simply moves early.
+    argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/manifest-generate-paths: /charts/vertical-pod-autoscaler
   finalizers:
     - resources-finalizer.argocd.argoproj.io

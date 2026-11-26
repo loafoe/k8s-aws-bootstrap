@@ -1,0 +1,51 @@
+# The prometheus-operator CRDs, from their own upstream chart, before anything that uses them.
+#
+# Charts that render ServiceMonitors/VPAs do not ship the CRDs they need: cilium's chart says so
+# in its own values ("This requires the prometheus CRDs to be available") and defaults those
+# monitors off, and kube-prometheus-stack only installs the CRDs at its own wave (16). With the
+# CRDs arriving that late, cilium (wave 0) could never become healthy and the root's wave gate
+# burned all ten sync retries before it ever reached wave 16 (fleet10, 2026-11-26: 45 resources
+# "waiting for healthy state", `no matches for kind "ServiceMonitor"`).
+#
+# This is the upstream split-chart pattern -- prometheus-community publishes
+# `prometheus-operator-crds` exactly for GitOps ordering -- rather than a wait hook or a
+# hand-built manifest bundle. It carries nothing but CRDs, so its sync is instant and its health
+# is honest; wave -5 puts it before every consumer, and Prune=false means no sync ever deletes a
+# CRD (which would take every Prometheus/ServiceMonitor with it).
+#
+# kube-prometheus-stack runs with crds.enabled=false (charts/kube-prometheus-stack/values.yaml)
+# so this Application is the only owner of these CRDs.
+{{- if .Values.features.kubePrometheusStack.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-operator-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  # No Argo finalizer on purpose: with one, deleting this Application cascades to the CRDs, and
+  # deleting a CRD deletes every Prometheus, ServiceMonitor, PodMonitor, PrometheusRule and VPA
+  # spec in the cluster. Left without it, the worst case is an orphaned Application.
+spec:
+  project: {{ .Values.project }}
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/prometheus-operator-crds
+    targetRevision: prometheus-operator-crds-33.0.2-0.1.0
+    helm:
+      releaseName: prometheus-operator-crds
+  destination:
+    server: https://kubernetes.default.svc
+    # CRDs are cluster-scoped; the namespace only has to be one the project allows
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      # Never prune: uninstalling these would delete every Prometheus, ServiceMonitor,
+      # PodMonitor, PrometheusRule and VPA spec in the cluster along with them
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+  revisionHistoryLimit: 3
+{{- end }}

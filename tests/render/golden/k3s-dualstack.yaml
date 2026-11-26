@@ -23694,7 +23694,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cilium
-    targetRevision: cilium-1.20.5-0.1.6
+    targetRevision: cilium-1.20.5-0.1.7
     helm:
       valuesObject:
         cilium:
@@ -23744,17 +23744,16 @@ spec:
           # The cilium chart's validate.yaml hard-fails the helm render when any
           # ServiceMonitor is enabled and .Capabilities.APIVersions lacks
           # monitoring.coreos.com/v1 -- and Argo CD passes the cluster's live API versions
-          # to `helm template`. On a fresh cluster that CRD only exists once
-          # kube-prometheus-stack (wave 16) has synced, so this app could not render at
-          # all until then: no manifests, no operator rollout, no GatewayClass, and any
-          # Gateway sat at Accepted/Programmed "Waiting for controller".
-          # SkipDryRunOnMissingResource cannot help -- it acts on apply, and there was
-          # nothing to apply. Observed on a fresh devcloud 2026-11-24, where it deadlocked
-          # the bootstrap: cilium needed wave 16 to render, wave 16 needed the Gateway at
-          # wave 13 to be healthy, and the Gateway needed cilium's GatewayClass.
-          # The chart's own escape hatch keeps the ServiceMonitors; applying them simply
-          # fails until wave 16, which the app-level SkipDryRunOnMissingResource and the
-          # unlimited retry below already cover.
+          # to `helm template`. Before 2026-11-26 that CRD only arrived with
+          # kube-prometheus-stack (wave 16), so this app could not render at all: no
+          # manifests, no operator rollout, no GatewayClass, and any Gateway sat at
+          # Accepted/Programmed "Waiting for controller" (fresh devcloud 2026-11-24, where
+          # that deadlocked the bootstrap).
+          # Now the CRDs come from the `prometheus-operator-crds` Application at wave -5, so
+          # the real CRD is there when this renders. trustCRDsExist stays as the chart's own
+          # escape hatch: it keeps the monitors in the render if the CRD app is ever disabled
+          # (features.kubePrometheusStack.enabled=false), where they would otherwise fail the
+          # whole render instead of just their own apply.
           prometheus:
             serviceMonitor:
               trustCRDsExist: true
@@ -23789,9 +23788,8 @@ spec:
       - CreateNamespace=false
       - ServerSideApply=true
       - HealthCheckTimeout=10m
-      # ServiceMonitors here need the monitoring.coreos.com CRD, which only exists once
-      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 0.
-      - SkipDryRunOnMissingResource=true
+      # ServiceMonitors here need the monitoring.coreos.com CRD, which arrives with the
+      # prometheus-operator-crds Application at wave -5 -- before this app, by design.
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
@@ -24238,12 +24236,16 @@ metadata:
   annotations:
     # Must run before anything that renders a VerticalPodAutoscaler: kube-prometheus-stack
     # (16), crossplane-providers-aws (18) and cloudnative-pg-operator (21) all do, and a
-    # VPA cannot be applied before its CRD exists -- those apps fail every sync attempt
-    # until this one lands. SkipDryRunOnMissingResource does not help across Applications
-    # (it only defers validate-time to apply-time), and the parent app gates on child
-    # health, not sync success, so nothing else catches it. See
-    # skills/maintaining-sync-wave-crds/SKILL.md.
-    argocd.argoproj.io/sync-wave: "15"
+    # 1, not 15: consumers of the VPA CRD are kube-prometheus-stack (16) and
+    # crossplane-providers-aws (18), which render VerticalPodAutoscalers, and at 15 the parent
+    # still managed to reach 18 before this app's CRDs were established -- fleet00, 2026-11-26:
+    # `no matches for kind "VerticalPodAutoscaler"` from provider-aws-iam-vpa, three sync
+    # retries. Nothing here depends on another add-on, and the earlier it lands the wider the
+    # margin, which is the only guarantee available: the parent gates a wave on a child
+    # Application's health, and a child that has not synced yet is not observably unhealthy.
+    # There is no upstream CRD-only chart for the VPA (unlike prometheus-operator-crds), so
+    # this Application stays the CRD's owner and simply moves early.
+    argocd.argoproj.io/sync-wave: "1"
     argocd.argoproj.io/manifest-generate-paths: /charts/vertical-pod-autoscaler
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -24401,7 +24403,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/kube-prometheus-stack
-    targetRevision: kube-prometheus-stack-92.22.0-0.1.24
+    targetRevision: kube-prometheus-stack-92.22.0-0.1.25
     helm:
       releaseName: kps
       valuesObject:
@@ -24605,6 +24607,58 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  revisionHistoryLimit: 3
+
+---
+# Source: bootstrap/templates/prometheus/prometheus-operator-crds-app.yaml
+# The prometheus-operator CRDs, from their own upstream chart, before anything that uses them.
+#
+# Charts that render ServiceMonitors/VPAs do not ship the CRDs they need: cilium's chart says so
+# in its own values ("This requires the prometheus CRDs to be available") and defaults those
+# monitors off, and kube-prometheus-stack only installs the CRDs at its own wave (16). With the
+# CRDs arriving that late, cilium (wave 0) could never become healthy and the root's wave gate
+# burned all ten sync retries before it ever reached wave 16 (fleet10, 2026-11-26: 45 resources
+# "waiting for healthy state", `no matches for kind "ServiceMonitor"`).
+#
+# This is the upstream split-chart pattern -- prometheus-community publishes
+# `prometheus-operator-crds` exactly for GitOps ordering -- rather than a wait hook or a
+# hand-built manifest bundle. It carries nothing but CRDs, so its sync is instant and its health
+# is honest; wave -5 puts it before every consumer, and Prune=false means no sync ever deletes a
+# CRD (which would take every Prometheus/ServiceMonitor with it).
+#
+# kube-prometheus-stack runs with crds.enabled=false (charts/kube-prometheus-stack/values.yaml)
+# so this Application is the only owner of these CRDs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-operator-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-5"
+  # No Argo finalizer on purpose: with one, deleting this Application cascades to the CRDs, and
+  # deleting a CRD deletes every Prometheus, ServiceMonitor, PodMonitor, PrometheusRule and VPA
+  # spec in the cluster. Left without it, the worst case is an orphaned Application.
+spec:
+  project: k8s-aws-bootstrap
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/prometheus-operator-crds
+    targetRevision: prometheus-operator-crds-33.0.2-0.1.0
+    helm:
+      releaseName: prometheus-operator-crds
+  destination:
+    server: https://kubernetes.default.svc
+    # CRDs are cluster-scoped; the namespace only has to be one the project allows
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      # Never prune: uninstalling these would delete every Prometheus, ServiceMonitor,
+      # PodMonitor, PrometheusRule and VPA spec in the cluster along with them
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
   revisionHistoryLimit: 3
 
 ---

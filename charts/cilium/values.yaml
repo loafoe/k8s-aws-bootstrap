@@ -1,10 +1,9 @@
 cilium:
-  # ServiceMonitors are OFF for the bootstrap install. They need the
-  # monitoring.coreos.com CRD, which only exists once kube-prometheus-stack (wave 16) has
-  # synced; cilium is wave 0, so with them on the app could never become healthy and the
-  # root's wave gate burned all 10 sync retries before reaching wave 16 (fleet10,
-  # 2026-11-26 06:57: 45 resources "waiting for healthy state", ServiceMonitor "no
-  # matches for kind"). Cilium metrics scraping is parked until they get a home after kps.
+  # ServiceMonitors are ON: the monitoring.coreos.com CRDs are installed before every consumer
+  # by the `prometheus-operator-crds` Application (wave -5), the upstream split chart. Without
+  # that, cilium (wave 0) could never sync them and the root's retry budget ran out before
+  # kube-prometheus-stack (wave 16) could install the CRDs itself (fleet10, 2026-11-26 06:57).
+  # Upstream defaults these off for the same reason, documented in its values.
   # Pin pre-1.20 defaults (e.g. Envoy xDS mode) across the 1.19->1.20 chart bump to
   # avoid a datapath behavior change mid-upgrade. Remove once fully on 1.20+ and
   # defaults are verified. Note: this does NOT cover bpf-lb-sock-hostns-only /
@@ -59,7 +58,7 @@ cilium:
     prometheus:
       enabled: true
       serviceMonitor:
-        enabled: false
+        enabled: true
         labels:
           release: kps
     tolerations:
@@ -80,7 +79,7 @@ cilium:
   prometheus:
     enabled: true
     serviceMonitor:
-      enabled: false
+      enabled: true
       labels:
         release: kps
     metrics:
@@ -178,7 +177,7 @@ cilium:
     metrics:
       enableOpenMetrics: true
       serviceMonitor:
-        enabled: false
+        enabled: true
         labels:
           release: kps
       enabled:
@@ -359,7 +358,7 @@ cilium:
     prometheus:
       enabled: true
       serviceMonitor:
-        enabled: false
+        enabled: true
         labels:
           release: kps
     replicas: 2

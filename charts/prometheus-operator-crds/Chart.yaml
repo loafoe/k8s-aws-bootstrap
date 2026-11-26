@@ -1,0 +1,12 @@
+apiVersion: v2
+name: prometheus-operator-crds
+version: 0.1.0
+description: Thin wrapper for the Prometheus Operator CRDs, installed before every consumer
+# A wrapper (dependency vendored under charts/) like every other add-on here, so the bootstrap
+# keeps one git source: the tenant's only chart registry stays ghcr.io/loafoe/helm-charts and the
+# boot path does not gain prometheus-community.github.io as a runtime dependency.
+dependencies:
+  - name: prometheus-operator-crds
+    # renovate: datasource=helm registryUrl=https://prometheus-community.github.io/helm-charts depName=prometheus-operator-crds
+    version: "33.0.2"
+    repository: "https://prometheus-community.github.io/helm-charts"

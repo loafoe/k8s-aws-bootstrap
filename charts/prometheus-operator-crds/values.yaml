@@ -1,0 +1,3 @@
+prometheus-operator-crds:
+  # No overrides: this chart is its CRDs and nothing else.
+  {}

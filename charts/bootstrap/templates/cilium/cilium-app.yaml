@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cilium
-    targetRevision: cilium-1.20.5-0.1.6
+    targetRevision: cilium-1.20.5-0.1.7
     helm:
       valuesObject:
         cilium:
@@ -75,17 +75,16 @@ spec:
           # The cilium chart's validate.yaml hard-fails the helm render when any
           # ServiceMonitor is enabled and .Capabilities.APIVersions lacks
           # monitoring.coreos.com/v1 -- and Argo CD passes the cluster's live API versions
-          # to `helm template`. On a fresh cluster that CRD only exists once
-          # kube-prometheus-stack (wave 16) has synced, so this app could not render at
-          # all until then: no manifests, no operator rollout, no GatewayClass, and any
-          # Gateway sat at Accepted/Programmed "Waiting for controller".
-          # SkipDryRunOnMissingResource cannot help -- it acts on apply, and there was
-          # nothing to apply. Observed on a fresh devcloud 2026-11-24, where it deadlocked
-          # the bootstrap: cilium needed wave 16 to render, wave 16 needed the Gateway at
-          # wave 13 to be healthy, and the Gateway needed cilium's GatewayClass.
-          # The chart's own escape hatch keeps the ServiceMonitors; applying them simply
-          # fails until wave 16, which the app-level SkipDryRunOnMissingResource and the
-          # unlimited retry below already cover.
+          # to `helm template`. Before 2026-11-26 that CRD only arrived with
+          # kube-prometheus-stack (wave 16), so this app could not render at all: no
+          # manifests, no operator rollout, no GatewayClass, and any Gateway sat at
+          # Accepted/Programmed "Waiting for controller" (fresh devcloud 2026-11-24, where
+          # that deadlocked the bootstrap).
+          # Now the CRDs come from the `prometheus-operator-crds` Application at wave -5, so
+          # the real CRD is there when this renders. trustCRDsExist stays as the chart's own
+          # escape hatch: it keeps the monitors in the render if the CRD app is ever disabled
+          # (features.kubePrometheusStack.enabled=false), where they would otherwise fail the
+          # whole render instead of just their own apply.
           prometheus:
             serviceMonitor:
               trustCRDsExist: true
@@ -120,9 +119,8 @@ spec:
       - CreateNamespace=false
       - ServerSideApply=true
       - HealthCheckTimeout=10m
-      # ServiceMonitors here need the monitoring.coreos.com CRD, which only exists once
-      # kube-prometheus-stack (sync-wave 16) has synced; this is wave 0.
-      - SkipDryRunOnMissingResource=true
+      # ServiceMonitors here need the monitoring.coreos.com CRD, which arrives with the
+      # prometheus-operator-crds Application at wave -5 -- before this app, by design.
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
