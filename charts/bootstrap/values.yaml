@@ -21,6 +21,7 @@ projectNamespaces:
   - kyverno
   - kyverno-exceptions
   - prometheus
+  - spire-server
   - spire-system
   - vpa-system
 
