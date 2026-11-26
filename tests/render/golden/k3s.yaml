@@ -23457,6 +23457,14 @@ spec:
             podLabels:
               
               owner: "team"
+            # Kubernetes API first (providerID + instance-type/region/zone node labels), IMDS only
+            # as the fallback. Karpenter nodes carry all of those and run with an IMDS hop limit
+            # of 1 (karpenter-ec2nodeclass.yaml), which a pod cannot reach; the upstream default
+            # (imds,kubernetes) would try IMDS first and then keep re-reading the ENI count from
+            # it several times a minute. The k3s master has no topology.kubernetes.io/region label and
+            # instance-type "k3s", so there the Kubernetes source fails and it falls back to IMDS
+            # as before.
+            metadataSources: "kubernetes,imds"
   destination:
     server: https://kubernetes.default.svc
     namespace: aws-ebs-csi-driver
@@ -25287,7 +25295,13 @@ spec:
   metadataOptions:
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
-    httpPutResponseHopLimit: 2
+    # 1, not 2: the IMDSv2 token response then cannot make the extra hop into a pod's network
+    # namespace, so only host processes and hostNetwork pods can use IMDS. At 2 any pod could
+    # fetch the node instance profile's credentials (the Karpenter node role). Workloads
+    # authenticate through IRSA/pod identity instead, controllers get region/VPC from their
+    # values, and ebs-csi-node reads its metadata from the Kubernetes API (metadataSources in
+    # aws-ebs-csi-driver-app.yaml). Changing this drifts every Karpenter node once.
+    httpPutResponseHopLimit: 1
     httpTokens: required
 
 ---
