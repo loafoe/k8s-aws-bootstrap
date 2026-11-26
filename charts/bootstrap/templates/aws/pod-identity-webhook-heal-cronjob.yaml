@@ -115,10 +115,35 @@ spec:
         spec:
           serviceAccountName: pod-identity-webhook-healer
           restartPolicy: Never
+          # Restricted Pod Security profile: the script only runs kubectl/jq against the API with
+          # its ServiceAccount token, so it needs no root, capabilities or writable image. It used
+          # to start as root (alpine/k8s's default user) every 2 minutes, which Tetragon's
+          # privileges-raise policy reported as a runc setuid(0) on every run.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          volumes:
+          # mktemp below and kubectl's discovery cache ($HOME/.kube/cache) need a writable dir
+          - name: tmp
+            emptyDir: {}
           containers:
           - name: healer
             # renovate: datasource=docker depName=alpine/k8s
             image: alpine/k8s:1.37.2
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+            env:
+            - name: HOME
+              value: /tmp
+            volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             resources:
               requests:
                 cpu: 10m
