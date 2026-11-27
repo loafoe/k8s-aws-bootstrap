@@ -23784,7 +23784,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/cilium
-    targetRevision: fix/cilium-operator-system-nodes
+    targetRevision: cilium-1.20.5-0.1.7
     helm:
       valuesObject:
         cilium:
@@ -24935,7 +24935,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/tetragon
-    targetRevision: feat/tetragon
+    targetRevision: HEAD
     helm:
       valuesObject:
         tetragon:
