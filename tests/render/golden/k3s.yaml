@@ -24935,7 +24935,7 @@ spec:
   source:
     repoURL: https://github.com/loafoe/k8s-aws-bootstrap
     path: charts/tetragon
-    targetRevision: HEAD
+    targetRevision: tetragon-1.8.0-0.1.0
     helm:
       valuesObject:
         tetragon:
