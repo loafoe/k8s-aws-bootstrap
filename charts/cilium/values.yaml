@@ -371,7 +371,13 @@ cilium:
     # cluster-pool PodCIDR, so its Cilium agent (and every pod's in-cluster API access)
     # waited for the operator to be rescheduled (fleet11, 2026-11-27). The new master's
     # cleanup restarts the operator, which then lands on a system node.
+    # Recreate, not the chart's single-replica RollingUpdate (maxSurge 1): a surge pod is
+    # scheduled while the old one still holds the system node's hostPorts (and repels it
+    # by anti-affinity), so the preference lost and it landed on the master.
     # Keep in step with resources/kustomize/cilium-values*.yaml in k3s-on-ec2.
+    updateStrategy:
+      type: Recreate
+      rollingUpdate: null
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
