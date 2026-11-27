@@ -366,6 +366,18 @@ cilium:
     # change (e.g. enabling Gateway API on a cluster bootstrapped with it off) is
     # silently ignored until something else restarts it
     rollOutPods: true
+    # Control-plane only as the fallback a fresh cluster needs: with the single replica
+    # on the master, a master replacement left no operator to give the new master its
+    # cluster-pool PodCIDR, so its Cilium agent (and every pod's in-cluster API access)
+    # waited for the operator to be rescheduled (fleet11, 2026-11-27). The new master's
+    # cleanup restarts the operator, which then lands on a system node.
+    # Recreate, not the chart's single-replica RollingUpdate (maxSurge 1): a surge pod is
+    # scheduled while the old one still holds the system node's hostPorts (and repels it
+    # by anti-affinity), so the preference lost and it landed on the master.
+    # Keep in step with resources/kustomize/cilium-values*.yaml in k3s-on-ec2.
+    updateStrategy:
+      type: Recreate
+      rollingUpdate: null
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
@@ -376,6 +388,14 @@ cilium:
                   values:
                     - system
                     - control-plane
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+                - key: node-type
+                  operator: In
+                  values:
+                    - system
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -458,12 +478,12 @@ cilium:
     - key: node.cilium.io/agent-not-ready
       operator: Exists
 
-  # cilium-agent on dip-ce-k3s-eu runs at 283-340Mi against its 384Mi limit
-  # (82-89%). Raised for headroom; WireGuard + Hubble export add memory as
-  # node/pod counts grow.
+  # Steady ~240Mi, but start-up on a new node peaked at 415-510Mi (fleet11, 24h to
+  # 2026-11-27) and OOMKilled the agents of a replaced master and a worker at 512Mi.
+  # Keep in step with resources/kustomize/cilium-values*.yaml in k3s-on-ec2.
   resources:
     limits:
-      memory: 512Mi
+      memory: 640Mi
     requests:
       cpu: 100m
       memory: 256Mi

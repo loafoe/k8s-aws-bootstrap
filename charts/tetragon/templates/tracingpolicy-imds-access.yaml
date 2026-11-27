@@ -1,0 +1,39 @@
+# Report-only: every TCP connect to the EC2 Instance Metadata Service, IPv4 and the IPv6
+# endpoint (dual-stack clusters), with the pod and binary that made it.
+#
+# IMDS hands out the node's instance-profile credentials (the Karpenter node role), so a pod
+# reaching it is the classic node-credential theft path on EC2. Workloads here are meant to
+# authenticate through pod identity / IRSA instead, which never touches IMDS. Expected hits
+# are host agents (amazon-ssm-agent, cloud-init, the aws CLI in the master's sync timers)
+# and a few node DaemonSets (ebs-csi-node reads instance metadata); anything else is worth a
+# look. Hubble shows the same flow but only down to the pod; this names the binary.
+#
+# tcp_connect fires in the caller's own network namespace before any packet leaves, so it
+# also records attempts that IMDSv2's hop limit or a network policy would stop.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: imds-access
+  annotations:
+    description: "Report TCP connects to the EC2 instance metadata service"
+spec:
+  kprobes:
+    - call: "tcp_connect"
+      syscall: false
+      message: "TCP connect to the EC2 instance metadata service"
+      args:
+        - index: 0
+          type: "sock"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: "DAddr"
+              values:
+                - "169.254.169.254"
+                - "fd00:ec2::254"
+          matchActions:
+            - action: Post
+              # One event per process per minute: the SSM agent and SDK credential refreshes
+              # poll IMDS continuously, and the first connect is the signal.
+              rateLimit: "1m"
+              rateLimitScope: "process"

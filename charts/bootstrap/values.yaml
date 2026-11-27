@@ -74,6 +74,11 @@ features:
   descheduler:
     enabled: true
 
+  # Tetragon eBPF runtime security observability, report-only TracingPolicies
+  # (charts/tetragon/templates). Events: `kubectl -n kube-system logs ds/tetragon -c export-stdout`
+  tetragon:
+    enabled: true
+
   # Optional Kyverno guardrails, off by default. Enable per cluster.
   kyverno:
     requireImageDigest:

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: tetragon
+version: 0.1.0
+description: Thin wrapper for Tetragon (eBPF runtime security observability), with report-only TracingPolicies
+dependencies:
+  - name: tetragon
+    # renovate: datasource=helm registryUrl=https://helm.cilium.io depName=tetragon
+    version: "1.8.0"
+    repository: "https://helm.cilium.io/"

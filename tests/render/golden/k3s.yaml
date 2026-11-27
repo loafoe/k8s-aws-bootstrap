@@ -23091,6 +23091,18 @@ spec:
               NS=kube-system
               MIN_AGE=300  # seconds: let a (re)started operator and new Gateways settle first
 
+              # The master's first-boot install (field manager "kubectl") co-owns the operator's
+              # spec.strategy, so Argo CD can't drop its rollingUpdate when switching to Recreate:
+              # the dry-run is rejected and the cilium app sits in ComparisonError. Release that
+              # claim (ownership metadata only, the spec is untouched); a no-op once it's gone.
+              MF=$(kubectl get deployment cilium-operator -n "$NS" --show-managed-fields -o json)
+              if echo "$MF" | jq -e '[.metadata.managedFields[] | select(.manager == "kubectl" and .fieldsV1["f:spec"]["f:strategy"] != null)] | length > 0' >/dev/null; then
+                PATCH=$(echo "$MF" | jq -c '{metadata: {managedFields: (.metadata.managedFields | map(if .manager == "kubectl" then (.fieldsV1["f:spec"] |= del(.["f:strategy"])) else . end))}}')
+                kubectl patch deployment cilium-operator -n "$NS" --type=merge -p "$PATCH" >/dev/null \
+                  && echo "Released the first-boot kubectl claim on cilium-operator spec.strategy." \
+                  || echo "Warning: could not release the kubectl claim on cilium-operator spec.strategy."
+              fi
+
               if [ "$(kubectl get configmap cilium-config -n "$NS" -o jsonpath='{.data.enable-gateway-api}')" != "true" ]; then
                 echo "Gateway API is not enabled in cilium-config. Nothing to check."
                 exit 0
@@ -24894,6 +24906,61 @@ spec:
     retry:
       # Unlimited; backoff caps at maxDuration. Transient bootstrap failures (e.g. a webhook
       # that isn't serving yet) must heal by themselves instead of exhausting retries
+      limit: -1
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+
+---
+# Source: bootstrap/templates/tetragon/tetragon-app.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tetragon
+  namespace: argocd
+  annotations:
+    # Last wave: Tetragon is an observer nothing else depends on, so a node where its agent
+    # cannot start (kernel, image pull) only leaves this Application Degraded instead of
+    # holding the parent's wave gate in front of the rest of the bootstrap. Its CRDs (cilium.io
+    # TracingPolicy*) ship in this Application's own sync, and the ServiceMonitors' CRDs come
+    # from prometheus-operator-crds at wave -5.
+    argocd.argoproj.io/sync-wave: "22"
+    argocd.argoproj.io/manifest-generate-paths: /charts/tetragon
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: k8s-aws-bootstrap
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/tetragon
+    targetRevision: HEAD
+    helm:
+      valuesObject:
+        tetragon:
+          podLabels:
+            
+            owner: "team"
+          tetragon:
+            # Stamped on every exported event (cluster_name), so events from several
+            # clusters stay distinguishable once shipped to one log store.
+            clusterName: "acme-k3s-cluster"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The TracingPolicy CRDs are large; client-side apply's last-applied annotation would
+      # not fit.
+      - ServerSideApply=true
+    retry:
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures must heal by
+      # themselves instead of exhausting retries
       limit: -1
       backoff:
         duration: 5s
@@ -27119,7 +27186,10 @@ spec:
   # host-level metrics. kube-system/cilium* (cilium, cilium-envoy,
   # cilium-operator) is the cluster's CNI plugin - it manages the host's
   # network namespace directly, so hostNetwork/hostPID is inherent, not an
-  # over-grant. All five are inherent to what these workloads do.
+  # over-grant. kube-system/tetragon* is the eBPF runtime-security agent: its
+  # init container mounts bpffs on the host (privileged) and the agent runs on
+  # the host network, with SYS_ADMIN to load BPF programs. All six are inherent
+  # to what these workloads do.
   matchConditions:
   - name: exclude-known-legit-pod-security
     expression: >-
@@ -27128,7 +27198,8 @@ spec:
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-spiffe-csi-driver')) ||
         (object.metadata.namespace == 'spire-system' && object.metadata.name.startsWith('spire-agent')) ||
         (object.metadata.namespace == 'prometheus' && object.metadata.name.startsWith('kps-prometheus-node-exporter')) ||
-        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium'))
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('cilium')) ||
+        (object.metadata.namespace == 'kube-system' && object.metadata.name.startsWith('tetragon'))
       )
   validations:
   - expression: >-

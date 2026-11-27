@@ -207,6 +207,18 @@ spec:
               NS=kube-system
               MIN_AGE=300  # seconds: let a (re)started operator and new Gateways settle first
 
+              # The master's first-boot install (field manager "kubectl") co-owns the operator's
+              # spec.strategy, so Argo CD can't drop its rollingUpdate when switching to Recreate:
+              # the dry-run is rejected and the cilium app sits in ComparisonError. Release that
+              # claim (ownership metadata only, the spec is untouched); a no-op once it's gone.
+              MF=$(kubectl get deployment cilium-operator -n "$NS" --show-managed-fields -o json)
+              if echo "$MF" | jq -e '[.metadata.managedFields[] | select(.manager == "kubectl" and .fieldsV1["f:spec"]["f:strategy"] != null)] | length > 0' >/dev/null; then
+                PATCH=$(echo "$MF" | jq -c '{metadata: {managedFields: (.metadata.managedFields | map(if .manager == "kubectl" then (.fieldsV1["f:spec"] |= del(.["f:strategy"])) else . end))}}')
+                kubectl patch deployment cilium-operator -n "$NS" --type=merge -p "$PATCH" >/dev/null \
+                  && echo "Released the first-boot kubectl claim on cilium-operator spec.strategy." \
+                  || echo "Warning: could not release the kubectl claim on cilium-operator spec.strategy."
+              fi
+
               if [ "$(kubectl get configmap cilium-config -n "$NS" -o jsonpath='{.data.enable-gateway-api}')" != "true" ]; then
                 echo "Gateway API is not enabled in cilium-config. Nothing to check."
                 exit 0

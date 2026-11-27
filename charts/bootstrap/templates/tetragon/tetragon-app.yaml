@@ -1,0 +1,53 @@
+{{- if .Values.features.tetragon.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tetragon
+  namespace: argocd
+  annotations:
+    # Last wave: Tetragon is an observer nothing else depends on, so a node where its agent
+    # cannot start (kernel, image pull) only leaves this Application Degraded instead of
+    # holding the parent's wave gate in front of the rest of the bootstrap. Its CRDs (cilium.io
+    # TracingPolicy*) ship in this Application's own sync, and the ServiceMonitors' CRDs come
+    # from prometheus-operator-crds at wave -5.
+    argocd.argoproj.io/sync-wave: "22"
+    argocd.argoproj.io/manifest-generate-paths: /charts/tetragon
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.project }}
+  source:
+    repoURL: https://github.com/loafoe/k8s-aws-bootstrap
+    path: charts/tetragon
+    targetRevision: HEAD
+    helm:
+      valuesObject:
+        tetragon:
+          podLabels:
+            {{- include "bootstrap.ownerLabels" . | nindent 12 }}
+          tetragon:
+            # Stamped on every exported event (cluster_name), so events from several
+            # clusters stay distinguishable once shipped to one log store.
+            clusterName: {{ .Values.environmentConfig.bootstrap.clusterName | quote }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # The TracingPolicy CRDs are large; client-side apply's last-applied annotation would
+      # not fit.
+      - ServerSideApply=true
+    retry:
+      # Unlimited; backoff caps at maxDuration. Transient bootstrap failures must heal by
+      # themselves instead of exhausting retries
+      limit: -1
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3
+{{- end }}
