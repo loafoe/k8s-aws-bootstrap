@@ -76,7 +76,7 @@ registry.k8s.io/sig-storage/snapshot-controller:v8.7.1
 docker.io/library/busybox:1.38.0-uclibc
 docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine
 ghcr.io/spiffe/oidc-discovery-provider:1.16.0
-ghcr.io/spiffe/spiffe-csi-driver:0.3.0
+ghcr.io/spiffe/spiffe-csi-driver:0.4.0
 ghcr.io/spiffe/spire-agent:1.16.0
 ghcr.io/spiffe/spire-controller-manager:0.8.1
 ghcr.io/spiffe/spire-server:1.16.0
